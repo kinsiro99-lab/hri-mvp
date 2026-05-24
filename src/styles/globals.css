@@ -1,0 +1,1019 @@
+/* ─────────────────────────────────────────────────────────────────
+   HRI — Global Styles  [stable]
+   Single-pass, minimal, no experiments.
+   ───────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400&family=Noto+Serif+KR:wght@300;400&display=swap');
+
+/* ── Tokens ─────────────────────────────────────────────────────── */
+:root {
+  --bg:           #f3f2ee;
+  --surface:      #fdfcfa;
+  --surface-refl: #f7f5f1;
+
+  --border:       #d4d1ca;
+  --border-focus: #9ab4cc;
+
+  /* Five type levels — explicit values, no indirection */
+  --t1: #1a1918;   /* user live input */
+  --t2: #2e2d2b;   /* active question */
+  --t3: #616059;   /* past user text */
+  --t4: #8a8784;   /* past HRI / labels */
+  --t5: #888888;   /* placeholder — readable, soft */
+
+  --brand: #1f6dc0;
+
+  --glow:         rgba(154, 180, 204, 0.20);
+  --shadow-input: 0 1px 6px rgba(0,0,0,0.05);
+  --shadow-refl:  0 4px 28px rgba(0,0,0,0.06);
+
+  --r-input: 10px;
+  --r-refl:  8px;
+
+  /* Spacing */
+  --s1:  8px;
+  --s2: 16px;
+  --s3: 28px;
+  --s4: 48px;
+  --s5: 72px;
+  --s6: 96px;
+
+  /* Widths */
+  --w-col:   580px;   /* single column: header + content + input */
+
+  /* Transitions */
+  --t-calm: 380ms;
+  --t-slow: 560ms;
+  --ease:   cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Reset ──────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing:   antialiased;
+  -moz-osx-font-smoothing:  grayscale;
+  text-rendering:           optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family:      'Noto Sans KR', -apple-system, sans-serif;
+  background-color: var(--bg);
+  color:            var(--t1);
+  min-height:       100vh;
+  line-height:      1.75;
+  font-weight:      300;
+  overflow-x:       hidden;
+}
+
+/* ── Page shell — single centred column ─────────────────────────── */
+/*
+   Strategy: one column max-width, margin auto.
+   No flex tricks on the outer shell.
+   This is the most stable centering approach in CSS.
+*/
+.page-shell {
+  width:     100%;
+  max-width: var(--w-col);
+  margin:    0 auto;
+  padding:   0 var(--s2) var(--s6);
+  min-height: 100vh;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.hri-header {
+
+    margin-top: 24px;
+    margin-bottom: 24px;
+
+    display: flex;
+    justify-content: center;
+}
+
+.hri-header img {
+
+    width: 82%;
+    max-width: 480px;
+
+    height: auto;
+
+    display: block;
+
+    margin: 0 auto;
+
+    opacity: 0.93;
+}
+
+/* ── Main content ───────────────────────────────────────────────── */
+.hri-main {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--s4);
+}
+
+/* ── History ────────────────────────────────────────────────────── */
+.history-area {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--s4);
+}
+
+.exchange {
+  display:        flex;
+  flex-direction: column;
+  gap:            var(--s3);
+}
+
+.user-entry {
+  font-size:    0.975rem;
+  font-weight:  300;
+  color:        var(--t3);
+  line-height:  1.75;
+  padding-left: var(--s3);
+  border-left:  1.5px solid var(--border);
+}
+
+.hri-response {
+  font-size:      0.85rem;
+  font-family:    'Noto Serif KR', Georgia, serif;
+  font-weight:    300;
+  color:          var(--t4);
+  line-height:    1.85;
+  letter-spacing: 0.01em;
+  padding-left:   var(--s3);
+}
+
+/* ── Active question ────────────────────────────────────────────── */
+.active-question {
+  font-family:    'Noto Serif KR', Georgia, serif;
+  font-size:      1.05rem;
+  font-weight:    300;
+  color:          var(--t2);
+  line-height:    1.88;
+  letter-spacing: 0.005em;
+  animation:      gentleFade var(--t-calm) var(--ease) both;
+}
+
+/* ── Initial nudge ──────────────────────────────────────────────── */
+.initial-prompt {
+  font-size:       0.78rem;
+  color:           var(--t4);
+  text-align:      center;
+  letter-spacing:  0.07em;
+  animation:       gentleFade var(--t-slow) var(--ease) 300ms both;
+}
+
+/* ── Thinking dots ──────────────────────────────────────────────── */
+.thinking-dots {
+  display:     flex;
+  align-items: center;
+  gap:         7px;
+  padding:     var(--s1) 0;
+}
+
+.thinking-dots span {
+  width:         4px;
+  height:        4px;
+  border-radius: 50%;
+  background:    var(--border-focus);
+  opacity:       0.35;
+  animation:     breathe 1.8s ease-in-out infinite;
+}
+
+.thinking-dots span:nth-child(2) { animation-delay: 0.35s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.70s; }
+
+/* ── Reflection ─────────────────────────────────────────────────── */
+.reflection-block {
+  background:    var(--surface-refl);
+  border-radius: var(--r-refl);
+  padding:       var(--s5) var(--s4);
+  box-shadow:    var(--shadow-refl);
+  animation:     gentleFade var(--t-slow) var(--ease) both;
+}
+
+.reflection-label {
+  display:        block;
+  font-size:      0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color:          var(--t4);
+  margin-bottom:  var(--s3);
+  font-weight:    400;
+}
+
+.reflection-text {
+  font-family:    'Noto Serif KR', Georgia, serif;
+  font-size:      1.025rem;
+  font-weight:    300;
+  color:          var(--t2);
+  line-height:    2.0;
+  letter-spacing: 0.012em;
+}
+
+.restart-btn {
+  display:        inline-block;
+  margin-top:     var(--s4);
+  font-size:      0.7rem;
+  color:          var(--t4);
+  background:     none;
+  border:         none;
+  cursor:         pointer;
+  letter-spacing: 0.1em;
+  padding:        2px 0;
+  font-family:    inherit;
+  border-bottom:  1px solid transparent;
+  transition:
+    color         var(--t-calm) ease,
+    border-color  var(--t-calm) ease;
+}
+
+.restart-btn:hover {
+  color:             var(--t3);
+  border-bottom-color: var(--border);
+}
+
+/* ── Error ──────────────────────────────────────────────────────── */
+.error-msg {
+  font-size:   0.8rem;
+  color:       #a03030;
+  animation:   gentleFade 160ms ease both;
+}
+
+/* ── Input row ──────────────────────────────────────────────────── */
+.input-row {
+  width: 100%;
+}
+
+.input-wrap {
+  position: relative;
+  width:    100%;
+}
+
+.hri-input {
+  width:       100%;
+  background:  var(--surface);
+  border:      1.5px solid var(--border);
+  border-radius: var(--r-input);
+  padding:     20px 24px;
+  font-size:   1rem;
+  font-family: 'Noto Sans KR', -apple-system, sans-serif;
+  font-weight: 300;
+  color:       var(--t1);
+  line-height: 1.7;
+  resize:      none;
+  min-height:  58px;
+  max-height:  220px;
+  overflow-y:  auto;
+  box-shadow:  var(--shadow-input);
+  outline:     none;
+  transition:
+    border-color var(--t-calm) ease,
+    box-shadow   var(--t-calm) ease;
+  -webkit-appearance: none;
+}
+
+.hri-input::placeholder {
+  color:       var(--t5);   /* #888888 — readable but soft */
+  font-weight: 300;
+}
+
+.hri-input:focus {
+  border-color: var(--border-focus);
+  box-shadow:
+    0 0 0 4px var(--glow),
+    var(--shadow-input);
+}
+
+.hri-input:disabled {
+  opacity: 0.45;
+  cursor:  not-allowed;
+}
+
+/* ── Enter hint ─────────────────────────────────────────────────── */
+.enter-hint {
+  text-align:     right;
+  font-size:      0.67rem;
+  color:          var(--t4);
+  margin-top:     6px;
+  letter-spacing: 0.06em;
+  opacity:        0;
+  transition:     opacity var(--t-calm) ease;
+  user-select:    none;
+}
+
+.enter-hint.visible { opacity: 1; }
+
+/* ── Fade utility ───────────────────────────────────────────────── */
+.fade-in {
+  animation: gentleFade var(--t-calm) var(--ease) both;
+}
+
+/* ── Keyframes ──────────────────────────────────────────────────── */
+@keyframes gentleFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.2;  transform: scale(0.85); }
+  50%       { opacity: 0.75; transform: scale(1.12); }
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+.hri-input::-webkit-scrollbar       { width: 3px; }
+.hri-input::-webkit-scrollbar-track { background: transparent; }
+.hri-input::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── Mobile ≤ 640px ─────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  :root {
+    --s4: 36px;
+    --s5: 52px;
+    --s6: 64px;
+  }
+
+  .page-shell {
+    padding: 0 var(--s2) var(--s6);
+  }
+
+  .hri-header img {
+
+    width: 92%;
+    max-width: 640px;
+
+    height: auto;
+
+    display: block;
+
+    margin: 0 auto;
+}
+
+  .hri-input        { 
+      padding: 17px 18px; 
+      font-size: 1rem; 
+}
+
+  .active-question  { 
+      font-size: 1rem; 
+}
+
+  .user-entry       { font-size: 0.935rem; }
+  .hri-response     { font-size: 0.82rem; }
+
+  .reflection-block { padding: var(--s4) var(--s3); }
+}
+
+/* ── Very small ≤ 390px ─────────────────────────────────────────── */
+@media (max-width: 390px) {
+  .reflection-block { padding: var(--s3) var(--s2); }
+}
+
+/* ── Print ──────────────────────────────────────────────────────── */
+@media print {
+  .hri-input, .enter-hint, .restart-btn { display: none; }
+}
+.header-image {
+
+    width: 92%;
+    max-width: 640px;
+
+    height: auto;
+
+    display: block;
+
+    margin: 0 auto;
+}
+
+/* HRI Refactor 01.1 — Typography color tokens */
+
+:root {
+  --hri-ink: #13233f;
+  --hri-ink-soft: #263a5c;
+  --hri-muted: #53627c;
+  --hri-faint: #7d8798;
+  --hri-line: rgba(19, 35, 63, 0.18);
+}
+
+body {
+  color: var(--hri-ink);
+}
+
+.user-entry {
+  color: var(--hri-ink-soft) !important;
+}
+
+.active-question,
+.hri-response {
+  color: var(--hri-muted) !important;
+}
+
+.reflection-block {
+  color: var(--hri-ink) !important;
+}
+
+.reflection-text {
+  color: var(--hri-ink) !important;
+}
+
+.reflection-label,
+.restart-btn {
+  color: var(--hri-faint) !important;
+}
+
+.exchange {
+  border-left-color: var(--hri-line) !important;
+}
+
+/* HRI Refactor 01.3 — Tighter event cadence */
+
+.history-area {
+  margin-top: 1.75rem !important;
+}
+
+.exchange {
+  margin-bottom: 0.65rem !important;
+  padding-bottom: 0 !important;
+}
+
+.user-entry {
+  margin-top: 0 !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.reflection-block {
+  margin-top: 1.5rem !important;
+}
+
+.reflection-label {
+  margin-bottom: 1.25rem !important;
+}
+
+.reflection-text {
+  margin-top: 0 !important;
+}
+
+/* HRI Refactor 01.5 — Compact vertical rhythm */
+
+.history-area {
+  margin-top: 1.1rem !important;
+}
+
+/* 한 입력-질문 세트 전체 간격 */
+.exchange {
+  margin-bottom: 0.15rem !important;
+  padding-bottom: 0 !important;
+}
+
+/* 사용자 입력 → 질문 간격: 추가 20% 축소 */
+.user-entry {
+  margin-top: 0 !important;
+  margin-bottom: 0.45rem !important;
+}
+
+/* 질문 → 다음 입력 간격: 추가 40% 축소 */
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0.45rem !important;
+}
+
+/* Reflection 카드 위 간격 축소 */
+.reflection-block {
+  margin-top: 0.8rem !important;
+  padding-top: 2.4rem !important;
+  padding-bottom: 2.4rem !important;
+  min-height: auto !important;
+}
+
+/* 흐름 요약 라벨과 본문 간격 */
+.reflection-label {
+  margin-bottom: 0.9rem !important;
+}
+
+/* 요약 본문 아래 과도한 여백 방지 */
+.reflection-text {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* 다시 시작하기 버튼 위치 압축 */
+.restart-btn {
+  margin-top: 1.6rem !important;
+}
+/* HRI Refactor 01.6 — Final compact event cadence */
+
+.user-entry {
+  margin-top: 0 !important;
+  margin-bottom: 0.32rem !important;
+}
+
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0.27rem !important;
+}
+
+.exchange {
+  margin-bottom: 0.08rem !important;
+  padding-bottom: 0 !important;
+}
+
+.history-area {
+  margin-top: 0.95rem !important;
+}
+
+.reflection-block {
+  margin-top: 0.65rem !important;
+}
+/* HRI Refactor 01.7 — Micro cadence compression */
+
+.user-entry {
+  margin-top: 0 !important;
+  margin-bottom: 0.26rem !important;
+}
+
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0.19rem !important;
+}
+
+.exchange {
+  margin-bottom: 0.05rem !important;
+  padding-bottom: 0 !important;
+}
+
+.history-area {
+  margin-top: 0.85rem !important;
+}
+
+.reflection-block {
+  margin-top: 0.55rem !important;
+}
+/* HRI Refactor 01.8 — Final vertical compression */
+
+.history-area {
+  margin-top: 0.7rem !important;
+}
+
+.exchange {
+  margin-bottom: 0.03rem !important;
+  padding-bottom: 0 !important;
+}
+
+.user-entry {
+  margin-top: 0 !important;
+  margin-bottom: 0.21rem !important;
+}
+
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0.13rem !important;
+}
+
+.reflection-block {
+  margin-top: 0.4rem !important;
+  padding-top: 1.75rem !important;
+  padding-bottom: 1.75rem !important;
+  min-height: auto !important;
+}
+
+.reflection-label {
+  margin-bottom: 0.65rem !important;
+}
+
+.reflection-text {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.restart-btn {
+  margin-top: 0.9rem !important;
+}
+
+/* HRI Refactor 01.9 — Rhythm-unit based event spacing */
+
+:root {
+  --hri-event-inner-gap: 1.35rem;
+  --hri-event-next-gap: 1.55rem;
+}
+
+/* 각 입력-질문 세트를 하나의 조용한 단위로 고정 */
+.exchange {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--hri-event-inner-gap) !important;
+
+  margin-top: 0 !important;
+  margin-bottom: var(--hri-event-next-gap) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* 입력과 질문 자체의 기본 margin 제거 */
+.user-entry,
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.75 !important;
+}
+
+/* 전체 history 시작 간격 */
+.history-area {
+  margin-top: 0.7rem !important;
+}
+
+/* 마지막 입력 이후 reflection 시작 간격 */
+.reflection-block {
+  margin-top: 1.55rem !important;
+  padding-top: 1.75rem !important;
+  padding-bottom: 1.75rem !important;
+}
+
+/* reflection 내부 문단 리듬 유지 */
+.reflection-text {
+  line-height: 1.75 !important;
+}
+
+/* HRI Refactor 01.9 — Rhythm-unit based event spacing */
+
+:root {
+  --hri-event-inner-gap: 1.35rem;
+  --hri-event-next-gap: 1.55rem;
+}
+
+/* 각 입력-질문 세트를 하나의 조용한 단위로 고정 */
+.exchange {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--hri-event-inner-gap) !important;
+
+  margin-top: 0 !important;
+  margin-bottom: var(--hri-event-next-gap) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* 입력과 질문 자체의 기본 margin 제거 */
+.user-entry,
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.75 !important;
+}
+
+/* 전체 history 시작 간격 */
+.history-area {
+  margin-top: 0.7rem !important;
+}
+
+/* 마지막 입력 이후 reflection 시작 간격 */
+.reflection-block {
+  margin-top: 1.55rem !important;
+  padding-top: 1.75rem !important;
+  padding-bottom: 1.75rem !important;
+}
+
+/* reflection 내부 문단 리듬 유지 */
+.reflection-text {
+  line-height: 1.75 !important;
+}
+
+
+/* HRI Refactor 01.9 — Rhythm-unit based event spacing */
+
+:root {
+  --hri-event-inner-gap: 1.35rem;
+  --hri-event-next-gap: 1.55rem;
+}
+
+/* 각 입력-질문 세트를 하나의 조용한 단위로 고정 */
+.exchange {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--hri-event-inner-gap) !important;
+
+  margin-top: 0 !important;
+  margin-bottom: var(--hri-event-next-gap) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* 입력과 질문 자체의 기본 margin 제거 */
+.user-entry,
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.75 !important;
+}
+
+/* 전체 history 시작 간격 */
+.history-area {
+  margin-top: 0.7rem !important;
+}
+
+/* 마지막 입력 이후 reflection 시작 간격 */
+.reflection-block {
+  margin-top: 1.55rem !important;
+  padding-top: 1.75rem !important;
+  padding-bottom: 1.75rem !important;
+}
+
+/* reflection 내부 문단 리듬 유지 */
+.reflection-text {
+  line-height: 1.75 !important;
+}
+
+
+/* HRI Refactor 01.10 — Correct compact event rhythm */
+
+:root {
+  --hri-event-inner-gap: 0.45rem;
+  --hri-event-next-gap: 0.72rem;
+}
+
+/* 입력 → 질문 간격 */
+.exchange {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--hri-event-inner-gap) !important;
+
+  margin-top: 0 !important;
+  margin-bottom: var(--hri-event-next-gap) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* 텍스트 자체 margin 제거 */
+.user-entry,
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.62 !important;
+}
+
+/* history 시작 간격 */
+.history-area {
+  margin-top: 0.6rem !important;
+}
+
+/* 마지막 입력 이후 입력창/요약으로 넘어가는 간격 */
+.reflection-block {
+  margin-top: 0.75rem !important;
+  padding-top: 1.65rem !important;
+  padding-bottom: 1.65rem !important;
+}
+
+
+/* HRI Refactor 01.11 — Reduce event pair spacing by 30% */
+
+:root {
+  --hri-event-inner-gap: 0.32rem;
+  --hri-event-next-gap: 0.50rem;
+}
+
+.exchange {
+  gap: var(--hri-event-inner-gap) !important;
+  margin-bottom: var(--hri-event-next-gap) !important;
+}
+
+
+/* HRI Refactor 01.12 — Final 40% pair spacing reduction */
+
+:root {
+  --hri-event-inner-gap: 0.19rem;
+  --hri-event-next-gap: 0.30rem;
+}
+
+.exchange {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: var(--hri-event-inner-gap) !important;
+
+  margin-top: 0 !important;
+  margin-bottom: var(--hri-event-next-gap) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.exchange + .exchange {
+  margin-top: 0 !important;
+}
+
+.user-entry,
+.active-question,
+.hri-response {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.55 !important;
+}
+
+/* HRI Refactor 01.13 — Unified dark blue text only */
+
+:root {
+  --hri-dark-blue: #10284A;
+  --hri-dark-blue-soft: rgba(16, 40, 74, 0.72);
+  --hri-dark-blue-faint: rgba(16, 40, 74, 0.58);
+}
+
+/* 본문 전체: Dark Blue 통일 */
+body,
+.user-entry,
+.active-question,
+.hri-response,
+.reflection-text,
+.hri-input {
+  color: var(--hri-dark-blue) !important;
+}
+
+/* 보조 라벨/버튼/placeholder는 같은 계열에서만 약하게 */
+.reflection-label,
+.restart-btn,
+.initial-prompt {
+  color: var(--hri-dark-blue-soft) !important;
+}
+
+.hri-input::placeholder {
+  color: var(--hri-dark-blue-faint) !important;
+}
+
+/* 좌측 세로선도 같은 계열로 맞춤 */
+.user-entry,
+.exchange {
+  border-left-color: rgba(16, 40, 74, 0.18) !important;
+}
+
+/* HRI 04.2 — dark blue typography unification */
+:root {
+  --hri-text-blue: #10284f;
+  --hri-subtle-blue: #263f67;
+}
+
+.hri-session,
+.hri-session p,
+.hri-session button,
+.hri-session textarea,
+.hri-session input,
+.user-entry,
+.hri-response,
+.active-question,
+.reflection-text {
+  color: var(--hri-text-blue) !important;
+}
+
+.reflection-label,
+.reset-button,
+.hri-reset,
+.error-msg {
+  color: var(--hri-subtle-blue) !important;
+}
+
+/* ===== HRI INPUT FINAL TUNING ===== */
+
+.hri-input,
+textarea.hri-input,
+textarea {
+  font-size: 1.16rem !important;
+  line-height: 1.8 !important;
+
+  min-height: 110px !important;
+  padding: 14px 16px !important;
+
+  color: #001f3f !important;
+}
+
+/* placeholder */
+
+.hri-input::placeholder,
+textarea::placeholder,
+input::placeholder {
+  font-size: 1.14rem !important;
+  line-height: 1.8 !important;
+
+  color: #314765 !important;
+  font-weight: 500 !important;
+
+  opacity: 1 !important;
+}
+
+/* ===== FINAL TYPOGRAPHY BALANCE ===== */
+
+.user-entry {
+  font-size: 1.16rem !important;
+  line-height: 1.8 !important;
+}
+
+.hri-response {
+  font-size: 1.08rem !important;
+  line-height: 1.8 !important;
+}
+
+.reflection-text {
+  font-size: 1.22rem !important;
+  line-height: 1.78 !important;
+}
+/* ===== STRONG READABILITY TUNING ===== */
+
+.user-entry {
+  font-size: 1.22rem !important;
+  line-height: 1.85 !important;
+}
+
+.hri-response {
+  font-size: 1.14rem !important;
+  line-height: 1.85 !important;
+}
+
+.reflection-text {
+  font-size: 1.32rem !important;
+  line-height: 1.82 !important;
+}
+
+/* ===== STRONG READABILITY TUNING ===== */
+
+.user-entry {
+  font-size: 1.22rem !important;
+  line-height: 1.85 !important;
+}
+
+.hri-response {
+  font-size: 1.14rem !important;
+  line-height: 1.85 !important;
+}
+
+.reflection-text {
+  font-size: 1.32rem !important;
+  line-height: 1.82 !important;
+}
+/* ===== HEADER SCALE UP ===== */
+
+.hri-header img,
+.logo-wrap img,
+.hero-logo img {
+  transform: scale(1.15);
+  transform-origin: center;
+}
+
+/* tagline */
+
+.hero-title,
+.hero-tagline {
+  font-size: 1.15em !important;
+}
+/* ===== USER TEXT VISIBILITY FIX ===== */
+
+.user-entry,
+.user-message,
+.user-text {
+  color: #0f2e5c !important;
+  font-weight: 500 !important;
+  opacity: 1 !important;
+}
+
+/* HRI question */
+
+.hri-response,
+.assistant-message,
+.question-text {
+  color: #173b72 !important;
+  font-weight: 500 !important;
+  opacity: 1 !important;
+}
+
+/* input placeholder */
+
+.hri-input::placeholder,
+textarea::placeholder,
+input::placeholder {
+  color: #4c6283 !important;
+  font-weight: 500 !important;
+  opacity: 1 !important;
+}
+
