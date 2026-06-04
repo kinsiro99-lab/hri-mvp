@@ -16,6 +16,7 @@ import HriInput     from "./HriInput"
 import ThinkingDots from "./ThinkingDots"
 import { callEngine } from "@/lib/api"
 import type { Turn } from "@/lib/questionEngine"
+import RuntimePanel from "./RuntimePanel"
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -52,6 +53,11 @@ export default function HriSession() {
   const [reflection, setReflection] = useState<string | null>(null)
   const [mainQuestion, setMainQuestion] = useState<string | null>(null)
   const [error,      setError]      = useState<string | null>(null)
+  const [runtimeState, setRuntimeState] = useState("IN MOTION")
+  const [confidence, setConfidence] = useState(0.714)
+  const [tension, setTension] = useState(0.582)
+  const [fragmentation, setFragmentation] = useState(0.291)
+  const [elasticity, setElasticity] = useState(0.418)
 
   // For fade-in: we key the active question so CSS re-triggers on change
   const [questionKey, setQuestionKey] = useState(0)
@@ -222,6 +228,14 @@ export default function HriSession() {
             />
           </>
         )}
+
+      <RuntimePanel
+          state={runtimeState}
+          confidence={confidence}
+          tension={tension}
+          fragmentation={fragmentation}
+          elasticity={elasticity}
+       /> 
 
       </main>
     </div>

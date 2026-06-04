@@ -63,6 +63,16 @@ export default function HriInput({
     <div className="input-row">
       <div className="input-wrap">
         <textarea
+  style={{
+    minHeight: "140px",
+    padding: "22px",
+    fontSize: "20px",
+    lineHeight: "1.7",
+    borderRadius: "20px",
+    border: "2px solid #111111",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+    background: "#ffffff",
+  }}
           ref={ref}
           className="hri-input"
           value={value}

@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400&display=swap');.hri-input{
+  width:100%;
+  border:2px solid #111111;
+  border-radius:28px;
+  padding:34px;
+  font-size:24px;
+  font-weight:500;
+  line-height:1.6;
+  letter-spacing:-0.3px;
+  background:#ffffff;
+  color:#111111;
+  resize:none;
+  outline:none;
+  transition:all 0.2s ease;
+}
+
+.hri-input:focus{
+  border-color:#000000;
+  box-shadow:0 0 0 4px rgba(0,0,0,0.06);
+}
+img.header-image {
+  width: 520px !important;
+}
+img.header-image {
+  transform: scale(1.15);
+}

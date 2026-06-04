@@ -33,5 +33,5 @@ export function getNextOutput(request: EngineRequest): EngineResponse {
 }
 
 
-// Backward-compatible API/UI contract name.
+// Backward-compatible API/UI contract n ame.
 export type EngineOutput = EngineResponse
