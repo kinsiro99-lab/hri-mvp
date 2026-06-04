@@ -222,13 +222,11 @@ function buildCandidates(state: SessionState, events: HriEvent[]): QuestionCandi
   const isMixed = anchorResult.tone === "mixed";
   const positiveSet = positiveStageQuestions[anchorResult.positiveSignal] ?? positiveStageQuestions.none;
   const primaryQuestions =
-    isMixed && anchor === "launchPressure"
-      ? mixedLaunchQuestions[stage] ?? []
-      : isMixed
-        ? ? positiveSet[stage] ?? []
-        : anchor === "positive"
-          ? positiveSet[stage] ?? []
-          : stageQuestions[anchor]?.[stage] ?? [];
+  isMixed && anchor === "launchPressure"
+    ? mixedLaunchQuestions[stage] ?? []
+    : anchor === "positive"
+      ? positiveSet[stage] ?? []
+      : stageQuestions[anchor]?.[stage] ?? [];
   const fallbackQuestions = stageQuestions.general[stage] ?? [];
   const category = isMixed ? "density" : categoryByAnchor[anchor] ?? "density";
 
