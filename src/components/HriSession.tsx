@@ -15,7 +15,7 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import HriInput     from "./HriInput"
 import ThinkingDots from "./ThinkingDots"
 import { callEngine } from "@/lib/api"
-import type { Turn } from "@/lib/questionEngine"
+type Turn = number
 import RuntimePanel from "./RuntimePanel"
 
 // ── Types ──────────────────────────────────────────────────────────
