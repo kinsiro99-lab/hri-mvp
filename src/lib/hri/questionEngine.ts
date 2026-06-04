@@ -225,7 +225,7 @@ function buildCandidates(state: SessionState, events: HriEvent[]): QuestionCandi
     isMixed && anchor === "launchPressure"
       ? mixedLaunchQuestions[stage] ?? []
       : isMixed
-        ? mixedPositivePressureQuestions[stage] ?? []
+        ? ? positiveSet[stage] ?? []
         : anchor === "positive"
           ? positiveSet[stage] ?? []
           : stageQuestions[anchor]?.[stage] ?? [];
