@@ -1016,4 +1016,19 @@ input::placeholder {
   font-weight: 500 !important;
   opacity: 1 !important;
 }
+/* ===== DESKTOP 3 COLUMN LAYOUT ===== */
 
+@media (min-width: 1200px) {
+
+  .page-shell {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 0 40px;
+
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 48px;
+    align-items: start;
+  }
+
+}

@@ -146,7 +146,7 @@ export default function HriSession() {
 
       {/* ── Main column ── */}
       <main className="hri-main">
-
+      
         {/* ── Past exchanges ──────────────────────────────────────
             Each exchange recedes into the past.
             User text: left-bordered, full weight.
@@ -229,6 +229,9 @@ export default function HriSession() {
           </>
         )}
 
+      
+
+      </main>
       <RuntimePanel
           state={runtimeState}
           confidence={confidence}
@@ -236,8 +239,6 @@ export default function HriSession() {
           fragmentation={fragmentation}
           elasticity={elasticity}
        /> 
-
-      </main>
     </div>
   )
 }
