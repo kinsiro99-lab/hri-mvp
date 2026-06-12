@@ -302,25 +302,7 @@ export default function HriSession() {
 
   <hr />
 
-  <div style={{ marginTop: "24px" }}>
-    <h3>DR. RICHARD KIM'S REFLECTIONS · 김 박사의 관찰</h3>
-
-    <p
-      style={{
-        fontSize: "12px",
-        color: "4c6283",
-        marginBottom: "12px"
-      }}
-    >
-      Founder & Developer of Human Rhythm Intelligence
-    </p>
-
-   <p>
-  Reflections based on your emerging rhythm.
-  <br />
-  당신의 삶에 나타난 리듬을 바탕으로 한 관찰입니다.
-</p>
-  </div>
+ 
 
 </div>
   <RuntimePanel
