@@ -223,23 +223,117 @@ export default function HriSession() {
               value={inputValue}
               onChange={setInputValue}
               onSubmit={handleSubmit}
+              placeholder={`이젠, 떠오르는 생각을 적어보세요.
+            Now, write down the thoughts that come to mind.`}
               disabled={phase === "thinking"}
               autoFocus
-            />
+           />
           </>
         )}
 
       
 
-      </main>
-      <RuntimePanel
-          state={runtimeState}
-          confidence={confidence}
-          tension={tension}
-          fragmentation={fragmentation}
-          elasticity={elasticity}
-       /> 
-    </div>
-  )
+     
+
+
+<div className="bottom-panels">
+
+ <div className="aurina-panel">
+  <h3>오리나 (AURINA)</h3>
+
+  <video
+    src="/videos/aurina-greeting.mp4"
+    autoPlay
+    muted
+    loop
+    playsInline
+    style={{
+      width: "100%",
+      height: "260px",
+      objectFit: "cover",
+      borderRadius: "12px",
+      marginTop: "12px"
+    }}
+    />
+ <p
+  style={{
+    marginTop:"16px",
+    lineHeight:"1.6",
+   color: "black"
+  }}
+>
+  당신 자신을 바라볼 수 있는 마음의 창입니다.
+  <br />
+  <span
+  style={{
+    fontSize:"13px",
+    color: "black"
+  }}
+>
+    A window into yourself.
+  </span>
+</p>
+</div>
+ <div className="main-panel">
+
+  <div style={{ marginBottom: "24px" }}>
+   <h3>CURRENT · 현재</h3>
+
+<p>
+  What is appearing in your life at this moment.
+  <br />
+  지금 삶 속에 드러나고 있는 모습입니다.
+</p>
+  </div>
+
+  <hr />
+
+  <div style={{ margin: "24px 0" }}>
+    <h3>RHYTHM · 리듬</h3>
+
+
+
+<p>
+  Your rhythm is unfolding.
+  <br />
+  당신의 리듬이 펼쳐지고 있습니다.
+</p>
+  </div>
+
+  <hr />
+
+  <div style={{ marginTop: "24px" }}>
+    <h3>DR. RICHARD KIM'S REFLECTIONS · 김 박사의 관찰</h3>
+
+    <p
+      style={{
+        fontSize: "12px",
+        color: "4c6283",
+        marginBottom: "12px"
+      }}
+    >
+      Founder & Developer of Human Rhythm Intelligence
+    </p>
+
+   <p>
+  Reflections based on your emerging rhythm.
+  <br />
+  당신의 삶에 나타난 리듬을 바탕으로 한 관찰입니다.
+</p>
+  </div>
+
+</div>
+  <RuntimePanel
+    state={runtimeState}
+    confidence={confidence}
+    tension={tension}
+    fragmentation={fragmentation}
+    elasticity={elasticity}
+  />
+
+</div>
+    </main>
+</div>
+)
 }
 

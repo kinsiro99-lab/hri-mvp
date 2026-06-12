@@ -39,7 +39,7 @@
   --s6: 96px;
 
   /* Widths */
-  --w-col:   580px;   /* single column: header + content + input */
+  --w-col:   1100px;   /* single column: header + content + input */
 
   /* Transitions */
   --t-calm: 380ms;
@@ -108,12 +108,11 @@ body {
 
     opacity: 0.93;
 }
-
 /* ── Main content ───────────────────────────────────────────────── */
 .hri-main {
-  display:        flex;
+  display: flex;
   flex-direction: column;
-  gap:            var(--s4);
+  gap: 32px;
 }
 
 /* ── History ────────────────────────────────────────────────────── */
@@ -254,13 +253,16 @@ body {
   position: relative;
   width:    100%;
 }
-
 .hri-input {
-  width:       100%;
-  background:  var(--surface);
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    display: block;
+
+    background: var(--surface);
   border:      1.5px solid var(--border);
   border-radius: var(--r-input);
-  padding:     20px 24px;
+  padding: 14px 18px;
   font-size:   1rem;
   font-family: 'Noto Sans KR', -apple-system, sans-serif;
   font-weight: 300;
@@ -268,7 +270,7 @@ body {
   line-height: 1.7;
   resize:      none;
   min-height:  58px;
-  max-height:  220px;
+  max-height: 140px;
   overflow-y:  auto;
   box-shadow:  var(--shadow-input);
   outline:     none;
@@ -381,7 +383,7 @@ body {
 .header-image {
 
     width: 92%;
-    max-width: 640px;
+    max-width: 520px;
 
     height: auto;
 
@@ -1018,17 +1020,81 @@ input::placeholder {
 }
 /* ===== DESKTOP 3 COLUMN LAYOUT ===== */
 
-@media (min-width: 1200px) {
 
-  .page-shell {
-    max-width: 1800px;
-    margin: 0 auto;
-    padding: 0 40px;
+.aurina-panel {
+  width:260px;
+  margin-top:20px;
 
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 48px;
-    align-items: start;
+  border:2px solid #24344f;
+
+  border-radius:20px;
+  min-height:500px;
+  background:#fdfcfa;
+}
+
+.aurina-panel h3 {
+  margin: 0;
+  font-size: 24px;
+  color: #15325b;
+}
+
+.aurina-panel p {
+  font-size: 14px;
+  margin-top: 8px;
+  color: #4c6283;
+}
+.main-panel{
+  width:620px;
+  min-width:320px;
+  min-height:300px;
+
+  border:2px solid #24344f;
+
+  border-radius:20px;
+  background:#fdfcfa;
+}
+.bottom-panels {
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    gap:40px;
+
+    width:100%;
+    max-width:1200px;
+    margin:10px auto 0;
+    padding-left:120px;
+}
+
+.aurina-panel{
+    width:320px;
+    height:300px;
+
+    margin-top:0;
+    margin-left:-80px;
+
+    border-radius:20px;
+    background:#fdfcfa;
+    padding:24px;
+}
+
+.aurina-panel h3 {
+    margin: 0;
+    font-size: 24px;
+    color: #15325b;
+
+   
+}
+
+.aurina-panel p {
+    font-size: 14px;
+    margin-top: 8px;
+    color: #4c6283;
+
+   
+}
+
+@media (max-width: 900px) {
+  .bottom-panels {
+    flex-direction: column;
   }
-
 }

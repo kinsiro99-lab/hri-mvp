@@ -23,7 +23,7 @@ export default function HriInput({
   value,
   onChange,
   onSubmit,
-  placeholder = "지금 떠오르는 생각을 적어보세요",
+  placeholder,
   disabled = false,
   autoFocus = true,
 }: HriInputProps) {

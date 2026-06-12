@@ -1,10 +1,18 @@
 .runtime-detected{
-  margin-top:42px;
-  font-size:38px;
+  margin-top:10px;
+  font-size:30px;
   font-weight:400;
   letter-spacing:-0.5px;
   line-height:1.2;
   color:#f5f5f5;
   font-family:Inter, sans-serif;
   opacity:0.92;
+}
+.decision-layer{
+    margin-top:24px;
+    font-size:18px;
+    line-height:1.8;
+    color:#d8d8d8;
+    font-weight:400;
+    max-width:420px;
 }

@@ -1,5 +1,4 @@
-
-import "@/styles/runtime.css"
+// import "@/styles/runtime.css"
 
 interface RuntimePanelProps {
   state: string
@@ -18,31 +17,33 @@ export default function RuntimePanel({
 }: RuntimePanelProps) {
   return (
     <section
-      style={{
-        marginTop: "120px",
+  style={{
+    width: "320px",
+    marginTop: "0px",
         background: "linear-gradient(180deg, #050505 0%, #0b0b0b 100%)",
-        border: "1px solid rgba(255,255,255,0.04)",
-        boxShadow: "0 40px 120px rgba(0,0,0,0.45)",
-        borderRadius: "32px",
-        padding: "56px",
+        border: "2px solid rgba(255,255,255,0.12)",
+        boxShadow: "0 12px 36px rgba(0,0,0,0.35)",
+        borderRadius: "20px",
+        minHeight: "260px",
+        padding: "16px",
         color: "#f5f5f5",
        fontFamily: "Inter, sans-serif"
       }}
     >
       <div
         style={{
-         fontSize: "15px",                                      
+         fontSize: "10px",                                      
           opacity: 0.92,
-          marginBottom: "24px",
+          marginBottom: "12px",
         }}
       >
-       CURRENT CONTINUITY
+       CURRENT RHYTHM
       </div>
 
      <div
         style={{
           lineHeight: 2.0,
-          fontSize: "15px",
+          fontSize: "13px",
           fontWeight: 400,
           opacity: 0.82,
           letterSpacing: "0.2px"
@@ -57,16 +58,19 @@ export default function RuntimePanel({
       <div className="runtime-detected">
          {
   state === "UNCERTAIN"
-    ? "continuity direction — unresolved"
-    : state === "STABLE"
-    ? "continuity direction — stabilizing"
-    : state === "RECOVERING"
-    ? "continuity direction — recovering"
-    : state === "PRESSURED"
-    ? "continuity direction — narrowing under pressure"
-    : `continuity direction — ${state.toLowerCase()}`
+  ? "what once passed by is staying longer now"
+  : state === "STABLE"
+  ? "familiar patterns are becoming clearer"
+  : state === "RECOVERING"
+  ? "new rhythms are beginning to emerge"
+  : state === "PRESSURED"
+  ? "attention is narrowing under pressure"
+  : "life is still in progress"
+    
 }
      </div>
+    
+
 
       </section>
       )
