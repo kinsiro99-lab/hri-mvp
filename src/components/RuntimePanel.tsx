@@ -37,25 +37,41 @@ export default function RuntimePanel({
           marginBottom: "12px",
         }}
       >
-       CURRENT RHYTHM
-      </div>
+      <div
+  style={{
+    background: "#ffffff",
+    border: "1px solid #1d3557",
+    borderRadius: "24px",
+    padding: "24px",
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-start"
+  }}
+>
+  <h3
+    style={{
+      marginBottom: "16px",
+      color: "#0f2747",
+      fontSize: "24px",
+      fontWeight: 700
+    }}
+  >
+    DR. KIM'S OBSERVATION
+  </h3>
 
-     <div
-        style={{
-          lineHeight: 2.0,
-          fontSize: "13px",
-          fontWeight: 400,
-          opacity: 0.82,
-          letterSpacing: "0.2px"
-       }}
-    >
-      <div>CONFIDENCE: {confidence.toFixed(3)}</div>
-      <div>TENSION: {tension.toFixed(3)}</div>
-      <div>FRAGMENTATION: {fragmentation.toFixed(3)}</div>
-      <div>ELASTICITY: {elasticity.toFixed(3)}</div>
-   </div>
-
-      <div className="runtime-detected">
+  <p
+    style={{
+      color: "#23395d",
+      fontSize: "16px",
+      lineHeight: 1.8
+    }}
+  >
+    Your rhythm appears to be maintaining continuity.
+    <br />
+    현재의 흐름은 끊어지지 않고 이어지고 있습니다.
+  </p>
+</div>
          {
   state === "UNCERTAIN"
   ? "what once passed by is staying longer now"
