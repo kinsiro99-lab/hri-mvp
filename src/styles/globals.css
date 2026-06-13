@@ -1046,7 +1046,7 @@ input::placeholder {
 .main-panel{
   width:620px;
   min-width:320px;
-  min-height:300px;
+  min-height:420px;
 
   border:2px solid #24344f;
 
@@ -1054,15 +1054,15 @@ input::placeholder {
   background:#fdfcfa;
 }
 .bottom-panels {
-    display:flex;
-    justify-content:center;
-    align-items:flex-start;
-    gap:40px;
+    display:grid;
+    grid-template-columns: 1fr 1.12fr 1fr;
+    gap:14px;
 
     width:100%;
-    max-width:1200px;
-    margin:10px auto 0;
-    padding-left:120px;
+    max-width:1400px;
+
+    margin:20px auto 0;
+    padding:0;
 }
 
 .aurina-panel{
@@ -1070,7 +1070,7 @@ input::placeholder {
     height:300px;
 
     margin-top:0;
-    margin-left:-80px;
+  margin-left:0;
 
     border-radius:20px;
     background:#fdfcfa;

@@ -12,7 +12,7 @@
 //   - Reflection appears with extra breathing space
 
 import { useState, useCallback, useEffect, useRef } from "react"
-import HriInput     from "./HriInput"
+import HriInput from "./HriInput"
 import ThinkingDots from "./ThinkingDots"
 import { callEngine } from "@/lib/api"
 type Turn = number
@@ -21,7 +21,7 @@ import RuntimePanel from "./RuntimePanel"
 // ── Types ──────────────────────────────────────────────────────────
 
 interface Exchange {
-  userText:    string
+  userText: string
   hriResponse: string
 }
 
@@ -45,14 +45,14 @@ function scrollInputIntoView() {
 // ── Component ──────────────────────────────────────────────────────
 
 export default function HriSession() {
-  const [phase,      setPhase]      = useState<Phase>("idle")
+  const [phase, setPhase] = useState<Phase>("idle")
   const [inputValue, setInputValue] = useState("")
-  const [history,    setHistory]    = useState<Exchange[]>([])
-  const [allInputs,  setAllInputs]  = useState<string[]>([])
-  const [activeQ,    setActiveQ]    = useState<string | null>(null)
+  const [history, setHistory] = useState<Exchange[]>([])
+  const [allInputs, setAllInputs] = useState<string[]>([])
+  const [activeQ, setActiveQ] = useState<string | null>(null)
   const [reflection, setReflection] = useState<string | null>(null)
   const [mainQuestion, setMainQuestion] = useState<string | null>(null)
-  const [error,      setError]      = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [runtimeState, setRuntimeState] = useState("IN MOTION")
   const [confidence, setConfidence] = useState(0.714)
   const [tension, setTension] = useState(0.582)
@@ -70,7 +70,7 @@ export default function HriSession() {
     if (!text || phase === "thinking" || phase === "done") return
 
     const nextInputs = [...allInputs, text]
-    const nextTurn   = nextInputs.length as Turn
+    const nextTurn = nextInputs.length as Turn
 
     setInputValue("")
     setAllInputs(nextInputs)
@@ -134,6 +134,7 @@ export default function HriSession() {
 
       {/* ── Header ── */}
       <header className="hri-header">
+       
         {/* Plain <img> — no Next/Image dimension requirements.
             File must be at: public/assets/header.png           */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -146,7 +147,7 @@ export default function HriSession() {
 
       {/* ── Main column ── */}
       <main className="hri-main">
-      
+
         {/* ── Past exchanges ──────────────────────────────────────
             Each exchange recedes into the past.
             User text: left-bordered, full weight.
@@ -204,7 +205,7 @@ export default function HriSession() {
           </div>
         )}
 
-       
+
         {/* ── Error ── */}
         {error && (
           <p className="error-msg fade-in" role="alert">
@@ -218,104 +219,80 @@ export default function HriSession() {
         ─────────────────────────────────────────────────────── */}
         {phase !== "done" && (
           <>
-           
+
             <HriInput
               value={inputValue}
               onChange={setInputValue}
               onSubmit={handleSubmit}
-              placeholder={`이젠, 떠오르는 생각을 적어보세요.
-            Now, write down the thoughts that come to mind.`}
+              placeholder={`이제, 떠오르는 생각을 여기에 적어보세요.
+            Now, write down the thoughts that come to mind here.`}
               disabled={phase === "thinking"}
               autoFocus
-           />
+            />
           </>
         )}
 
-      
-
-     
-
-
-<div className="bottom-panels">
-
- <div className="aurina-panel">
-  <h3>오리나 (AURINA)</h3>
-
-  <video
-    src="/videos/aurina-greeting.mp4"
-    autoPlay
-    muted
-    loop
-    playsInline
-    style={{
-      width: "100%",
-      height: "260px",
-      objectFit: "cover",
-      borderRadius: "12px",
-      marginTop: "12px"
-    }}
-    />
- <p
-  style={{
-    marginTop:"16px",
-    lineHeight:"1.6",
-   color: "black"
-  }}
->
-  당신 자신을 바라볼 수 있는 마음의 창입니다.
-  <br />
-  <span
-  style={{
-    fontSize:"13px",
-    color: "black"
-  }}
->
-    A window into yourself.
-  </span>
-</p>
-</div>
- <div className="main-panel">
-
-  <div style={{ marginBottom: "24px" }}>
-   <h3>CURRENT · 현재</h3>
-
-<p>
-  What is appearing in your life at this moment.
-  <br />
-  지금 삶 속에 드러나고 있는 모습입니다.
-</p>
-  </div>
-
-  <hr />
-
-  <div style={{ margin: "24px 0" }}>
-    <h3>RHYTHM · 리듬</h3>
 
 
 
-<p>
-  Your rhythm is unfolding.
-  <br />
-  당신의 리듬이 펼쳐지고 있습니다.
-</p>
-  </div>
 
-  <hr />
 
- 
 
-</div>
-  <RuntimePanel
-    state={runtimeState}
-    confidence={confidence}
-    tension={tension}
-    fragmentation={fragmentation}
-    elasticity={elasticity}
-  />
 
-</div>
-    </main>
-</div>
+        <div
+          className="bottom-panels"
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1.12fr 1fr', gap: 14, alignItems: 'stretch' }}
+        >
+          {/* LEFT · AURINA (기존 영상 유지) */}
+          <section style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
+            <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 15, margin: '0 0 12px' }}>오리나 (AURINA)</h3>
+            {/* ⬇ 기존 <video>(또는 <img>)의 src/props를 그대로 두세요. flex:1로 높이만 채웁니다. */}
+            <video
+              src="/videos/aurina-greeting.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{ flex: 1, width: '100%', minHeight: 150, objectFit: 'cover', borderRadius: 8, background: '#dfe6ef' }}
+            />
+            <p style={{ color: '#3a3f47', fontSize: 11.5, lineHeight: 1.5, margin: '12px 0 0' }}>당신 자신을 바라볼 수 있는 마음의 창입니다.</p>
+            <p style={{ color: '#9aa0a8', fontSize: 11, margin: '2px 0 0' }}>A window into yourself.</p>
+          </section>
+
+          {/* CENTER · CURRENT / RHYTHM / NOTICE */}
+          <section style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
+            <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 13, letterSpacing: 0.3, margin: 0 }}>CURRENT · 현재</h3>
+            <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>What is appearing in your life at this moment.</p>
+            <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>지금 삶 속에 드러나고 있는 모습입니다.</p>
+
+            <hr style={{ border: 'none', borderTop: '1px solid #EBEDF0', margin: '14px 0' }} />
+
+            <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 13, letterSpacing: 0.3, margin: 0 }}>RHYTHM · 리듬</h3>
+            <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>Your rhythm is unfolding.</p>
+            <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>당신의 리듬이 펼쳐지고 있습니다.</p>
+
+            {/* NOTICE — marginTop:'auto'로 패널 바닥에 고정, 빈 공간을 채움 */}
+            <div style={{ marginTop: 'auto', borderTop: '1px solid #EBEDF0', paddingTop: 12 }}>
+              <h4 style={{ fontWeight: 700, color: '#9aa0a8', fontSize: 11, letterSpacing: 0.4, margin: 0 }}>NOTICE · 공지사항</h4>
+              <p style={{ color: '#5a606a', fontSize: 11, lineHeight: 1.5, margin: '5px 0 0' }}>
+                HRI는 평가나 진단을 위한 도구가 아닙니다.<br />
+                현재 삶에 나타나는 생각과 흐름을 통해 당신의 리듬을 관찰할 수 있도록 돕습니다.
+              </p>
+            </div>
+          </section>
+
+          
+        <RuntimePanel
+          state={runtimeState}
+          confidence={confidence}
+          tension={tension}
+          fragmentation={fragmentation}
+          elasticity={elasticity}
+        />
+
+    </div>
+    </main >
+</div >
 )
 }
 
