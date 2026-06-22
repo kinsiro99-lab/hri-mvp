@@ -1,4 +1,7 @@
-"use client"
+"use client";
+
+// components/HriSession.tsx [v2 - Quiet Immersive]
+
 // components/HriSession.tsx  [v2 — Quiet Immersive]
 // 
 // UX intent: the screen should feel like slow reading, slow writing.
@@ -45,6 +48,10 @@ function scrollInputIntoView() {
 // ── Component ──────────────────────────────────────────────────────
 
 export default function HriSession() {
+
+  const BETA_OPEN = true;
+  const BETA_PASSWORD = "Mirror2026!";
+
   const [phase, setPhase] = useState<Phase>("idle")
   const [inputValue, setInputValue] = useState("")
   const [history, setHistory] = useState<Exchange[]>([])
@@ -88,9 +95,9 @@ export default function HriSession() {
         setHistory(prev => [...prev, { userText: text, hriResponse: "" }])
         setActiveQ(null)
         setReflection(result.reflection)
-        setMainQuestion(nextMainQuestion || null)
+        setMainQuestion(null)
         setPhase("done")
-        return
+        return 
       }
 
       if (result.question) {
@@ -129,24 +136,108 @@ export default function HriSession() {
   const handleInputFocus = () => scrollInputIntoView()
 
   // ── Render ─────────────────────────────────────────────────────
+if (!BETA_OPEN) {
   return (
-    <div className="page-shell">
+    <div style={{
+      padding: 80,
+      textAlign: "center"
+    }}>
+      <h1>Beta Test Closed</h1>
+      <p>베타 테스트가 종료되었습니다.</p>
+    </div>
+  );
+}
+  return (
+  <div className="page-shell">
+ <section
+  className="hero-zone"
+  style={{
+    display: "grid",
+    gridTemplateColumns: "620px 420px",
+    gap: "40px",
+    alignItems: "center",
+    maxWidth: "1120px",
+    margin: "0 auto",
+    padding: "24px 36px"
+  }}
+>
+  <div
+  className="hero-left"
+  style={{
+    minWidth: "560px"
+  }}
+>
 
-      {/* ── Header ── */}
-      <header className="hri-header">
-       
-        {/* Plain <img> — no Next/Image dimension requirements.
-            File must be at: public/assets/header.png           */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/assets/header.png"
-          alt="HRI — Human Rhythm Intelligence"
-          className="header-image"
-        />
-      </header>
+ <div
+  style={{
+    fontSize: "120px",
+    fontWeight: 900,
+    color: "#061A44",
+    lineHeight: 0.95,
+    letterSpacing: "-0.03em"
+  }}
+>
+  AURINA
+</div>
 
-      {/* ── Main column ── */}
-      <main className="hri-main">
+<div
+  style={{
+    fontSize: "28px",
+    fontWeight: 600,
+    color: "#35527A",
+    marginTop: "12px"
+  }}
+>
+  마음의 거울
+Mirror of Mind
+</div>
+
+<div className="hero-slogan" style={{ fontSize: "28px", fontWeight: 800, color: "#061A44", lineHeight: 1.35, marginTop: "18px" }}>
+  당신의 마음을 비추고,
+  지금의 흐름을 보세요.
+</div>
+
+<div className="hero-tech" style={{ fontSize: "18px", fontWeight: 700, color: "#061A44", marginTop: "14px" }}>
+  Human Rhythm Intelligence
+</div>
+
+<div className="hero-slogan-ko" style={{ fontSize: "24px", fontWeight: 800, color: "#061A44", lineHeight: 1.5, marginTop: "16px" }}>
+ AURINA는 당신의 마음을 비추는 거울입니다.
+</div>
+
+</div>
+
+<div
+  className="hero-right"
+  style={{
+ width: "430px",
+ justifySelf: "end",
+}}
+>
+  
+  <video
+    autoPlay
+    muted
+    loop
+    playsInline
+    style={{
+  width: "100%",
+  maxWidth: 620,
+  height: 390,
+  objectFit: "contain",
+  objectPosition: "center top",
+  borderRadius: "24px",
+  background: "#f4f6fa"
+}}
+  >
+    <source src="/videos/aurina-greeting.mp4" type="video/mp4" />
+  </video>
+</div>
+       </section>
+     
+  {/* ── Past exchanges ── */}
+
+     
 
         {/* ── Past exchanges ──────────────────────────────────────
             Each exchange recedes into the past.
@@ -194,14 +285,7 @@ export default function HriSession() {
               </section>
             )}
 
-            <button
-              className="restart-btn"
-              onClick={handleRestart}
-              type="button"
-              aria-label="새로운 흐름 시작"
-            >
-              다시 시작하기
-            </button>
+           
           </div>
         )}
 
@@ -224,15 +308,30 @@ export default function HriSession() {
               value={inputValue}
               onChange={setInputValue}
               onSubmit={handleSubmit}
-              placeholder={`이제, 떠오르는 생각을 여기에 적어보세요.
-            Now, write down the thoughts that come to mind here.`}
+              placeholder={`
+                   지금 떠오르는 것을 적어보세요. · What is present in you right now?
+          `}
               disabled={phase === "thinking"}
               autoFocus
             />
           </>
         )}
-
-
+        <div style={{
+          textAlign: "center",
+          color: "#6b7280",
+          fontSize: "14px",
+          lineHeight: 1.8,
+          marginTop: "16px"
+        }}>
+        
+        </div>
+        <button
+          className="restart-btn"
+          onClick={handleRestart}
+          type="button"
+        >
+          새로 시작
+        </button>
 
 
 
@@ -247,16 +346,34 @@ export default function HriSession() {
           <section style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
             <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 15, margin: '0 0 12px' }}>오리나 (AURINA)</h3>
             {/* ⬇ 기존 <video>(또는 <img>)의 src/props를 그대로 두세요. flex:1로 높이만 채웁니다. */}
-            <video
-              src="/videos/aurina-greeting.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              style={{ flex: 1, width: '100%', minHeight: 150, objectFit: 'cover', borderRadius: 8, background: '#dfe6ef' }}
+            <img
+              src="/aurina-blue.png"
+              alt="AURINA"
+              style={{
+                width: 180,
+                height: 220,
+                objectFit: 'cover',
+                borderRadius: 8,
+                alignSelf: 'center'
+              }}
             />
-            <p style={{ color: '#3a3f47', fontSize: 11.5, lineHeight: 1.5, margin: '12px 0 0' }}>당신 자신을 바라볼 수 있는 마음의 창입니다.</p>
-            <p style={{ color: '#9aa0a8', fontSize: 11, margin: '2px 0 0' }}>A window into yourself.</p>
+            <p style={{ color: '#061A44', fontSize: 14, fontWeight: 800, lineHeight: 1.5, margin: '16px 0 0' }}>
+              당신의 마음을 비추는 거울입니다.
+            </p>
+            <p style={{ color:'#35527A', fontSize:13, margin:'4px 0' }}>
+              A mirror for your inner rhythm.
+           </p>
+
+           <hr />
+
+             <h4>사용 방법</h4>
+
+            <p>1. 지금 떠오르는 것을 적어보세요.</p>
+
+            <p>2. 질문에 자연스럽게 답해보세요.</p>
+
+            <p>3. 무엇이 보이는지 살펴보세요.</p>
+            <div style={{ textAlign: 'center' }}></div>
           </section>
 
           {/* CENTER · CURRENT / RHYTHM / NOTICE */}
@@ -268,11 +385,32 @@ export default function HriSession() {
             <hr style={{ border: 'none', borderTop: '1px solid #EBEDF0', margin: '14px 0' }} />
 
             <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 13, letterSpacing: 0.3, margin: 0 }}>RHYTHM · 리듬</h3>
-            <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>Your rhythm is unfolding.</p>
-            <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>당신의 리듬이 펼쳐지고 있습니다.</p>
+            <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>Your mind is being reflected.</p>
+            <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>당신의 마음이 비춰지고 있습니다.</p>
+            <hr style={{ border: "none", borderTop: "1px solid #EBEDF0", margin: "14px 0" }} />
 
+            <h3 style={{ fontWeight: 800, color: "#16345F", fontSize: 13, letterSpacing: 0.3, margin: 0 }}>
+            MIRROR · 마음의 거울
+           </h3>
+
+            <p style={{ color: "#7e8893", fontSize: 11.5, margin: "5px 0 0" }}>
+            What is your mind reflecting right now?
+           </p>
+
+           <p style={{ color: "#3a3f47", fontSize: 11.5, margin: "2px 0 0" }}>
+            지금 당신의 마음은 무엇을 비추고 있습니까?
+           </p>
+            <hr style={{ border: 'none', borderTop: '1px solid #EBEDF0', margin: '14px 0' }} />
+
+           <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>
+            What is your mind reflecting now?
+           </p>
+
+           <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>
+            지금 당신의 마음은 무엇을 비추고 있나요?
+           </p>
             {/* NOTICE — marginTop:'auto'로 패널 바닥에 고정, 빈 공간을 채움 */}
-            <div style={{ marginTop: 'auto', borderTop: '1px solid #EBEDF0', paddingTop: 12 }}>
+            <div style={{ marginTop: 'auto', borderTop: '1px solid #EBEDF0', paddingTop: 20 }}>
               <h4 style={{ fontWeight: 700, color: '#9aa0a8', fontSize: 11, letterSpacing: 0.4, margin: 0 }}>NOTICE · 공지사항</h4>
               <p style={{ color: '#5a606a', fontSize: 11, lineHeight: 1.5, margin: '5px 0 0' }}>
                 HRI는 평가나 진단을 위한 도구가 아닙니다.<br />
@@ -291,8 +429,7 @@ export default function HriSession() {
         />
 
     </div>
-    </main >
-</div >
-)
-}
+    </div>
+  )
+  } 
 

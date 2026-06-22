@@ -5,7 +5,25 @@ import { detectContextAnchors } from "./contextAnchors";
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, Number(value.toFixed(3))));
 }
-
+const POSITIVE_WORDS = [
+  "기쁜",
+  "기쁨",
+  "즐거운",
+  "즐거움",
+  "행복",
+  "만족",
+  "뿌듯",
+  "후련",
+  "개운",
+  "해냈",
+  "성공",
+  "완료",
+  "달성",
+  "잘됐다",
+  "좋다",
+  "설렌",
+  "신난",
+];
 function score(text: string, words: string[]) {
   if (!text) return 0;
   const hits = words.reduce((count, word) => count + (text.includes(word) ? 1 : 0), 0);
@@ -75,6 +93,71 @@ export function detectRhythm(inputText: string, previousEvents: HriEvent[]): Rhy
     ? 0.7
     : Math.max(0.15, score(text, ["같", "어쩌면", "느낌", "생각", "아마", "maybe", "seems"]));
   const repetition = Math.max(vectors.looping, lexicalOverlap(lastInput.toLowerCase(), text));
+  const positiveValence = score(text, [
+  "기쁜",
+  "기쁨",
+  "즐거운",
+  "즐거움",
+  "행복",
+  "만족",
+  "뿌듯",
+  "후련",
+  "개운",
+  "해냈",
+  "성공",
+  "달성",
+  "완료",
+  "잘됐다",
+  "좋다",
+  "신난",
+  "설렌"
+]);
+const achievementScore = score(text, [
+  "해냈",
+  "완료",
+  "성공",
+  "끝냈",
+  "잘됐다",
+  "성과"
+]);
 
-  return { vectors, emotionalDensity, openness, exhaustion, repetition };
+const recoveryScore = score(text, [
+  "쉬고",
+  "자고",
+  "휴식",
+  "멈추고",
+  "그만",
+  "회복",
+  "푹"
+]);
+
+const vitalityScore = score(text, [
+  "살아",
+  "신난",
+  "설렌",
+  "에너지",
+  "활기",
+  "즐겁"
+]);
+
+const connectionScore = score(text, [
+  "함께",
+  "사람",
+  "가족",
+  "친구",
+  "누군가",
+  "같이"
+]);
+ return {
+  vectors,
+  emotionalDensity,
+  openness,
+  exhaustion,
+  repetition,
+  positiveValence,
+  achievementScore,
+  recoveryScore,
+  vitalityScore,
+  connectionScore,
+};
 }

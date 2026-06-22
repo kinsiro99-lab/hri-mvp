@@ -24,3 +24,207 @@ img.header-image {
 img.header-image {
   transform: scale(1.15);
 }
+
+.restart-btn {
+  display: block;
+  margin-top: 24px;
+  padding: 12px 20px;
+  background: #111111;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.restart-btn:hover {
+  opacity: 0.9;
+}
+.hero-zone {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1120px;
+  margin: 0 auto 18px;
+  padding: 24px 36px 10px;
+}
+
+.hero-left {
+  flex: 1;
+}
+
+.hero-title {
+  font-size: 5.2rem;
+font-weight: 900;
+letter-spacing: 0.02em;
+  color: #0b1f4d;
+}
+
+.hero-subtitle {
+  margin-top: 10px;
+  font-size: 1.7rem;
+font-weight: 700;
+  color: #243b63;
+}
+
+.hero-slogan {
+  margin-top: 22px;
+  font-size: 1.85rem;
+  font-weight: 750;
+  line-height: 1.35;
+  color: #0b1f4d;
+}
+
+.hero-slogan-ko {
+  margin-top: 14px;
+  font-size: 1.25rem;
+  font-weight: 650;
+  line-height: 1.55;
+  color: #243b63;
+}
+
+.hero-right {
+  width: 280px;
+  min-height: 160px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #eef6ff, #ffffff);
+  border: 1px solid rgba(11, 31, 77, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-video-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0b1f4d;
+}
+
+@media (max-width: 768px) {
+  .hero-zone {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px 18px 8px;
+  }
+
+  .hero-title {
+    font-size: 2.7rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.25rem;
+  }
+
+  .hero-slogan {
+    font-size: 1.45rem;
+  }
+
+  .hero-slogan-ko {
+    font-size: 1.1rem;
+  }
+
+  .hero-right {
+    width: 100%;
+    margin-top: 18px;
+    min-height: 120px;
+  }
+}
+section.hero-zone {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  max-width: 1120px !important;
+  margin: 0 auto 18px !important;
+  padding: 24px 36px 10px !important;
+}
+
+section.hero-zone .hero-title {
+ font-size: 80px !important;
+ font-weight: 900 !important;
+  line-height: 1 !important;
+  color: #0b1f4d !important;
+}
+
+.hero-tech {
+  margin-top: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6f7f96;
+}
+
+section.hero-zone .hero-subtitle {
+  margin-top: 10px !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #243b63 !important;
+}
+
+section.hero-zone .hero-slogan {
+  margin-top: 22px !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  color: #0b1f4d !important;
+}
+
+section.hero-zone .hero-slogan-ko {
+  margin-top: 14px !important;
+  font-size: 20px !important;
+  font-weight: 650 !important;
+  line-height: 1.55 !important;
+  color: #243b63 !important;
+}
+
+section.hero-zone .hero-right {
+  width: 280px !important;
+  min-height: 160px !important;
+  border-radius: 24px !important;
+  background: linear-gradient(135deg, #eef6ff, #ffffff) !important;
+  border: 1px solid rgba(11, 31, 77, 0.12) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+section.hero-zone .hero-video-label {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #0b1f4d !important;
+}
+section.hero-zone {
+  background: #ffffff !important;
+  border-radius: 28px !important;
+  box-shadow: 0 16px 40px rgba(11, 31, 77, 0.08) !important;
+}
+
+section.hero-zone .hero-title {
+  font-size: 72px !important;
+  font-weight: 900 !important;
+  color: #061a44 !important;
+}
+
+section.hero-zone .hero-subtitle {
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  color: #0b1f4d !important;
+}
+
+section.hero-zone .hero-slogan {
+  font-size: 34px !important;
+  font-weight: 800 !important;
+  color: #061a44 !important;
+}
+
+section.hero-zone .hero-slogan-ko {
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  color: #0b1f4d !important;
+}
+
+section.hero-zone .hero-video-label {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #0b1f4d !important;
+}
+body {
+  background: #eaf3ff !important;
+}

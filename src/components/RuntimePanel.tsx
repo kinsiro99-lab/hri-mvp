@@ -20,9 +20,9 @@ export default function RuntimePanel({
   style={{
     width: "320px",
     marginTop: "0px",
-        background: "linear-gradient(180deg, #050505 0%, #0b0b0b 100%)",
-        border: "2px solid rgba(255,255,255,0.12)",
-        boxShadow: "0 12px 36px rgba(0,0,0,0.35)",
+        background: "#ffffff",
+        border: "1px solid #E2E4E7",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
         borderRadius: "20px",
         minHeight: "420px",
         padding: "16px",
@@ -57,7 +57,7 @@ export default function RuntimePanel({
       fontWeight: 700
     }}
   >
-    DR. KIM'S OBSERVATION
+    AURINA OBSERVATION
   </h3>
 
   <p
@@ -67,9 +67,14 @@ export default function RuntimePanel({
       lineHeight: 1.8
     }}
   >
-   Your rhythm is unfolding.
-<br />
-당신의 리듬이 펼쳐지고 있습니다.
+   Your mind is being reflected.
+   <br />
+   당신의 마음이 비춰지고 있습니다.
+   <br /><br />
+
+   Observe what appears.
+   <br />
+  지금 드러나는 모습을 보세요.
   </p>
 </div>
 

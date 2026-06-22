@@ -25,14 +25,57 @@ function mergeVectors(previous: RhythmVectorScores, signal: Partial<RhythmVector
 export function reduceSessionState(previous: SessionState, signal: RhythmSignal): SessionState {
   const nextTurnCount = previous.turnCount + 1;
 
-  return {
-    ...previous,
-    turnCount: nextTurnCount,
-    depth: nextTurnCount >= 2 ? Math.min(3, previous.depth + 1) : previous.depth,
-    vectors: mergeVectors(previous.vectors, signal.vectors),
-    emotionalDensity: blend(previous.emotionalDensity, signal.emotionalDensity),
-    openness: blend(previous.openness, signal.openness),
-    exhaustion: blend(previous.exhaustion, signal.exhaustion),
-    repetition: blend(previous.repetition, signal.repetition),
-  };
+ return {
+  ...previous,
+  turnCount: nextTurnCount,
+  depth: nextTurnCount >= 2
+    ? Math.min(3, previous.depth + 1)
+    : previous.depth,
+
+  vectors: mergeVectors(previous.vectors, signal.vectors),
+
+  emotionalDensity: blend(
+    previous.emotionalDensity,
+    signal.emotionalDensity
+  ),
+
+  openness: blend(
+    previous.openness,
+    signal.openness
+  ),
+
+  exhaustion: blend(
+    previous.exhaustion,
+    signal.exhaustion
+  ),
+
+  repetition: blend(
+    previous.repetition,
+    signal.repetition
+  ),
+
+  positiveValence: blend(
+  previous.positiveValence ?? 0,
+  signal.positiveValence ?? 0
+),
+achievementScore: blend(
+  previous.achievementScore ?? 0,
+  signal.achievementScore ?? 0
+),
+
+recoveryScore: blend(
+  previous.recoveryScore ?? 0,
+  signal.recoveryScore ?? 0
+),
+
+vitalityScore: blend(
+  previous.vitalityScore ?? 0,
+  signal.vitalityScore ?? 0
+),
+
+connectionScore: blend(
+  previous.connectionScore ?? 0,
+  signal.connectionScore ?? 0
+),
+};
 }

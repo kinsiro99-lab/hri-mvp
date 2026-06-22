@@ -1,3 +1,5 @@
+import type { FlowState } from "./flowController";
+
 export type QuestionCategory =
   | "sensory"
   | "temporal"
@@ -76,19 +78,33 @@ export type SessionState = {
   emotionalDensity: number;
   openness: number;
   exhaustion: number;
-  repetition: number;
-  lastQuestionCategory?: QuestionCategory;
+ repetition: number;
+ positiveValence: number;
+ achievementScore: number;
+ recoveryScore: number;
+ vitalityScore: number;
+ connectionScore: number;
+ lastQuestionCategory?: QuestionCategory;
   usedQuestionIds: string[];
-  lastReflectionAtTurn?: number;
+   lastReflectionAtTurn?: number;
   pendingWhisper: boolean;
+  flowState?: FlowState;
 };
 
 export type RhythmSignal = {
+  achievementScore?: number;
+recoveryScore?: number;
+vitalityScore?: number;
+connectionScore?: number;
   vectors: Partial<RhythmVectorScores>;
   emotionalDensity: number;
   openness: number;
   exhaustion: number;
   repetition: number;
+    // P0 (임시)
+  // P1에서 Achievement/Momentum/Calm/Connection/Expansion/Relief
+  // 6축의 집계값으로 대체
+  positiveValence?: number;
 };
 
 export type QuestionOutput = {
