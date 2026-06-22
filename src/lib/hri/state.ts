@@ -21,6 +21,11 @@ export const initialSessionState: SessionState = {
   openness: 0,
   exhaustion: 0,
   repetition: 0,
+  positiveValence: 0,
+  achievementScore: 0,
+  recoveryScore: 0,
+  vitalityScore: 0,
+  connectionScore: 0,
   usedQuestionIds: [],
   pendingWhisper: false,
 };
