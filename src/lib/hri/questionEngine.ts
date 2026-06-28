@@ -1,6 +1,9 @@
 import type { HriEvent, QuestionCategory, QuestionOutput, SessionState } from "./types";
 import { detectContextAnchors, type HriContextAnchor, type PositiveSignal } from "./contextAnchors";
-
+import { detectDomains } from "./v2/domainEngine";
+import { selectProbe } from "./v2/selector";
+import { emptyCurrentVector } from "./v2/adapters";
+import type { SessionStateV2 } from "./v2/types.v2";
 function stableId(parts: string[]): string {
   return parts.join("-").replace(/[^a-zA-Z0-9가-힣_-]+/g, "_").slice(0, 90);
 }
@@ -245,8 +248,32 @@ function buildCandidates(state: SessionState, events: HriEvent[]): QuestionCandi
     weight: index === 0 ? 1 : 0.72,
   }));
 }
-
 export function selectNextQuestion(state: SessionState, events: HriEvent[] = []): QuestionOutput {
+  const latestUserText = [...events].reverse().find((e) => e.type === "user_input")?.text ?? "";
+
+  const domainSignal = detectDomains(latestUserText);
+  const memoryScore = domainSignal.distribution.memory ?? 0;
+
+  if (memoryScore > 0) {
+    const v2state: SessionStateV2 = {
+      ...state,
+      domains: domainSignal.distribution,
+      currentVector: emptyCurrentVector(),
+      domainHistory: [domainSignal.distribution],
+      configHistory: [emptyCurrentVector()],
+    };
+
+    const probe = selectProbe(v2state, new Set(state.usedQuestionIds ?? []));
+
+    return {
+      id: `v2-${probe.domain ?? "none"}-${probe.axis ?? "none"}-${state.turnCount}`,
+      text: probe.question,
+      category: state.lastQuestionCategory ?? "density",
+      aperture: "small",
+      weight: 1,
+    };
+  }
+
   const candidates = buildCandidates(state, events);
   const used = new Set(state.usedQuestionIds ?? []);
   const candidate = candidates.find((item) => !used.has(item.id)) ?? candidates[0];

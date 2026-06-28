@@ -2,7 +2,7 @@ import type { EngineRequest, EngineOutput } from "./questionEngine";
 
 function apiEndpoint(): string {
   const remoteBase = process.env.NEXT_PUBLIC_HRI_API_BASE?.replace(/\/$/, "");
-  return remoteBase ? `${remoteBase}/api/analyze` : "/api/analyze";
+ return "/api/analyze";
 }
 
 export async function callEngine(request: EngineRequest): Promise<EngineOutput> {

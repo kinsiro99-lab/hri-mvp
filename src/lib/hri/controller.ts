@@ -7,6 +7,20 @@ import { advanceFlow, createFlowState } from "./flowController";
 
 import { createQuestionEvent, createReflectionEvent, createSafetyEvent, createUserInputEvent } from "./events";
 
+import { detectDomains } from "./v2/domainEngine";
+import { reduceSessionStateV2 } from "./v2/reducerV2";
+import { toCurrentVector, emptyCurrentVector } from "./v2/adapters";
+import { selectProbe } from "./v2/selector";
+import { evaluateConvergence } from "./v2/convergence";
+import { buildObservation } from "./v2/mirrorObservation";
+
+import {
+  DEFAULT_CONVERGENCE_PARAMS,
+  type SessionStateV2,
+} from "./v2/types.v2";
+
+const HRI_V2 = true;
+
 export type AdvanceSessionInput = {
   inputText: string;
   state: SessionState;
@@ -34,7 +48,72 @@ export function advanceSession({ inputText, state, events }: AdvanceSessionInput
   }
 
   const rhythmSignal = detectRhythm(trimmed, events);
-  const reducedState = reduceSessionState(state, rhythmSignal);
+
+if (HRI_V2) {
+  const baseV1 = reduceSessionState(state, rhythmSignal);
+  const prevV2 = state as Partial<SessionStateV2>;
+
+  const v2base: SessionStateV2 = {
+    ...baseV1,
+    domains: prevV2.domains ?? {},
+    currentVector: prevV2.currentVector ?? emptyCurrentVector(),
+    domainHistory: prevV2.domainHistory ?? [],
+    configHistory: prevV2.configHistory ?? [],
+  };
+
+  const domainSignal = detectDomains(trimmed);
+  const vectorSignal = toCurrentVector(rhythmSignal);
+  const v2state = reduceSessionStateV2(v2base, domainSignal, vectorSignal);
+
+  const convergence = evaluateConvergence(v2state, DEFAULT_CONVERGENCE_PARAMS);
+  const usedSet = new Set<string>(v2state.usedQuestionIds);
+
+  if (convergence.converged) {
+    const probe = selectProbe(v2state, usedSet);
+    const obs = buildObservation(convergence, probe.domain, probe.axis, trimmed, []);
+    const reflection: ReflectionOutput = {
+      text: obs?.text ?? "",
+      tone: "quiet",
+      compressionLevel: "low",
+    };
+
+    const nextState: SessionStateV2 = {
+      ...v2state,
+      phase: "reflection",
+      lastReflectionAtTurn: v2state.turnCount,
+      pendingWhisper: false,
+    };
+
+    return {
+      state: nextState,
+      events: [...withUserInput, createReflectionEvent(reflection)],
+    };
+  }
+
+  const probe = selectProbe(v2state, usedSet);
+  const question: QuestionOutput = {
+    id: `v2-${probe.domain ?? "none"}-${probe.axis ?? "none"}-${v2state.turnCount}`,
+    text: probe.question,
+    category: v2state.lastQuestionCategory ?? "density",
+    aperture: "small",
+    weight: 1,
+  };
+
+  const nextState: SessionStateV2 = {
+    ...v2state,
+    phase: "probing",
+    pendingWhisper: false,
+    lastQuestionCategory: question.category,
+    usedQuestionIds: [...v2state.usedQuestionIds, question.text],
+  };
+
+  return {
+    state: nextState,
+    events: [...withUserInput, createQuestionEvent(question)],
+  };
+}
+
+const reducedState = reduceSessionState(state, rhythmSignal);
  // Pacing은 무출력 일시정지(rest)만 유지한다. reflection 소유권은 advanceFlow의
   // OBSERVATION 종료로 이관됐으므로 pacing의 reflection 표결은 사용하지 않는다.
   const pacingDecision = decideNextOutput(reducedState);

@@ -11,7 +11,8 @@ export type DiscoverySignal =
   | 'STRUCTURE_SURFACED'
   | 'MOVEMENT_SURFACED'
   | 'RHYTHM_SURFACED'
-  | 'RECOGNITION';
+  | 'RECOGNITION'
+  | 'CORRECTION';
 
 export type NextLayer =
   | 'ASK_STRUCTURE'
@@ -59,12 +60,40 @@ const POSITIVE_MARKERS = [
   '안정'
 ];
 
+const CORRECTION_MARKERS = [
+  '아니다',
+  '아니야',
+  '아닌데',
+  '아니고',
+  '반대',
+  '오히려',
+  '틀렸다',
+  '그게 아니다',
+  '잘못',
+  '착각'
+];
+
 const RECOGNITION_MARKERS: readonly string[] = [
   '아 ', '아,', '아!', '아 그', '그러네', '그렇네', '그러고 보니', '그렇구나',
   '맞아', '맞네', '몰랐', '처음 보', '처음 알', '이제 보', '이제 알',
   '알겠', '깨달', '보이네', '보이기 시작',
 ];
 
+
+const MEMORY_MARKERS: readonly string[] = [
+  '추억',
+  '기억',
+  '예전',
+  '옛',
+  '옛날',
+  '그때',
+  '과거',
+  '첫사랑',
+  '친구',
+  '고향',
+  '학창시절',
+  '그 시절'
+];
 const RHYTHM_MARKERS: readonly string[] = [
   '자꾸', '매번', '반복', '되풀이', '주기', '간격', '때마다', '번번이',
   '왕복', '리듬', '박자', '분기마다', '주마다', '매달', '매주', '주기적',
@@ -94,10 +123,18 @@ function containsAny(text: string, markers: readonly string[]): boolean {
 
 export function detectSignal(answer: string): DiscoverySignal {
   const text = normalize(answer ?? '');
+  if (
+  CORRECTION_MARKERS.some(marker =>
+    text.includes(marker)
+  )
+) {
+  return 'CORRECTION';
+}
   if (text.trim().length === 0) return 'DESCRIPTION_ONLY';
 
   if (containsAny(text, POSITIVE_MARKERS)) return 'RECOGNITION';
-
+   if (containsAny(text, MEMORY_MARKERS))
+  return 'MOVEMENT_SURFACED';
   if (containsAny(text, RECOGNITION_MARKERS)) return 'RECOGNITION';
   if (containsAny(text, RHYTHM_MARKERS)) return 'RHYTHM_SURFACED';
   if (containsAny(text, MOVEMENT_MARKERS)) return 'MOVEMENT_SURFACED';
@@ -107,6 +144,8 @@ export function detectSignal(answer: string): DiscoverySignal {
 
 export function signalToDepth(signal: DiscoverySignal): DiscoveryDepth {
   switch (signal) {
+    case 'CORRECTION':
+      return 'D1';
     case 'RECOGNITION':
       return 'D4';
     case 'RHYTHM_SURFACED':
@@ -151,7 +190,21 @@ export function determineNextLayer(
 export function routeDiscovery(input: RoutingInput): RoutingResult {
   const signal = detectSignal(input.answer);
   const depth = signalToDepth(signal);
+  console.log(
+  'HRI DEBUG',
+  input.answer,
+  signal,
+  depth
+);
+  if (signal === 'CORRECTION') {
 
+  return {
+    depth,
+    signal,
+    nextLayer: 'ASK_DYNAMIC'
+  };
+
+}
   if (signal === 'RECOGNITION') {
     return { depth, signal, nextLayer: 'OBSERVATION' };
   }

@@ -1,3 +1,4 @@
+import { detectDomains } from "./v2/domainEngine";
 import type { StateCompass } from "./stateCompass";
 
 /**
@@ -184,7 +185,18 @@ function questionForLane(lane: MainQuestionLane, compass: StateCompass): string 
 }
 
 export function selectMainQuestionFromCompass(compass: StateCompass, inputs: string[]): MainQuestionSeed {
+  
   const joinedInput = inputs.join(" ");
+  console.log("MAIN LAYER INPUTS:", inputs);
+console.log("MAIN LAYER JOINED:", joinedInput);
+  const domainSignal = detectDomains(joinedInput);
+if ((domainSignal.distribution.memory ?? 0) > 0) {
+  return {
+    lane: "open-orientation",
+    question: "그 기억은 지금 어떤 자리에 놓여 있나요?",
+    confidence: domainSignal.distribution.memory ?? 0.7,
+  };
+}
   const [top, second] = scoreSignals(compass, joinedInput);
   const lane = top?.lane ?? "open-orientation";
   const scoreGap = top && second ? Math.max(0, top.score - second.score) : 0;

@@ -19,7 +19,9 @@ export type EngineResponse = {
 };
 
 export function getNextOutput(request: EngineRequest): EngineResponse {
+  console.log("ENTRY: src/lib/questionEngine.ts getNextOutput");
   const turn = request.turn === 1 || request.turn === 2 || request.turn === 3 ? request.turn : 1;
+  console.log("CALL: runHriSession");
   const response = runHriSession({
     turn,
     inputs: Array.isArray(request.inputs) ? request.inputs : [],
