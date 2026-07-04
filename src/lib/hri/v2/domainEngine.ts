@@ -9,19 +9,19 @@ import { DOMAINS } from "./types.v2";
 
 export const DOMAIN_KEYWORDS: DomainKeywordMap = {
   memory: [
-    "기억", "추억", "옛날", "예전", "그때", "어릴", "어렸", "과거", "지난",
+    "기억","감정", "남아", "즐거웠", "즐겁", "따뜻", "아쉽", "편안", "웃","추억", "옛날", "예전", "그때", "장면", "사람으로", "그 시절", "즐겁게", "대화했던", "기억들","어릴", "어렸", "과거", "지난",
     "회상", "떠오르", "떠올라", "생각나", "생각이 나", "다시 보", "남아 있",
     "잊", "잊혀", "잊히", "그 시절", "그 시간", "오래전", "한때",
   ],
   relationship: [
-    "엄마", "아빠", "어머니", "아버지", "부모", "가족", "형", "누나", "언니",
+    "보고싶","그립","얼굴","만났","함께","대화","엄마", "아빠", "어머니", "아버지", "부모", "가족", "형", "누나", "언니",
     "동생", "친구", "그 사람", "그분", "연인", "애인", "남편", "아내",
     "동료", "선배", "후배", "관계", "사이", "함께", "같이", "곁", "우리",
     "그녀", "그가", "만나", "헤어", "대화", "연락",
   ],
   loss: [
     "잃", "떠나보", "떠났", "보냈", "사라졌", "없어졌", "죽", "돌아가셨",
-    "이별", "헤어", "상실", "빈자리", "공허", "그립", "그리움", "남겨",
+    "이별", "헤어", "상실", "빈자리", "공허", "그리움", "남겨",
     "끝나버", "더는 없", "이제 없", "두고", "놓쳤", "놓아",
   ],
   work: [
@@ -77,6 +77,15 @@ export const detectDomains: DetectDomains = (latestAnswer: string): DomainSignal
 
   for (const domain of DOMAINS) {
     const result = scoreDomain(text, DOMAIN_KEYWORDS[domain]);
+    // Relationship 보강
+if (domain === "relationship") {
+  if (text.includes("보고싶")) result.score += 1.0;
+  if (text.includes("그립")) result.score += 1.0;
+  if (text.includes("얼굴")) result.score += 0.8;
+  if (text.includes("만났")) result.score += 0.8;
+  if (text.includes("함께")) result.score += 0.6;
+  if (text.includes("대화")) result.score += 0.6;
+}
     if (result.score > 0) {
       distribution[domain] = result.score;
       hits[domain] = result.hits;

@@ -1,4 +1,4 @@
-import type {
+import type { UnderstandingState, UnderstandingCoverage } from "./understandingEngine";import type {
   HriEvent,
   SessionState as SessionStateV1,
   RhythmVectorScores,
@@ -79,6 +79,9 @@ export function dominantAxis(v: CurrentVector): ConfigAxisKey | null {
 }
 
 export type SessionStateV2 = SessionStateV1 & {
+  understanding?: UnderstandingState;
+  coverage?: UnderstandingCoverage;
+  lastAnswer?: string;
   domains: DomainDistribution;
   currentVector: CurrentVector;
   domainHistory: DomainDistribution[];

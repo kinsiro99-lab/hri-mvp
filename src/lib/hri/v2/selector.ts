@@ -6,6 +6,7 @@ import type {
   CurrentVector,
   QuestionTree,
 } from "./types.v2";
+
 import { dominantDomain } from "./types.v2";
 import { QUESTION_INDEX } from "./questionIndex";
 
@@ -66,10 +67,10 @@ export const selectProbe: SelectProbe = (
   const tree = QUESTION_INDEX[domain];
   const candidateAxes = axesOfTree(tree);
 
-  const axis = mostUncertainSalientAxis(state.currentVector, candidateAxes);
+ const axis = mostUncertainSalientAxis(state.currentVector, candidateAxes);
 
   const branch =
-    axis !== null ? tree.byAxis[axis] ?? tree.default : tree.default;
+    axis !== null ? tree.byAxis[axis as keyof typeof tree.byAxis] ?? tree.default : tree.default;
 
   const question =
     pickUnused(branch, used) ??

@@ -1,19 +1,24 @@
+import { buildReflection } from "./v2/reflectionBuilder";
 import type { HriEvent, SessionState, QuestionOutput, ReflectionOutput } from "./types";
 import { checkSafetyBoundary } from "./safetyBoundary";
 import { detectRhythm } from "./rhythmDetection";
 import { reduceSessionState } from "./reducer";
 import { decideNextOutput } from "./pacing";
 import { advanceFlow, createFlowState } from "./flowController";
-
+import {
+  updateUnderstanding,
+  shouldObserve,
+  buildUnderstandingSummary,
+} from "./v2/understandingEngine";
 import { createQuestionEvent, createReflectionEvent, createSafetyEvent, createUserInputEvent } from "./events";
-
+import { planQuestion } from "./v2/questionPlanner";
 import { detectDomains } from "./v2/domainEngine";
 import { reduceSessionStateV2 } from "./v2/reducerV2";
 import { toCurrentVector, emptyCurrentVector } from "./v2/adapters";
 import { selectProbe } from "./v2/selector";
 import { evaluateConvergence } from "./v2/convergence";
 import { buildObservation } from "./v2/mirrorObservation";
-
+import { validateAnswer } from "./v2/answerValidator";
 import {
   DEFAULT_CONVERGENCE_PARAMS,
   type SessionStateV2,
@@ -57,6 +62,9 @@ if (HRI_V2) {
     ...baseV1,
     domains: prevV2.domains ?? {},
     currentVector: prevV2.currentVector ?? emptyCurrentVector(),
+    understanding: prevV2.understanding,
+    coverage: prevV2.coverage,
+    lastAnswer: trimmed,
     domainHistory: prevV2.domainHistory ?? [],
     configHistory: prevV2.configHistory ?? [],
   };
@@ -65,22 +73,54 @@ if (HRI_V2) {
   const vectorSignal = toCurrentVector(rhythmSignal);
   const v2state = reduceSessionStateV2(v2base, domainSignal, vectorSignal);
 
-  const convergence = evaluateConvergence(v2state, DEFAULT_CONVERGENCE_PARAMS);
-  const usedSet = new Set<string>(v2state.usedQuestionIds);
+  // 1) Understanding 갱신 — 이번 답으로 coverage를 채운다.
+  const understandingUpdate = updateUnderstanding(v2state.understanding, trimmed);
 
-  if (convergence.converged) {
-    const probe = selectProbe(v2state, usedSet);
+  // 갱신된 이해/커버리지를 이후 모든 결정의 단일 출처로 삼는다.
+  const hriState: SessionStateV2 = {
+    ...v2state,
+    understanding: understandingUpdate.next,
+    coverage: understandingUpdate.coverage,
+    lastAnswer: trimmed,
+  };
+
+  const coverage = understandingUpdate.coverage;
+
+  // 2) 종료 조건 — coverage 충분 or 턴 초과면 Observation.
+  const convergence = evaluateConvergence(hriState, DEFAULT_CONVERGENCE_PARAMS);
+  const coverageDone = shouldObserve(coverage, hriState.turnCount);
+
+  if (coverageDone || convergence.converged) {
+    const probe = selectProbe(hriState, new Set(hriState.usedQuestionIds));
+
+    // Flow Summary + Observation 3단 구조.
+    const flowSummary = buildUnderstandingSummary(understandingUpdate.next);
+    const reflectionResult = buildReflection(understandingUpdate.next);
     const obs = buildObservation(convergence, probe.domain, probe.axis, trimmed, []);
+    const nextDirection =
+      understandingUpdate.next.wish
+        ? `지금 마음이 향하는 곳은 '${understandingUpdate.next.wish}' 쪽으로 보입니다.`
+        : "지금은 무엇을 하기보다, 떠오른 것을 잠시 그대로 바라보는 자리에 가깝습니다.";
+
+    const reflectionText = [
+      reflectionResult.title,
+      reflectionResult.body,
+      obs?.text ?? "",
+      reflectionResult.closing,
+]
+  .filter((s) => s && s.trim().length > 0)
+  .join("\n\n");
+
     const reflection: ReflectionOutput = {
-      text: obs?.text ?? "",
+      text: reflectionText,
       tone: "quiet",
       compressionLevel: "low",
     };
 
     const nextState: SessionStateV2 = {
-      ...v2state,
+      ...hriState,
       phase: "reflection",
-      lastReflectionAtTurn: v2state.turnCount,
+      lastReflectionAtTurn: hriState.turnCount,
       pendingWhisper: false,
     };
 
@@ -90,21 +130,50 @@ if (HRI_V2) {
     };
   }
 
-  const probe = selectProbe(v2state, usedSet);
+  // 3) Planner 우선 — 미충족 슬롯을 겨냥한 질문.
+  const plannedQuestion = planQuestion(understandingUpdate.next, coverage);
+
+  // 4) Planner가 null이면 selector fallback (used에 직전 답변 검증 반영).
+  const usedSet = new Set<string>(hriState.usedQuestionIds);
+  const lastQuestionText = [...withUserInput]
+    .reverse()
+    .find((event) => event.type === "question")?.text ?? "";
+  const answerValidation = validateAnswer(lastQuestionText, trimmed);
+  if (answerValidation.completed && lastQuestionText) {
+    usedSet.add(lastQuestionText);
+  }
+
+  const probe = selectProbe(hriState, usedSet);
+  const fallbackQuestion =
+    probe.question === lastQuestionText
+      ? (() => {
+          switch (probe.domain) {
+            case "memory": return "그 기억에서 지금 가장 오래 남아 있는 것은 무엇인가요?";
+            case "relationship": return "그 관계를 떠올릴 때 지금 가장 크게 남는 것은 무엇인가요?";
+            case "loss": return "그 빈자리를 떠올릴 때 가장 먼저 느껴지는 것은 무엇인가요?";
+            case "hope": return "그 바람을 떠올릴 때 가장 먼저 기대되는 것은 무엇인가요?";
+            case "fear": return "그 두려움 속에서 가장 크게 느껴지는 것은 무엇인가요?";
+            default: return "방금 떠오른 것에서 조금 더 선명한 것은 무엇인가요?";
+          }
+        })()
+      : probe.question;
+
+  const finalText = plannedQuestion ?? fallbackQuestion;
+
   const question: QuestionOutput = {
-    id: `v2-${probe.domain ?? "none"}-${probe.axis ?? "none"}-${v2state.turnCount}`,
-    text: probe.question,
-    category: v2state.lastQuestionCategory ?? "density",
+    id: `v2-${probe.domain ?? "none"}-${probe.axis ?? "none"}-${hriState.turnCount}`,
+    text: finalText,
+    category: hriState.lastQuestionCategory ?? "density",
     aperture: "small",
     weight: 1,
   };
 
   const nextState: SessionStateV2 = {
-    ...v2state,
+    ...hriState,
     phase: "probing",
     pendingWhisper: false,
     lastQuestionCategory: question.category,
-    usedQuestionIds: [...v2state.usedQuestionIds, question.text],
+    usedQuestionIds: [...hriState.usedQuestionIds, question.text],
   };
 
   return {
