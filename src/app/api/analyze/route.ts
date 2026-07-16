@@ -1,4 +1,4 @@
-import { getNextOutput, type EngineRequest } from "@/lib/questionEngine";
+import { getNextOutput, type EngineRequest } from "@/lib/hriRuntime";
 import { advanceSession } from "@/lib/hri/controller";
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",

@@ -8,14 +8,26 @@ import { advanceFlow, createFlowState } from "./flowController";
 import {
   updateUnderstanding,
   shouldObserve,
-  buildUnderstandingSummary,
 } from "./v2/understandingEngine";
-import { createQuestionEvent, createReflectionEvent, createSafetyEvent, createUserInputEvent } from "./events";
-import { planQuestion } from "./v2/questionPlanner";
+import {
+  createQuestionEvent,
+  createObservationEvent,
+  createResonanceEvent,
+  createReflectionEvent,
+  createSafetyEvent,
+  createUserInputEvent,
+} from "./events";
+import {
+  planQuestion,
+  planQuestionDecision,
+} from "./v2/questionPlanner";
 import { detectDomains } from "./v2/domainEngine";
 import { reduceSessionStateV2 } from "./v2/reducerV2";
 import { toCurrentVector, emptyCurrentVector } from "./v2/adapters";
-import { selectProbe } from "./v2/selector";
+import {
+  selectProbe,
+  selectQuestion,
+} from "./v2/selector";
 import { evaluateConvergence } from "./v2/convergence";
 import { buildObservation } from "./v2/mirrorObservation";
 import { validateAnswer } from "./v2/answerValidator";
@@ -88,13 +100,25 @@ if (HRI_V2) {
 
   // 2) 종료 조건 — coverage 충분 or 턴 초과면 Observation.
   const convergence = evaluateConvergence(hriState, DEFAULT_CONVERGENCE_PARAMS);
-  const coverageDone = shouldObserve(coverage, hriState.turnCount);
-
-  if (coverageDone || convergence.converged) {
+  const coverageDone = shouldObserve(
+    understandingUpdate.next,
+    coverage,
+    hriState.turnCount
+);
+  const minimumObservationTurns = 4;
+  const canReflect = hriState.turnCount >= minimumObservationTurns;
+  console.log("OBSERVE CHECK:", {
+  turnCount: hriState.turnCount,
+  coverageDone,
+  convergence: convergence.converged,
+  coverage,
+  updateCoverage: understandingUpdate.coverage,
+});
+  if (canReflect && (coverageDone || convergence.converged)) {
     const probe = selectProbe(hriState, new Set(hriState.usedQuestionIds));
 
     // Flow Summary + Observation 3단 구조.
-    const flowSummary = buildUnderstandingSummary(understandingUpdate.next);
+    const flowSummary = "";
     const reflectionResult = buildReflection(understandingUpdate.next);
     const obs = buildObservation(convergence, probe.domain, probe.axis, trimmed, []);
     const nextDirection =
@@ -102,14 +126,15 @@ if (HRI_V2) {
         ? `지금 마음이 향하는 곳은 '${understandingUpdate.next.wish}' 쪽으로 보입니다.`
         : "지금은 무엇을 하기보다, 떠오른 것을 잠시 그대로 바라보는 자리에 가깝습니다.";
 
-    const reflectionText = [
-      reflectionResult.title,
-      reflectionResult.body,
-      obs?.text ?? "",
-      reflectionResult.closing,
+   const observationText = obs?.text ?? "";
+
+const reflectionText = [
+    reflectionResult.title,
+    reflectionResult.body,
+    reflectionResult.closing,
 ]
-  .filter((s) => s && s.trim().length > 0)
-  .join("\n\n");
+.filter(s => s && s.trim().length > 0)
+.join("\n\n");
 
     const reflection: ReflectionOutput = {
       text: reflectionText,
@@ -131,7 +156,10 @@ if (HRI_V2) {
   }
 
   // 3) Planner 우선 — 미충족 슬롯을 겨냥한 질문.
-  const plannedQuestion = planQuestion(understandingUpdate.next, coverage);
+  const plannerDecision = planQuestionDecision(
+  understandingUpdate.next,
+  coverage,
+);
 
   // 4) Planner가 null이면 selector fallback (used에 직전 답변 검증 반영).
   const usedSet = new Set<string>(hriState.usedQuestionIds);
@@ -143,22 +171,16 @@ if (HRI_V2) {
     usedSet.add(lastQuestionText);
   }
 
-  const probe = selectProbe(hriState, usedSet);
-  const fallbackQuestion =
-    probe.question === lastQuestionText
-      ? (() => {
-          switch (probe.domain) {
-            case "memory": return "그 기억에서 지금 가장 오래 남아 있는 것은 무엇인가요?";
-            case "relationship": return "그 관계를 떠올릴 때 지금 가장 크게 남는 것은 무엇인가요?";
-            case "loss": return "그 빈자리를 떠올릴 때 가장 먼저 느껴지는 것은 무엇인가요?";
-            case "hope": return "그 바람을 떠올릴 때 가장 먼저 기대되는 것은 무엇인가요?";
-            case "fear": return "그 두려움 속에서 가장 크게 느껴지는 것은 무엇인가요?";
-            default: return "방금 떠오른 것에서 조금 더 선명한 것은 무엇인가요?";
-          }
-        })()
-      : probe.question;
+ const probe = selectProbe(hriState, usedSet);
 
-  const finalText = plannedQuestion ?? fallbackQuestion;
+const finalText =
+  plannerDecision !== null
+    ? selectQuestion(
+        plannerDecision.slot,
+        plannerDecision.anchor,
+        usedSet,
+      ).question
+    : probe.question;
 
   const question: QuestionOutput = {
     id: `v2-${probe.domain ?? "none"}-${probe.axis ?? "none"}-${hriState.turnCount}`,

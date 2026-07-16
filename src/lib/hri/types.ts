@@ -38,6 +38,18 @@ export type HriEvent =
     }
   | {
       id: string;
+      type: "observation";
+      text: string;
+      createdAt: number;
+    }
+  | {
+      id: string;
+      type: "resonance";
+      pauseMs: number;
+      createdAt: number;
+    }
+  | {
+      id: string;
       type: "whisper";
       text: string;
       mode: WhisperMode;
@@ -49,7 +61,7 @@ export type HriEvent =
       text: string;
       createdAt: number;
     };
-
+    
 export type RhythmVectorScores = {
   collapse: number;
   pressure: number;

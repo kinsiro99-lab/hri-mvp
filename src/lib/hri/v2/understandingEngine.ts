@@ -271,7 +271,8 @@ function isPressure(text: string): boolean {
   return (
     inWork(text, "timePressure") ||
     inWork(text, "stress") ||
-    inWork(text, "blockage")
+    inWork(text, "blockage") ||
+    has(text, ["시일", "공개", "출시", "오픈", "베타", "발표", "일정", "런칭", "마감", "기한"])
   );
 }
 
@@ -320,6 +321,31 @@ function updateTarget(text: string, state: UnderstandingState): string | undefin
   if (inWork(text, "timePressure")) return "시간 압박";
   if (inWork(text, "blockage")) return "막힌 일";
   if (inWork(text, "stress")) return "압박 상황";
+  if (
+    has(text, [
+        "가끔 연락",
+        "가끔 연락한다",
+        "연락한다",
+        "연락이 왔",
+        "연락이 온",
+        "연락하",
+        "종종",
+        "이따금",
+        "안부"
+    ])
+) return "이어지고 있는 연결";
+
+if (
+    has(text, [
+        "알고 있는",
+        "아는",
+        "알던",
+        "지인",
+        "친구",
+        "친구이다",
+        "친구다"
+    ])
+) return "느슨한 연결";
   if (isWorkSignal(text)) return "업무 상황";
   if (inMemory(text, "scene")) return "장면";
   if (isHealthSignal(text)) return "몸 상태";
@@ -341,9 +367,12 @@ function updateEmotion(text: string, state: UnderstandingState): string | undefi
   if (has(text, ["불안", "걱정"])) return "불안";
   if (has(text, ["혼란", "어지럽"])) return "혼란";
   if (has(text, ["외롭", "쓸쓸"])) return "외로움";
-  if (has(text, ["편안", "안도"])) return "편안함";
+  if (has(text, ["기쁨", "기쁘", "즐겁", "행복", "만족", "뿌듯", "성취", "완성", "보람"]))
+  return "즐거움";
 
-  return state.emotion;
+if (has(text, ["편안", "안도"])) return "편안함";
+
+return state.emotion;
 }
 
 function updateRelationship(text: string, state: UnderstandingState): string | undefined {
@@ -352,7 +381,42 @@ function updateRelationship(text: string, state: UnderstandingState): string | u
   if (inRelationship(text, "separation")) return "끊어진 연결";
   if (inRelationship(text, "longing")) return "남아 있는 연결";
   if (inRelationship(text, "warmth")) return "따뜻했던 연결";
-  if (isWorkSignal(text)) return "부담을 주는 대상";
+ 
+
+    if (
+        has(text, [
+            "가끔",
+            "가끔 연락",
+            "연락한다",
+            "연락이 왔",
+            "연락이 온",
+            "연락하",
+            "종종",
+            "이따금",
+            "안부"
+        ])
+    ) return "이어지고 있는 연결";
+
+    if (
+        has(text, [
+            "아는",
+            "알고 있는",
+            "알던",
+            "지인",
+            "친구",
+            "친구이다",
+            "친구다",
+            "만났던 친구",
+            "옛날",
+            "예전",
+            "예전에",
+            "오래전",
+            "오랜 친구"
+        ])
+    ) return "느슨한 연결";
+
+if (isWorkSignal(text)) return "부담을 주는 대상";
+ 
 
   return state.relationship;
 }
@@ -367,7 +431,8 @@ function updatePresentState(text: string, state: UnderstandingState): string | u
   if (inWork(text, "stress")) return "압박이 지속되는 상태";
   if (inWork(text, "workload")) return "부담이 누적된 상태";
   if (isHealthSignal(text)) return "회복이 필요한 상태";
-  if (has(text, ["지금도", "아직", "남아"])) return "현재에도 남아 있음";
+  if (has(text, ["지금도", "아직", "남아", "함께", "즐거웠던", "시간", "추억", "보고싶", "보고 싶", "그립"]))
+  return "현재에도 따뜻하게 남아 있음";
   if (has(text, ["모르다", "잘 모르다", "어디에 있는지"])) return "불분명한 상태";
   if (has(text, ["혼란", "뒤엉", "복잡"])) return "혼란스러운 상태";
 
@@ -394,7 +459,8 @@ function updateWish(text: string, state: UnderstandingState): string | undefined
   ) {
     return text;
   }
-
+  if (has(text, ["그리움", "그립", "보고싶", "보고 싶"]))
+  return "다시 만나고 싶음";
   return state.wish;
 }
 
@@ -415,7 +481,8 @@ function updateMeaning(text: string, state: UnderstandingState): string | undefi
   ) {
     return text;
   }
-
+  if (has(text, ["그리움", "그립", "보고싶", "보고 싶"]))
+  return "소중한 관계에 대한 그리움";
   return state.meaning;
 }
 
@@ -438,6 +505,27 @@ function updateMemoryTone(
   if (negative) return "negative";
 
   return state.memoryTone;
+}
+function hasEnoughDetail(value?: string): boolean {
+  if (!value) return false;
+
+  const text = value.trim();
+
+  if (text.length < 3) return false;
+
+  const weakWords = [
+    "모름",
+    "모르겠다",
+    "글쎄",
+    "잘",
+    "그냥",
+    "둘다",
+    "둘 다",
+    "비슷",
+    "같다",
+  ];
+
+  return !weakWords.some((word) => text.includes(word));
 }
 
 export function updateUnderstanding(
@@ -468,38 +556,33 @@ const coverage: UnderstandingCoverage = {
   meaning: Boolean(next.meaning),
   wish: Boolean(next.wish),
 };
+
+console.log("===== HRI Understanding =====");
+console.log("INPUT :", text);
+console.log("NEXT  :", next);
+console.log("COVER :", coverage);
+console.log("=============================");
   return { next, coverage };     
 }
+export const MIN_OBSERVATION_TURNS = 5;
+export const COVERAGE_THRESHOLD = 5;
 
 export function shouldObserve(
-  coverage: UnderstandingCoverage,
-  turnCount: number,
+    next: UnderstandingState,
+    coverage: UnderstandingCoverage,
+    turnCount: number,
 ): boolean {
   const score = [
-    coverage.topic,
-    coverage.target,
-    coverage.emotion,
-    coverage.relationship,
-    coverage.presentState,
-  ].filter(Boolean).length;
-
-  return (turnCount >= 3 && score >= 4) || turnCount >= 6;
-}
-
-export function buildUnderstandingSummary(state: UnderstandingState): string {
-  const parts: string[] = [];
-
-  if (state.topic) parts.push(`${state.topic}에 대한 흐름`);
-  if (state.target) parts.push(`${state.target}이 중심에 있음`);
-  if (state.emotion) parts.push(`${state.emotion}이 남아 있음`);
-  if (state.relationship) parts.push(`${state.relationship}이 드러남`);
-  if (state.presentState) parts.push(`${state.presentState}`);
-  if (state.meaning) parts.push(`${state.meaning}`);
-  if (state.wish) parts.push(`${state.wish}`);
-
-  if (parts.length === 0) {
-    return "이번 흐름에서는 아직 하나의 방향으로 정리되기보다, 마음에 떠오른 것을 조심스럽게 확인하는 움직임이 보입니다.";
-  }
-
-  return `이번 흐름에서는 ${parts.join(", ")}이 확인됩니다. 지금의 대화는 단순한 회상이라기보다, 마음에 남아 있는 흐름을 다시 알아차리는 과정으로 보입니다.`;
+    hasEnoughDetail(next.topic),
+    hasEnoughDetail(next.target),
+    hasEnoughDetail(next.emotion),
+    hasEnoughDetail(next.relationship),
+    hasEnoughDetail(next.presentState),
+    hasEnoughDetail(next.meaning),
+    hasEnoughDetail(next.wish),
+].filter(Boolean).length;
+  return (
+    turnCount >= MIN_OBSERVATION_TURNS &&
+    score >= COVERAGE_THRESHOLD
+  );
 }

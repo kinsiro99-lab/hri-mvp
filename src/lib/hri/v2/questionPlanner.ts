@@ -2,6 +2,7 @@ import type {
   UnderstandingCoverage,
   UnderstandingState,
 } from "./understandingEngine";
+import type { Slot, PlannerDecision } from "./types.v2";;
 
 export function planQuestion(
   understanding: UnderstandingState | undefined,
@@ -80,4 +81,81 @@ function planDefault(c: UnderstandingCoverage): string | null {
   if (!c.wish) return "지금 마음이 가장 바라는 것은 무엇인가요?";
 
   return null;
+}
+/* =========================================================
+ * Planner / Selector Separation (V2 live path) — 추가분
+ *
+ * 기존 planQuestion()과 하위 plan* 함수들은 수정하지 않는다.
+ * 여기서는 '슬롯만 결정'하는 새 진입점을 추가한다.
+ * decideNextSlot()의 슬롯 순서는 기존 plan* 함수와 1:1로 동일하다.
+ * 문장 변환(slotToQuestionText)은 Patch 4 이후 controller 전환 시 다룬다.
+ * ========================================================= */
+
+function withAnchor(
+  slot: Slot,
+  understanding: UnderstandingState | undefined,
+): PlannerDecision {
+  const anchor = understanding?.emotion ?? understanding?.topic;
+  return anchor ? { slot, anchor } : { slot };
+}
+
+function decideNextSlot(
+  understanding: UnderstandingState | undefined,
+  coverage: UnderstandingCoverage | undefined,
+): PlannerDecision | null {
+  if (!coverage) return null;
+
+  if (!coverage.topic) {
+    return withAnchor("topic", understanding);
+  }
+
+  switch (understanding?.topic) {
+    case "관계":
+      if (!coverage.target) return withAnchor("target", understanding);
+      if (!coverage.relationship) return withAnchor("relationship", understanding);
+      if (!coverage.emotion) return withAnchor("emotion", understanding);
+      if (!coverage.presentState) return withAnchor("presentState", understanding);
+      if (!coverage.meaning) return withAnchor("meaning", understanding);
+      if (!coverage.wish) return withAnchor("wish", understanding);
+      return null;
+
+    case "업무 압박":
+      if (!coverage.target) return withAnchor("target", understanding);
+      if (!coverage.presentState) return withAnchor("presentState", understanding);
+      if (!coverage.emotion) return withAnchor("emotion", understanding);
+      if (!coverage.meaning) return withAnchor("meaning", understanding);
+      if (!coverage.wish) return withAnchor("wish", understanding);
+      return null;
+
+    case "기억":
+      if (!coverage.target) return withAnchor("target", understanding);
+      if (!coverage.emotion) return withAnchor("emotion", understanding);
+      if (!coverage.presentState) return withAnchor("presentState", understanding);
+      if (!coverage.meaning) return withAnchor("meaning", understanding);
+      if (!coverage.wish) return withAnchor("wish", understanding);
+      return null;
+
+    case "몸 상태":
+      if (!coverage.target) return withAnchor("target", understanding);
+      if (!coverage.presentState) return withAnchor("presentState", understanding);
+      if (!coverage.emotion) return withAnchor("emotion", understanding);
+      if (!coverage.meaning) return withAnchor("meaning", understanding);
+      if (!coverage.wish) return withAnchor("wish", understanding);
+      return null;
+
+    default:
+      if (!coverage.target) return withAnchor("target", understanding);
+      if (!coverage.presentState) return withAnchor("presentState", understanding);
+      if (!coverage.emotion) return withAnchor("emotion", understanding);
+      if (!coverage.meaning) return withAnchor("meaning", understanding);
+      if (!coverage.wish) return withAnchor("wish", understanding);
+      return null;
+  }
+}
+
+export function planQuestionDecision(
+  understanding: UnderstandingState | undefined,
+  coverage: UnderstandingCoverage | undefined,
+): PlannerDecision | null {
+  return decideNextSlot(understanding, coverage);
 }

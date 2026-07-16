@@ -10,6 +10,8 @@ export type EngineRequest = {
 export type EngineResponse = {
   question?: string;
   reflection?: string;
+  observation?: string;
+  resonance?: boolean;
   mainQuestion?: string;
   mainQuestionLane?: string;
   mainQuestionConfidence?: number;
@@ -28,12 +30,11 @@ export function getNextOutput(request: EngineRequest): EngineResponse {
     debug: request.debug === true,
   });
 
-  return {
-    ...response,
-    finished: Boolean(response.reflection),
-  };
+ return {
+  ...response,
+  finished: Boolean(response.reflection),
+};
 }
 
-
-// Backward-compatible API/UI contract n ame.
-export type EngineOutput = EngineResponse
+// Backward-compatible API/UI contract name.
+export type EngineOutput = EngineResponse;

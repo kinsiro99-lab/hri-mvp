@@ -1,3 +1,5 @@
+import type { SelectQuestion, Slot } from "./types.v2";
+import { SLOT_QUESTIONS } from "./slotQuestions";
 import type {
   SessionStateV2,
   SelectProbe,
@@ -81,3 +83,57 @@ export const selectProbe: SelectProbe = (
 };
 
 export default selectProbe;
+/* =========================================================
+ * selectQuestion (V2 live path) — ADD ONLY
+ *
+ * Planner가 결정한 slot 안에서만 문장을 고른다.
+ * 방향(slot)을 다시 결정하지 않으며 domains/axis를 보지 않는다.
+ * anchor가 있으면 anchored 문형에 삽입하고,
+ * 없거나 부적절하면 neutral 문형으로 폴백한다.
+ * 기존 selectProbe는 그대로 유지한다.
+ * ========================================================= */
+
+const ANCHOR_TOKEN = "{anchor}";
+
+function isUsableAnchor(anchor: string | undefined): anchor is string {
+  if (!anchor) return false;
+
+  const trimmed = anchor.trim();
+
+  if (trimmed.length === 0) return false;
+  if (trimmed.length > 20) return false;
+
+  return true;
+}
+
+function fillAnchor(template: string, anchor: string): string {
+  return template.split(ANCHOR_TOKEN).join(anchor);
+}
+
+export const selectQuestion: SelectQuestion = (
+  slot: Slot,
+  anchor: string | undefined,
+  used: ReadonlySet<string>,
+) => {
+  const pool = SLOT_QUESTIONS[slot];
+
+  if (isUsableAnchor(anchor)) {
+    const filled = pool.anchored.map((template) =>
+      fillAnchor(template, anchor),
+    );
+
+    const picked = pickUnused(filled, used);
+
+    if (picked !== null) {
+      return { question: picked };
+    }
+  }
+
+  const neutralPicked = pickUnused(pool.neutral, used);
+
+  if (neutralPicked !== null) {
+    return { question: neutralPicked };
+  }
+
+  return { question: pool.neutral[0] };
+};

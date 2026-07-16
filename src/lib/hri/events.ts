@@ -3,9 +3,13 @@ import type { HriEvent, QuestionOutput, ReflectionOutput, WhisperOutput } from "
 function makeId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
-
 export function createUserInputEvent(text: string): HriEvent {
-  return { id: makeId("user"), type: "user_input", text, createdAt: Date.now() };
+  return {
+    id: makeId("user_input"),
+    type: "user_input",
+    text,
+    createdAt: Date.now(),
+  };
 }
 
 export function createQuestionEvent(question: QuestionOutput): HriEvent {
@@ -15,6 +19,23 @@ export function createQuestionEvent(question: QuestionOutput): HriEvent {
     text: question.text,
     questionId: question.id,
     category: question.category,
+    createdAt: Date.now(),
+  };
+}
+export function createObservationEvent(text: string): HriEvent {
+  return {
+    id: makeId("observation"),
+    type: "observation",
+    text,
+    createdAt: Date.now(),
+  };
+}
+
+export function createResonanceEvent(pauseMs = 5000): HriEvent {
+  return {
+    id: makeId("resonance"),
+    type: "resonance",
+    pauseMs,
     createdAt: Date.now(),
   };
 }

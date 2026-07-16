@@ -114,6 +114,25 @@ export type SelectProbe = (
   axis: ConfigAxisKey | null;
   question: string;
 };
+export type Slot =
+  | "topic"
+  | "target"
+  | "emotion"
+  | "relationship"
+  | "presentState"
+  | "meaning"
+  | "wish";
+
+export type PlannerDecision = {
+  slot: Slot;
+  anchor?: string;
+};
+
+export type SelectQuestion = (
+  slot: Slot,
+  anchor: string | undefined,
+  used: ReadonlySet<string>,
+) => { question: string };
 
 export type ConvergenceReason =
   | "config_stable"

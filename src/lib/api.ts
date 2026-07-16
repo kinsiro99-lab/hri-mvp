@@ -1,4 +1,4 @@
-import type { EngineRequest, EngineOutput } from "./questionEngine";
+import type { EngineRequest, EngineOutput } from "./hriRuntime";
 
 function apiEndpoint(): string {
   const remoteBase = process.env.NEXT_PUBLIC_HRI_API_BASE?.replace(/\/$/, "");

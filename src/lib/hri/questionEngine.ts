@@ -4,6 +4,21 @@ import { detectDomains } from "./v2/domainEngine";
 import { selectProbe } from "./v2/selector";
 import { emptyCurrentVector } from "./v2/adapters";
 import type { SessionStateV2 } from "./v2/types.v2";
+import { updateUnderstanding, shouldObserve } from "./v2/understandingEngine";
+import { planQuestion } from "./v2/questionPlanner";
+export type EngineResponse = {
+  question?: string;
+  reflection?: string;
+  mainQuestion?: string;
+  mainQuestionLane?: string;
+  mainQuestionConfidence?: number;
+  stateCompass?: unknown;
+  finished?: boolean;
+  source?: string;
+
+  observation?: string;
+  resonance?: boolean;
+};
 function stableId(parts: string[]): string {
   return parts.join("-").replace(/[^a-zA-Z0-9가-힣_-]+/g, "_").slice(0, 90);
 }
@@ -250,10 +265,44 @@ function buildCandidates(state: SessionState, events: HriEvent[]): QuestionCandi
 }
 export function selectNextQuestion(state: SessionState, events: HriEvent[] = []): QuestionOutput {
   const latestUserText = [...events].reverse().find((e) => e.type === "user_input")?.text ?? "";
+  const understandingUpdate = updateUnderstanding(
+  (state as SessionStateV2).understanding,
+  latestUserText
+);
 
+const plannedQuestion = planQuestion(
+  understandingUpdate.next,
+  understandingUpdate.coverage
+);
+
+if (plannedQuestion) {
+  return {
+    id: `q-planner-${state.turnCount}`,
+    text: plannedQuestion,
+    category: state.lastQuestionCategory ?? "density",
+    aperture: "small",
+    weight: 1,
+  };
+}
+
+
+if (
+  shouldObserve(
+    understandingUpdate.next,
+    understandingUpdate.coverage,
+    state.turnCount
+  )
+) {
+  return {
+    id: `q-observation-ready-${state.turnCount}`,
+    text: "__OBSERVATION_READY__",
+    category: "silence",
+    aperture: "small",
+    weight: 0,
+  };
+}
   const domainSignal = detectDomains(latestUserText);
   const memoryScore = domainSignal.distribution.memory ?? 0;
-
   if (memoryScore > 0) {
     const v2state: SessionStateV2 = {
       ...state,
