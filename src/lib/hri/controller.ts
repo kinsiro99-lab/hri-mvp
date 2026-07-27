@@ -1,10 +1,12 @@
-import { buildReflection } from "./v2/reflectionBuilder";
+import { composeReflection } from "./v2/reflectionComposer";
 import type { HriEvent, SessionState, QuestionOutput, ReflectionOutput } from "./types";
 import { checkSafetyBoundary } from "./safetyBoundary";
 import { detectRhythm } from "./rhythmDetection";
 import { reduceSessionState } from "./reducer";
 import { decideNextOutput } from "./pacing";
 import { advanceFlow, createFlowState } from "./flowController";
+import { NEUTRAL_DEEPENING } from "./v2/neutralQuestions";
+
 import {
   updateUnderstanding,
   shouldObserve,
@@ -77,6 +79,7 @@ if (HRI_V2) {
     understanding: prevV2.understanding,
     coverage: prevV2.coverage,
     lastAnswer: trimmed,
+    lastProbedSlot: prevV2.lastProbedSlot,
     domainHistory: prevV2.domainHistory ?? [],
     configHistory: prevV2.configHistory ?? [],
   };
@@ -86,7 +89,11 @@ if (HRI_V2) {
   const v2state = reduceSessionStateV2(v2base, domainSignal, vectorSignal);
 
   // 1) Understanding 갱신 — 이번 답으로 coverage를 채운다.
-  const understandingUpdate = updateUnderstanding(v2state.understanding, trimmed);
+  const understandingUpdate = updateUnderstanding(
+    v2state.understanding,
+    trimmed,
+    prevV2.lastProbedSlot,
+);
 
   // 갱신된 이해/커버리지를 이후 모든 결정의 단일 출처로 삼는다.
   const hriState: SessionStateV2 = {
@@ -119,7 +126,7 @@ if (HRI_V2) {
 
     // Flow Summary + Observation 3단 구조.
     const flowSummary = "";
-    const reflectionResult = buildReflection(understandingUpdate.next);
+    const reflectionResult = composeReflection(understandingUpdate.next);
     const obs = buildObservation(convergence, probe.domain, probe.axis, trimmed, []);
     const nextDirection =
       understandingUpdate.next.wish
@@ -180,7 +187,10 @@ const finalText =
         plannerDecision.anchor,
         usedSet,
       ).question
-    : probe.question;
+    : (
+        NEUTRAL_DEEPENING.find((q) => !usedSet.has(q))
+        ?? NEUTRAL_DEEPENING[hriState.turnCount % NEUTRAL_DEEPENING.length]
+      );
 
   const question: QuestionOutput = {
     id: `v2-${probe.domain ?? "none"}-${probe.axis ?? "none"}-${hriState.turnCount}`,
@@ -189,13 +199,14 @@ const finalText =
     aperture: "small",
     weight: 1,
   };
-
+ console.log("QUESTION SOURCE:", question.id, question.text);
   const nextState: SessionStateV2 = {
     ...hriState,
     phase: "probing",
     pendingWhisper: false,
     lastQuestionCategory: question.category,
     usedQuestionIds: [...hriState.usedQuestionIds, question.text],
+    lastProbedSlot: plannerDecision?.slot,
   };
 
   return {

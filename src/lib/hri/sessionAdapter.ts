@@ -31,15 +31,30 @@ function cloneInitialState(): SessionState {
   };
 }
 
-function latestOutput(events: HriEvent[]): HriEvent | undefined {
+type OutputEvent = Extract<HriEvent, { type: "question" | "reflection" | "safety" }>;
+
+function latestOutput(events: HriEvent[]): OutputEvent | undefined {
   return [...events]
     .reverse()
-    .find((event) => event.type === "question" || event.type === "reflection" || event.type === "safety");
+    .find(
+      (event): event is OutputEvent =>
+        event.type === "question" || event.type === "reflection" || event.type === "safety",
+    );
 }
+/**
+ * 한 세션에서 재생할 최대 입력 수.
+ * 이 어댑터는 매 요청마다 전체 입력을 처음부터 재생해 상태를 복원하므로,
+ * 이 값보다 뒤의 입력은 엔진에 도달하지 않는다.
+ * 현재 종료 조건에 여유를 두되 무제한 입력은 허용하지 않는다.
+ */
+const MAX_SESSION_INPUTS = 12;
 
 export function runHriSession(request: RuntimeRequest): RuntimeResponse {
   const inputs = Array.isArray(request.inputs)
-    ? request.inputs.map((value) => String(value ?? "").trim()).filter(Boolean).slice(0, 4)
+    ? request.inputs
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean)
+        .slice(0, MAX_SESSION_INPUTS)
     : [];
 
   let state = cloneInitialState();

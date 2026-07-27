@@ -1,6 +1,5 @@
-import type { Metadata, Viewport } from "next"
-import "@/styles/globals.css"
-
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
 export const metadata: Metadata = {
   title: "HRI — Human Rhythm Intelligence",
   description: "지금, 당신의 마음을 살펴보세요",

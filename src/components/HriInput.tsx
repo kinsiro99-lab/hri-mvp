@@ -30,12 +30,12 @@ export default function HriInput({
   const ref = useRef<HTMLTextAreaElement>(null)
 
   // Auto-resize textarea to content
-  const resize = useCallback(() => {
-    const el = ref.current
-    if (!el) return
-    el.style.height = "auto"
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
-  }, [])
+ const resize = useCallback(() => {
+  const el = ref.current
+  if (!el) return
+
+  el.style.height = "120px"
+}, [])
 
   useEffect(() => { resize() }, [value, resize])
 
@@ -64,11 +64,17 @@ export default function HriInput({
       <div className="input-wrap">
         <textarea
  style={{
-  minHeight: "140px",
-  padding: "22px",
+  width: "100%",
+  height: "120px",
+  minHeight: "120px",
+  maxHeight: "120px",
+  overflowY: "auto",
+  resize: "none",
+  boxSizing: "border-box",
+  padding: "20px 22px",
   fontSize: "24px",
   fontWeight: 600,
-  lineHeight: "1.7",
+  lineHeight: "1.55",
   borderRadius: "20px",
   border: "2px solid #111111",
   boxShadow: "0 2px 10px rgba(0,0,0,0.06)",

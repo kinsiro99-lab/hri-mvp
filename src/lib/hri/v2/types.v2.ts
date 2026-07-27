@@ -82,6 +82,7 @@ export type SessionStateV2 = SessionStateV1 & {
   understanding?: UnderstandingState;
   coverage?: UnderstandingCoverage;
   lastAnswer?: string;
+  lastProbedSlot?: Slot
   domains: DomainDistribution;
   currentVector: CurrentVector;
   domainHistory: DomainDistribution[];

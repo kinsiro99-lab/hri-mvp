@@ -228,3 +228,23 @@ section.hero-zone .hero-video-label {
 body {
   background: #eaf3ff !important;
 }
+.page-shell {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 40px 48px;
+  box-sizing: border-box;
+}
+
+.page-shell > * {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.conversation-canvas {
+  width: 100%;
+  max-width: 1280px;
+  margin: 28px auto 32px;
+}

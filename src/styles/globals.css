@@ -278,6 +278,7 @@ body {
     border-color var(--t-calm) ease,
     box-shadow   var(--t-calm) ease;
   -webkit-appearance: none;
+  appearance: none;
 }
 
 .hri-input::placeholder {
@@ -1097,4 +1098,34 @@ input::placeholder {
   .bottom-panels {
     flex-direction: column;
   }
+}
+/* V4 session layout */
+.page-shell {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 40px 48px;
+  box-sizing: border-box;
+}
+
+/* 입력창이 지나치게 길어지는 문제 */
+.page-shell textarea {
+  width: 100%;
+  min-height: 120px;
+  max-height: 180px;
+  resize: none;
+  box-sizing: border-box;
+}
+
+/* 입력할 때 아래 영역이 계속 밀리는 현상 방지 */
+.history-area {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* 하단 영역 중앙 정렬 */
+.page-shell > * {
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
 }

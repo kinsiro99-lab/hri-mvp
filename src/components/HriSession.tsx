@@ -15,11 +15,21 @@
 //   - Reflection appears with extra breathing space
 
 import { useState, useCallback, useEffect, useRef } from "react"
-import HriInput from "./HriInput"
+import ConversationCanvas from "./hri/v4/ConversationCanvas";
 import ThinkingDots from "./ThinkingDots"
 import { callEngine } from "@/lib/api"
 type Turn = number
 import RuntimePanel from "./RuntimePanel"
+import Stage from "./hri/v4/Stage";
+import AurinaHeader from "./hri/v4/AurinaHeader";
+import ObservationWorkspace from "./hri/v4/ObservationWorkspace";
+
+import type {
+  AurinaState,
+  GuideItem,
+  ObservationData,
+  TimelineEntry,
+} from "./hri/v3/types"
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -60,20 +70,14 @@ export default function HriSession() {
   const [reflection, setReflection] = useState<string | null>(null)
   const [mainQuestion, setMainQuestion] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [runtimeState, setRuntimeState] = useState("IN MOTION")
-  const [confidence, setConfidence] = useState(0.714)
-  const [tension, setTension] = useState(0.582)
-  const [fragmentation, setFragmentation] = useState(0.291)
-  const [elasticity, setElasticity] = useState(0.418)
-
   // For fade-in: we key the active question so CSS re-triggers on change
   const [questionKey, setQuestionKey] = useState(0)
 
   const turn = allInputs.length as Turn
 
   // ── Submit ─────────────────────────────────────────────────────
-  const handleSubmit = useCallback(async () => {
-    const text = inputValue.trim()
+  const handleSubmit = useCallback(async (rawText?: string) => {
+  const text = (rawText ?? inputValue).trim()
     if (!text || phase === "thinking" || phase === "done") return
 
     const nextInputs = [...allInputs, text]
@@ -131,6 +135,81 @@ export default function HriSession() {
     setError(null)
     setQuestionKey(0)
   }
+ // -----------------------------
+// V3 UI Adapter
+// -----------------------------
+
+const aurinaState: AurinaState =
+  phase === "thinking"
+    ? "resonating"
+    : phase === "done"
+      ? "reflecting"
+      : "observing"
+
+const entries: TimelineEntry[] = history.flatMap((item) => {
+  const timelineItems: TimelineEntry[] = [
+    {
+      kind: "mine",
+      text: item.userText,
+    },
+  ]
+
+  if (item.hriResponse) {
+    timelineItems.push({
+      kind: "ask",
+      text: item.hriResponse,
+    })
+  }
+
+  return timelineItems
+})
+
+const observation: ObservationData = reflection
+  ? {
+      core: reflection,
+    }
+  : {}
+
+const guideItems: GuideItem[] = [
+  {
+    id: "start",
+    chip: "01",
+    title: "지금 떠오르는 것을 적어보세요.",
+    body: "정리하려 하지 말고 현재 마음에 나타나는 것부터 시작합니다.",
+  },
+  {
+    id: "respond",
+    chip: "02",
+    title: "이어지는 질문에 자연스럽게 답해보세요.",
+    body: "정답을 찾기보다 지금 느끼고 생각하는 방향을 따라갑니다.",
+  },
+  {
+    id: "observe",
+    chip: "03",
+    title: "마지막에 비치는 흐름을 살펴보세요.",
+    body: "HRI는 평가나 진단이 아니라 현재 리듬을 관찰하도록 돕습니다.",
+  },
+]
+
+const aurinaVoice =
+  phase === "thinking"
+    ? "지금의 흐름을 함께 살펴보고 있습니다."
+    : phase === "done"
+      ? "지금 당신에게 비친 흐름입니다."
+      : phase === "question"
+        ? "이어지는 질문을 천천히 살펴보세요."
+        : "지금 떠오르는 것부터 시작해 보세요."
+
+const pattern: string | null = null
+
+const NOT_YET_CLEAR = "아직 드러나지 않았습니다."
+
+const EMERGING_PREVIEW_LIMIT = 48
+const emergingPreview = observation.core
+  ? observation.core.length > EMERGING_PREVIEW_LIMIT
+    ? `${observation.core.slice(0, EMERGING_PREVIEW_LIMIT)}…`
+    : observation.core
+  : NOT_YET_CLEAR
 
   // ── Mobile: scroll input into view on focus ────────────────────
   const handleInputFocus = () => scrollInputIntoView()
@@ -147,93 +226,29 @@ if (!BETA_OPEN) {
     </div>
   );
 }
-  return (
-  <div className="page-shell">
- <section
-  className="hero-zone"
-  style={{
-    display: "grid",
-    gridTemplateColumns: "620px 420px",
-    gap: "40px",
-    alignItems: "center",
-    maxWidth: "1120px",
-    margin: "0 auto",
-    padding: "24px 36px"
-  }}
->
-  <div
-  className="hero-left"
-  style={{
-    minWidth: "560px"
-  }}
->
+ return (
+  <>
+    <Stage state={aurinaState} voice={aurinaVoice}>
+      <AurinaHeader voice={aurinaVoice} />
 
- <div
-  style={{
-    fontSize: "120px",
-    fontWeight: 900,
-    color: "#061A44",
-    lineHeight: 0.95,
-    letterSpacing: "-0.03em"
-  }}
->
-  AURINA
-</div>
+      <ObservationWorkspace
+        present={NOT_YET_CLEAR}
+        rhythm={NOT_YET_CLEAR}
+        emerging={emergingPreview}
+      />
 
-<div
-  style={{
-    fontSize: "28px",
-    fontWeight: 600,
-    color: "#35527A",
-    marginTop: "12px"
-  }}
->
-  마음의 거울
-Mirror of Mind
-</div>
+      <ConversationCanvas
+        history={history}
+        mainQuestion={mainQuestion}
+        inputValue={inputValue}
+        phase={phase}
+        onInputChange={setInputValue}
+        onSubmit={handleSubmit}
+      />
+    </Stage>
 
-<div className="hero-slogan" style={{ fontSize: "28px", fontWeight: 800, color: "#061A44", lineHeight: 1.35, marginTop: "18px" }}>
-  당신의 마음을 비추고,
-  지금의 흐름을 보세요.
-</div>
-
-<div className="hero-tech" style={{ fontSize: "18px", fontWeight: 700, color: "#061A44", marginTop: "14px" }}>
-  Human Rhythm Intelligence
-</div>
-
-<div className="hero-slogan-ko" style={{ fontSize: "24px", fontWeight: 800, color: "#061A44", lineHeight: 1.5, marginTop: "16px" }}>
- AURINA는 당신의 마음을 비추는 거울입니다.
-</div>
-
-</div>
-
-<div
-  className="hero-right"
-  style={{
- width: "430px",
- justifySelf: "end",
-}}
->
-  
-  <video
-    autoPlay
-    muted
-    loop
-    playsInline
-    style={{
-  width: "100%",
-  maxWidth: 620,
-  height: 390,
-  objectFit: "contain",
-  objectPosition: "center top",
-  borderRadius: "24px",
-  background: "#f4f6fa"
-}}
-  >
-    <source src="/videos/aurina-greeting.mp4" type="video/mp4" />
-  </video>
-</div>
-       </section>
+    <div className="page-shell">
+ 
      
   {/* ── Past exchanges ── */}
 
@@ -244,52 +259,12 @@ Mirror of Mind
             User text: left-bordered, full weight.
             HRI past question: quieter, smaller, below.
         ─────────────────────────────────────────────────────── */}
-        {history.length > 0 && (
-          <div className="history-area" aria-label="이전 흐름">
-            {history.map((ex, i) => (
-              <div className="exchange" key={i}>
-                <p className="user-entry">{ex.userText}</p>
-                {ex.hriResponse && (
-                  <p className="hri-response">{ex.hriResponse}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        
 
         {/* ── Thinking: quiet dots, no urgency ── */}
         {phase === "thinking" && <ThinkingDots />}
 
-        {/* ── Reflection: afterimage, not output ──────────────────
-            Fades in slowly. More space than any other element.
-            Does not look like a card, widget, or AI response.
-        ─────────────────────────────────────────────────────── */}
-        {phase === "done" && reflection && (
-          <div
-            className="reflection-block"
-            aria-live="polite"
-            role="region"
-            aria-label="흐름 요약"
-          >
-            <span className="reflection-label">흐름 요약</span>
-            <p className="reflection-text">{reflection}</p>
-
-            {mainQuestion && (
-              <section
-                className="main-question-block"
-                aria-live="polite"
-                aria-label="다음 질문"
-              >
-                <span className="main-question-label">다음 질문</span>
-                <p className="main-question-text">{mainQuestion}</p>
-              </section>
-            )}
-
-           
-          </div>
-        )}
-
-
+        {/* ── Error ── */}
         {/* ── Error ── */}
         {error && (
           <p className="error-msg fade-in" role="alert">
@@ -297,34 +272,6 @@ Mirror of Mind
           </p>
         )}
 
-        {/* ── Input: always present, always focused ───────────────
-            The product IS this textarea.
-            Everything above exists only to give it context.
-        ─────────────────────────────────────────────────────── */}
-        {phase !== "done" && (
-          <>
-
-            <HriInput
-              value={inputValue}
-              onChange={setInputValue}
-              onSubmit={handleSubmit}
-              placeholder={`
-                   지금 떠오르는 것을 적어보세요. · What is present in you right now?
-          `}
-              disabled={phase === "thinking"}
-              autoFocus
-            />
-          </>
-        )}
-        <div style={{
-          textAlign: "center",
-          color: "#6b7280",
-          fontSize: "14px",
-          lineHeight: 1.8,
-          marginTop: "16px"
-        }}>
-        
-        </div>
         <button
           className="restart-btn"
           onClick={handleRestart}
@@ -340,10 +287,18 @@ Mirror of Mind
 
         <div
           className="bottom-panels"
-          style={{ display: 'grid', gridTemplateColumns: '1fr 1.12fr 1fr', gap: 14, alignItems: 'stretch' }}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1.12fr 1fr',
+            gap: 16,
+            width: '100%',
+            maxWidth: 1280,
+            margin: '0 auto',
+            alignItems: 'stretch',
+          }}
         >
           {/* LEFT · AURINA (기존 영상 유지) */}
-          <section style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
+          <section style={{ height: '100%', minHeight: 520, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
             <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 15, margin: '0 0 12px' }}>오리나 (AURINA)</h3>
             {/* ⬇ 기존 <video>(또는 <img>)의 src/props를 그대로 두세요. flex:1로 높이만 채웁니다. */}
             <img
@@ -377,7 +332,18 @@ Mirror of Mind
           </section>
 
           {/* CENTER · CURRENT / RHYTHM / NOTICE */}
-          <section style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
+          <section style={{ height: '100%', minHeight: 520, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
+            {phase === "done" && (
+              <div
+                aria-live="polite"
+                role="region"
+                aria-label="흐름 요약"
+                style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #EBEDF0' }}
+              >
+                <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 13, letterSpacing: 0.3, margin: 0 }}>흐름 요약</h3>
+                <p style={{ color: '#3a3f47', fontSize: 13, lineHeight: 1.6, margin: '8px 0 0' }}>{reflection}</p>
+              </div>
+            )}
             <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 13, letterSpacing: 0.3, margin: 0 }}>CURRENT · 현재</h3>
             <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>What is appearing in your life at this moment.</p>
             <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>지금 삶 속에 드러나고 있는 모습입니다.</p>
@@ -420,16 +386,12 @@ Mirror of Mind
           </section>
 
           
-        <RuntimePanel
-          state={runtimeState}
-          confidence={confidence}
-          tension={tension}
-          fragmentation={fragmentation}
-          elasticity={elasticity}
-        />
+        <RuntimePanel />
 
     </div>
     </div>
+      </>
+  
   )
   } 
 

@@ -1,3 +1,4 @@
+import type { Slot } from "./types.v2";
 export type UnderstandingState = {
   topic?: string;
   target?: string;
@@ -166,7 +167,7 @@ export const SEMANTIC_GROUPS = {
       "소중",
       "고마",
       "편안",
-      "정",
+    
     ],
   },
 
@@ -262,8 +263,7 @@ function isWorkSignal(text: string): boolean {
     inWork(text, "workload") ||
     inWork(text, "timePressure") ||
     inWork(text, "stress") ||
-    inWork(text, "blockage") ||
-    inWork(text, "deprivation")
+    inWork(text, "blockage")
   );
 }
 
@@ -312,10 +312,37 @@ function updateTopic(text: string, state: UnderstandingState): string | undefine
 
   return state.topic;
 }
+function extractConcreteTarget(text: string): string | undefined {
+  const cleaned = text
+    .replace(/[.!?。！？]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
+  const patterns = [
+    /^(.+?)(?:의\s*)?장면(?:이|은|는|을|를)?/,
+    /^(.+?)(?:의\s*)?기억(?:이|은|는|을|를)?/,
+    /^(.+?)(?:이|가)\s*(?:선명하게|먼저|자꾸)\s*떠오/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = cleaned.match(pattern);
+    const candidate = match?.[1]?.trim();
+
+    if (
+      candidate &&
+      candidate.length >= 2 &&
+      !["그", "이", "저", "어떤", "하나의"].includes(candidate)
+    ) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
 function updateTarget(text: string, state: UnderstandingState): string | undefined {
   if (state.target) return state.target;
-
+  const concreteTarget = extractConcreteTarget(text);
+  if (concreteTarget) return concreteTarget;
   if (inRelationship(text, "person")) return "사람";
   if (inWork(text, "workload")) return "업무";
   if (inWork(text, "timePressure")) return "시간 압박";
@@ -347,7 +374,7 @@ if (
     ])
 ) return "느슨한 연결";
   if (isWorkSignal(text)) return "업무 상황";
-  if (inMemory(text, "scene")) return "장면";
+ 
   if (isHealthSignal(text)) return "몸 상태";
   if (has(text, ["대화", "말", "이야기"])) return "대화";
 
@@ -355,28 +382,26 @@ if (
 }
 
 function updateEmotion(text: string, state: UnderstandingState): string | undefined {
-  if (state.emotion) return state.emotion;
-
-  if (inRelationship(text, "longing")) return "그리움";
-  if (inRelationship(text, "warmth") || inMemory(text, "positive")) return "따뜻함";
-  if (inMemory(text, "regret")) return "아쉬움";
-  if (inWork(text, "stress")) return "부담감";
-  if (inWork(text, "timePressure")) return "쫓기는 느낌";
-  if (inWork(text, "blockage")) return "막막함";
-  if (has(text, ["우울", "가라앉", "무겁"])) return "무거움";
-  if (has(text, ["불안", "걱정"])) return "불안";
-  if (has(text, ["혼란", "어지럽"])) return "혼란";
-  if (has(text, ["외롭", "쓸쓸"])) return "외로움";
-  if (has(text, ["기쁨", "기쁘", "즐겁", "행복", "만족", "뿌듯", "성취", "완성", "보람"]))
-  return "즐거움";
-
-if (has(text, ["편안", "안도"])) return "편안함";
-
-return state.emotion;
+  // lock 아님: 이번 입력에 감정 신호가 있으면 최신 값으로 덮어쓴다.
+  // 신호가 없으면 기존 값을 보존한다(coverage 되돌림 방지).
+  let latest: string | undefined;
+  if (inRelationship(text, "longing")) latest = "그리움";
+  else if (inRelationship(text, "warmth") || inMemory(text, "positive")) latest = "따뜻함";
+  else if (inMemory(text, "regret")) latest = "아쉬움";
+  else if (inWork(text, "stress")) latest = "부담감";
+  else if (inWork(text, "timePressure")) latest = "쫓기는 느낌";
+  else if (inWork(text, "blockage")) latest = "막막함";
+  else if (has(text, ["우울", "가라앉", "무겁"])) latest = "무거움";
+  else if (has(text, ["불안", "걱정"])) latest = "불안";
+  else if (has(text, ["혼란", "어지럽"])) latest = "혼란";
+  else if (has(text, ["외롭", "쓸쓸"])) latest = "외로움";
+  else if (has(text, ["기쁨", "기쁘", "즐겁", "행복", "만족", "뿌듯", "성취", "완성", "보람"])) latest = "즐거움";
+  else if (has(text, ["편안", "안도"])) latest = "편안함";
+  return latest ?? state.emotion;
 }
 
 function updateRelationship(text: string, state: UnderstandingState): string | undefined {
-  if (state.relationship) return state.relationship;
+ 
 
   if (inRelationship(text, "separation")) return "끊어진 연결";
   if (inRelationship(text, "longing")) return "남아 있는 연결";
@@ -422,7 +447,7 @@ if (isWorkSignal(text)) return "부담을 주는 대상";
 }
 
 function updatePresentState(text: string, state: UnderstandingState): string | undefined {
-  if (state.presentState) return state.presentState;
+ 
 
   if (inRelationship(text, "separation")) return "현재는 멀어진 상태";
   if (inRelationship(text, "longing")) return "아직 남아 있는 감정";
@@ -506,12 +531,12 @@ function updateMemoryTone(
 
   return state.memoryTone;
 }
-function hasEnoughDetail(value?: string): boolean {
+ function hasEnoughDetail(value?: string): boolean {
   if (!value) return false;
 
   const text = value.trim();
 
-  if (text.length < 3) return false;
+  if (text.length < 2) return false;
 
   const weakWords = [
     "모름",
@@ -527,25 +552,115 @@ function hasEnoughDetail(value?: string): boolean {
 
   return !weakWords.some((word) => text.includes(word));
 }
+function normalizeProbedAnswer(slot: Slot, value: string): string {
+ 
+  const text = value.trim();
 
+  if (slot === "wish") {
+    const cleaned = text
+      .replace(/^그리고\s*마음은\s*/, "")
+      .replace(/^마음은\s*/, "")
+      .replace(
+        /(?:이라는|라는)\s*바람(?:으로|을)?(?:\s*자연스럽게)?\s*(?:이어지고|향하고|움직이고)\s*있습니다[.!]?$/,
+        "",
+      )
+      .replace(/싶다는$/, "싶다")
+      .trim();
+
+    return cleaned || text;
+  }
+
+  return text;
+}
+function extractSemanticValue(slot: Slot, text: string): string {
+  let value = normalizeProbedAnswer(slot, text);
+if (slot === "emotion") {
+  value = value
+    .replace(/^그 장면과 함께\s*/, "")
+    .replace(/^그 기억과 함께\s*/, "")
+    .replace(/^함께\s*/, "")
+    .replace(/감정이 있습니다$/, "")
+    .replace(/감정입니다$/, "")
+    .replace(/감정$/, "")
+    .trim();
+}
+
+if (slot === "meaning") {
+  value = value
+    .replace(/이기 때문이다$/, "")
+    .replace(/때문이다$/, "")
+    .replace(/때문입니다$/, "")
+    .trim();
+}
+
+if (slot === "wish") {
+  value = value
+    .replace(/^마음은\s*/, "")
+    .replace(/^지금\s*/, "")
+    .trim();
+}
+  value = value
+    .replace(/입니다$/g, "")
+    .replace(/이다$/g, "")
+    .replace(/이에요$/g, "")
+    .replace(/예요$/g, "")
+    .replace(/때문이다$/g, "")
+    .replace(/때문입니다$/g, "")
+    .replace(/라고 생각한다$/g, "")
+    .replace(/라고 생각합니다$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return value || text.trim();
+}
 export function updateUnderstanding(
   prev: UnderstandingState | undefined,
   answer: string,
+  lastProbedSlot?: Slot,
 ): UnderstandingUpdate {
   const state = prev ?? {};
   const text = (answer ?? "").trim();
 
+   const probedValue =
+  lastProbedSlot && hasEnoughDetail(text)
+    ? extractSemanticValue(lastProbedSlot, text)
+    : undefined;
+
+
+  const probedFor = (slot: Slot): string | undefined => {
+  if (lastProbedSlot !== slot) return undefined;
+
+  return probedValue ?? text.trim();
+};
   const next: UnderstandingState = {
     topic: updateTopic(text, state),
-    target: updateTarget(text, state),
-    emotion: updateEmotion(text, state),
-    relationship: updateRelationship(text, state),
-    presentState: updatePresentState(text, state),
-    meaning: updateMeaning(text, state),
-    wish: updateWish(text, state),
+
+    target:
+  probedFor("target") ??
+  (state.target ?? updateTarget(text, state)),
+
+    emotion:
+  probedFor("emotion") ??
+  (state.emotion ?? updateEmotion(text, state)),
+
+    relationship:
+  probedFor("relationship") ??
+  (state.relationship ?? updateRelationship(text, state)),
+
+   presentState:
+  probedFor("presentState") ??
+  (state.presentState ?? updatePresentState(text, state)),
+
+   meaning:
+  probedFor("meaning") ??
+  (state.meaning ?? updateMeaning(text, state)),
+
+   wish:
+  probedFor("wish") ??
+  (state.wish ?? updateWish(text, state)),
+
     memoryTone: updateMemoryTone(text, state),
   };
-
 
 const coverage: UnderstandingCoverage = {
   topic: Boolean(next.topic),
