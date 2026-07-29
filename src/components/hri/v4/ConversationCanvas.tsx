@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import HriInput from "../../HriInput";
+import "./hri-v4.css";
 
 type Exchange = {
   userText: string;
@@ -24,6 +25,7 @@ export default function ConversationCanvas({
   onSubmit,
 }: ConversationCanvasProps) {
   const flowRef = useRef<HTMLDivElement>(null);
+  const isEmpty = history.length === 0 && !mainQuestion;
 
   useEffect(() => {
     const flow = flowRef.current;
@@ -33,173 +35,51 @@ export default function ConversationCanvas({
   }, [history, mainQuestion, phase]);
 
   return (
-    <section
-      style={{
-        width: "100%",
-        maxWidth: "1280px",
-        margin: "0 auto",
-        padding: "0 40px",
-        boxSizing: "border-box",
-      }}
-    >
-      <div
-        style={{
-          height: "430px",
-          display: "grid",
-          gridTemplateRows: "1fr auto",
-          overflow: "hidden",
-          background: "#ffffff",
-          border: "1px solid #d9e1ec",
-          borderRadius: "24px",
-          boxShadow: "0 12px 32px rgba(27, 55, 95, 0.08)",
-        }}
-      >
-        <div
-          ref={flowRef}
-          aria-live="polite"
-          style={{
-            minHeight: 0,
-            overflowY: "auto",
-            padding: "28px 32px 16px",
-          }}
-        >
-          {history.length === 0 && !mainQuestion && (
-            <div
-              style={{
-                maxWidth: "760px",
-                color: "#667085",
-                fontSize: "18px",
-                lineHeight: 1.7,
-              }}
-            >
-              지금 마음에 떠오르는 것을 적어보세요.
-            </div>
-          )}
+    <section className="aur-conversation">
+      <div ref={flowRef} aria-live="polite" className="aur-transcript">
+        {isEmpty && (
+          <p className="aur-transcript-empty">
+            지금 마음에 떠오르는 것을 적어보세요.
+          </p>
+        )}
 
-          {history.map((exchange, index) => (
-            <div
-              key={`${exchange.userText}-${index}`}
-              style={{
-                marginBottom: "26px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  marginBottom: "14px",
-                }}
-              >
-                <div
-                  style={{
-                    maxWidth: "72%",
-                    padding: "13px 17px",
-                    borderRadius: "18px 18px 4px 18px",
-                    background: "#edf3fb",
-                    color: "#172b4d",
-                    fontSize: "18px",
-                    lineHeight: 1.65,
-                  }}
-                >
-                  {exchange.userText}
-                </div>
+        {history.map((exchange, index) => (
+          <div key={`${exchange.userText}-${index}`} className="aur-exchange">
+            <div className="aur-turn">
+              <div className="aur-turn-label">나</div>
+              <div className="aur-turn-text">{exchange.userText}</div>
+            </div>
+
+            {exchange.hriResponse && (
+              <div className="aur-turn">
+                <div className="aur-turn-label aur-turn-label--host">AURINA</div>
+                <div className="aur-turn-text aur-turn-text--host">{exchange.hriResponse}</div>
               </div>
+            )}
+          </div>
+        ))}
 
-              {exchange.hriResponse && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-start",
-                  }}
-                >
-                  <div
-                    style={{
-                      maxWidth: "76%",
-                      padding: "4px 0 4px 16px",
-                      borderLeft: "3px solid #8da9cc",
-                      color: "#2e405c",
-                      fontSize: "18px",
-                      lineHeight: 1.7,
-                    }}
-                  >
-                    {exchange.hriResponse}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+        {mainQuestion && phase !== "done" && (
+          <div className="aur-question">
+            <div className="aur-turn-label aur-turn-label--host">AURINA</div>
+            <div className="aur-question-text">{mainQuestion}</div>
+          </div>
+        )}
 
-          {mainQuestion && phase !== "done" && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-start",
-                marginTop: "10px",
-                paddingBottom: "12px",
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: "76%",
-                  padding: "4px 0 4px 16px",
-                  borderLeft: "3px solid #466f9f",
-                }}
-              >
-                <div
-                  style={{
-                    marginBottom: "7px",
-                    color: "#6b7f99",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
-                  }}
-                >
-                  AURINA
-                </div>
+        {phase === "thinking" && (
+          <div className="aur-thinking">AURINA가 흐름을 살펴보고 있습니다…</div>
+        )}
+      </div>
 
-                <div
-                  style={{
-                    color: "#132b4f",
-                    fontSize: "20px",
-                    fontWeight: 600,
-                    lineHeight: 1.65,
-                  }}
-                >
-                  {mainQuestion}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {phase === "thinking" && (
-            <div
-              style={{
-                color: "#7a8798",
-                fontSize: "15px",
-                padding: "8px 0",
-              }}
-            >
-              AURINA가 흐름을 살펴보고 있습니다…
-            </div>
-          )}
-        </div>
-
-        <div
-          style={{
-            padding: "14px 18px 18px",
-            borderTop: "1px solid #e6ebf2",
-            background: "#fbfcfe",
-          }}
-        >
-          <HriInput
-            value={inputValue}
-            onChange={onInputChange}
-            onSubmit={onSubmit}
-            placeholder="지금 떠오르는 것을 적어보세요."
-            disabled={phase === "thinking" || phase === "done"}
-            autoFocus
-          />
-        </div>
+      <div className="aur-compose">
+        <HriInput
+          value={inputValue}
+          onChange={onInputChange}
+          onSubmit={onSubmit}
+          placeholder="지금 떠오르는 것을 적어보세요."
+          disabled={phase === "thinking" || phase === "done"}
+          autoFocus
+        />
       </div>
     </section>
   );

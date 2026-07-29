@@ -1,3 +1,5 @@
+import "./hri-v4.css";
+
 type Props = {
   present?: string;
   rhythm?: string;
@@ -10,58 +12,28 @@ export default function ObservationWorkspace({
   emerging = "Emerging meaning will appear here.",
 }: Props) {
   return (
-    <section
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: "24px",
-        marginTop: "8px",
-      }}
-    >
-      <Panel title="PRESENT" value={present} />
-      <Panel title="RHYTHM" value={rhythm} />
-      <Panel title="EMERGING MEANING" value={emerging} />
+    <section className="aur-observation">
+      <Item label="PRESENT" value={present} />
+      <Item label="RHYTHM" value={rhythm} />
+      {/* Emerging Meaning stays concise and visually subordinate to the final Flow Summary */}
+      <Item label="EMERGING MEANING" value={emerging} subordinate />
     </section>
   );
 }
 
-function Panel({
-  title,
+function Item({
+  label,
   value,
+  subordinate = false,
 }: {
-  title: string;
+  label: string;
   value: string;
+  subordinate?: boolean;
 }) {
   return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: "18px",
-        padding: "24px",
-        minHeight: "220px",
-        boxShadow: "0 10px 28px rgba(0,0,0,.08)",
-        border: "1px solid #E5E7EB",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "12px",
-          fontWeight: 700,
-          color: "#8A8F98",
-          letterSpacing: ".12em",
-          marginBottom: "18px",
-        }}
-      >
-        {title}
-      </div>
-
-      <div
-        style={{
-          fontSize: "20px",
-          lineHeight: 1.7,
-          color: "#222",
-        }}
-      >
+    <div className="aur-obs-item">
+      <div className="aur-obs-label">{label}</div>
+      <div className={`aur-obs-value${subordinate ? " aur-obs-value--subordinate" : ""}`}>
         {value}
       </div>
     </div>

@@ -1,0 +1,338 @@
+/* AURINA — visual architecture, rebuilt from a blank page.
+   Priority order: (1) every piece of text comfortably readable at
+   first glance, (2) a memorable presence — not another dark console.
+   Warm paper, high-contrast ink, one accent color used sparingly,
+   generous line length. No card chrome, no glow, no spectacle type:
+   whitespace and contrast do the work. */
+
+.aur-page {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 64px 24px 96px;
+  box-sizing: border-box;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ARRIVAL
+   ══════════════════════════════════════════════════════════════════ */
+
+.aur-arrival {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-bottom: 8px;
+}
+
+.aur-portrait {
+  position: relative;
+  width: 128px;
+  height: 128px;
+}
+
+.aur-portrait::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 var(--accent-soft);
+  animation: aur-pulse 4.5s ease-in-out infinite;
+}
+
+/* The pulse reads the real aurinaState (data-state on .aur-page) —
+   no invented data, just a color shift on the same ring. */
+.aur-page[data-state="resonating"] .aur-portrait::after {
+  box-shadow: 0 0 0 0 rgba(196, 130, 60, 0.28);
+  animation-duration: 2.2s;
+}
+
+.aur-page[data-state="reflecting"] .aur-portrait::after {
+  box-shadow: 0 0 0 0 rgba(110, 105, 117, 0.22);
+  animation-duration: 6.5s;
+}
+
+@keyframes aur-pulse {
+  0% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  70% { box-shadow: 0 0 0 14px rgba(47, 79, 209, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(47, 79, 209, 0); }
+}
+
+.aur-portrait video {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 10px 26px rgba(27, 24, 32, 0.18), 0 0 0 1px rgba(27, 24, 32, 0.06);
+}
+
+.aur-eyebrow {
+  margin-top: 22px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+
+.aur-name {
+  margin: 10px 0 0;
+  font-size: clamp(38px, 7vw, 58px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--ink-1);
+}
+
+.aur-voice {
+  margin: 18px 0 0;
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.65;
+  color: var(--ink-2);
+  max-width: 46ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aur-portrait::after {
+    animation: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CONVERSATION — a transcript, not a chat widget. One reading column,
+   generous type, no bubbles: alignment and a small label distinguish
+   speakers. The active question is the one accent-marked moment.
+   ══════════════════════════════════════════════════════════════════ */
+
+.aur-conversation {
+  margin-top: 56px;
+}
+
+.aur-transcript {
+  display: flex;
+  flex-direction: column;
+}
+
+.aur-transcript-empty {
+  color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1.7;
+  padding: 8px 0 24px;
+}
+
+.aur-exchange {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.aur-turn + .aur-turn {
+  margin-top: 14px;
+}
+
+.aur-turn-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  margin-bottom: 6px;
+}
+
+.aur-turn-label--host {
+  color: var(--accent);
+}
+
+.aur-turn-text {
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--ink-1);
+}
+
+.aur-turn-text--host {
+  color: var(--ink-2);
+}
+
+.aur-question {
+  margin-top: 18px;
+  padding: 22px 24px;
+  background: var(--accent-soft);
+  border-radius: 14px;
+}
+
+.aur-question-text {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--ink-1);
+}
+
+.aur-thinking {
+  color: var(--ink-3);
+  font-size: 15px;
+  padding: 16px 0 4px;
+}
+
+.aur-compose {
+  margin-top: 24px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   OBSERVATION — three plainly labeled answers, stacked. Whitespace
+   and a small accent tick separate them, not card chrome.
+   ══════════════════════════════════════════════════════════════════ */
+
+.aur-observation {
+  margin-top: 64px;
+  padding-top: 40px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.aur-obs-item {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.aur-obs-item:last-child {
+  border-bottom: none;
+}
+
+.aur-obs-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.aur-obs-label::before {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.aur-obs-value {
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.aur-obs-value--subordinate {
+  font-size: 15px;
+  color: var(--ink-3);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ERROR
+   ══════════════════════════════════════════════════════════════════ */
+
+.aur-error {
+  margin-top: 20px;
+  color: #a3341f;
+  font-size: 15px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SUPPORTING WORKSPACE — infrastructure, not narrative: smaller type,
+   quieter color, no accent thread, no card chrome at all. Whitespace
+   alone marks it as a different register from the scenes above.
+   ══════════════════════════════════════════════════════════════════ */
+
+.aur-workspace {
+  margin-top: 80px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.aur-workspace-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  margin-top: 28px;
+}
+
+.aur-workspace-col {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.aur-workspace-col p {
+  margin: 6px 0;
+}
+
+.aur-workspace-heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-1);
+  margin: 0 0 12px;
+}
+
+.aur-workspace-subheading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin: 18px 0 8px;
+}
+
+.aur-workspace-col h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin: 18px 0 6px;
+}
+
+.aur-workspace-col h3:first-child {
+  margin-top: 0;
+}
+
+.aur-workspace-lead {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.aur-workspace-photo {
+  width: 96px;
+  height: 118px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.aur-workspace-notice {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.aur-workspace-summary {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.aur-workspace-summary h3 {
+  color: var(--ink-1);
+}
+
+.aur-text-dim {
+  color: var(--ink-4) !important;
+}
+
+@media (max-width: 560px) {
+  .aur-page {
+    padding: 48px 18px 72px;
+  }
+  .aur-portrait {
+    width: 104px;
+    height: 104px;
+  }
+}

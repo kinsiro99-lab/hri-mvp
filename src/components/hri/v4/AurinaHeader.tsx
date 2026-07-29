@@ -1,54 +1,21 @@
+import "./hri-v4.css";
+
 type Props = {
   voice?: string;
 };
 
 export default function AurinaHeader({ voice }: Props) {
   return (
-    <header
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "40px",
-      }}
-    >
-      <div>
-        <div
-          style={{
-            fontSize: "72px",
-            fontWeight: 800,
-            letterSpacing: "-0.04em",
-            lineHeight: 1,
-            color: "#061A44",
-          }}
-        >
-          AURINA
-        </div>
-
-        <div
-          style={{
-            marginTop: "14px",
-            fontSize: "24px",
-            color: "#4B5563",
-          }}
-        >
-          {voice}
-        </div>
+    <header className="aur-arrival">
+      <div className="aur-portrait">
+        <video autoPlay muted loop playsInline>
+          <source src="/videos/aurina-greeting.mp4" type="video/mp4" />
+        </video>
       </div>
 
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        style={{
-          width: "240px",
-          borderRadius: "18px",
-          objectFit: "cover",
-        }}
-      >
-        <source src="/videos/aurina-greeting.mp4" type="video/mp4" />
-      </video>
+      <div className="aur-eyebrow">HUMAN RHYTHM INTELLIGENCE</div>
+      <h1 className="aur-name">AURINA</h1>
+      <p className="aur-voice">{voice}</p>
     </header>
   );
 }

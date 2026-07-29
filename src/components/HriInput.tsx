@@ -76,9 +76,6 @@ export default function HriInput({
   fontWeight: 600,
   lineHeight: "1.55",
   borderRadius: "20px",
-  border: "2px solid #111111",
-  boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
-  background: "#ffffff"
 }}
           ref={ref}
           className="hri-input"

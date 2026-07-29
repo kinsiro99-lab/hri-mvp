@@ -15,14 +15,11 @@
 //   - Reflection appears with extra breathing space
 
 import { useState, useCallback, useEffect, useRef } from "react"
-import ConversationCanvas from "./hri/v4/ConversationCanvas";
 import ThinkingDots from "./ThinkingDots"
 import { callEngine } from "@/lib/api"
 type Turn = number
-import RuntimePanel from "./RuntimePanel"
-import Stage from "./hri/v4/Stage";
-import AurinaHeader from "./hri/v4/AurinaHeader";
-import ObservationWorkspace from "./hri/v4/ObservationWorkspace";
+import AurinaSpace from "./aurina/AurinaSpace";
+import Workspace from "./aurina/Workspace";
 
 import type {
   AurinaState,
@@ -110,6 +107,7 @@ export default function HriSession() {
           { userText: text, hriResponse: result.question! },
         ])
         setActiveQ(result.question)
+        setMainQuestion(result.question)
         setQuestionKey(k => k + 1)   // triggers CSS fade-in
         setPhase("question")
         return
@@ -227,171 +225,28 @@ if (!BETA_OPEN) {
   );
 }
  return (
-  <>
-    <Stage state={aurinaState} voice={aurinaVoice}>
-      <AurinaHeader voice={aurinaVoice} />
-
-      <ObservationWorkspace
-        present={NOT_YET_CLEAR}
-        rhythm={NOT_YET_CLEAR}
-        emerging={emergingPreview}
-      />
-
-      <ConversationCanvas
+    <main className="aurina-page" data-state={aurinaState}>
+      <AurinaSpace
+        phase={phase}
+        voice={aurinaVoice}
         history={history}
         mainQuestion={mainQuestion}
+        reflection={reflection}
         inputValue={inputValue}
-        phase={phase}
         onInputChange={setInputValue}
         onSubmit={handleSubmit}
       />
-    </Stage>
 
-    <div className="page-shell">
- 
-     
-  {/* ── Past exchanges ── */}
+      {phase === "thinking" && <ThinkingDots />}
 
-     
+      {error && (
+        <p className="aurina-error" role="alert">
+          {error}
+        </p>
+      )}
 
-        {/* ── Past exchanges ──────────────────────────────────────
-            Each exchange recedes into the past.
-            User text: left-bordered, full weight.
-            HRI past question: quieter, smaller, below.
-        ─────────────────────────────────────────────────────── */}
-        
-
-        {/* ── Thinking: quiet dots, no urgency ── */}
-        {phase === "thinking" && <ThinkingDots />}
-
-        {/* ── Error ── */}
-        {/* ── Error ── */}
-        {error && (
-          <p className="error-msg fade-in" role="alert">
-            {error}
-          </p>
-        )}
-
-        <button
-          className="restart-btn"
-          onClick={handleRestart}
-          type="button"
-        >
-          새로 시작
-        </button>
-
-
-
-
-
-
-        <div
-          className="bottom-panels"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1.12fr 1fr',
-            gap: 16,
-            width: '100%',
-            maxWidth: 1280,
-            margin: '0 auto',
-            alignItems: 'stretch',
-          }}
-        >
-          {/* LEFT · AURINA (기존 영상 유지) */}
-          <section style={{ height: '100%', minHeight: 520, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
-            <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 15, margin: '0 0 12px' }}>오리나 (AURINA)</h3>
-            {/* ⬇ 기존 <video>(또는 <img>)의 src/props를 그대로 두세요. flex:1로 높이만 채웁니다. */}
-            <img
-              src="/aurina-blue.png"
-              alt="AURINA"
-              style={{
-                width: 180,
-                height: 220,
-                objectFit: 'cover',
-                borderRadius: 8,
-                alignSelf: 'center'
-              }}
-            />
-            <p style={{ color: '#061A44', fontSize: 14, fontWeight: 800, lineHeight: 1.5, margin: '16px 0 0' }}>
-              당신의 마음을 비추는 거울입니다.
-            </p>
-            <p style={{ color:'#35527A', fontSize:13, margin:'4px 0' }}>
-              A mirror for your inner rhythm.
-           </p>
-
-           <hr />
-
-             <h4>사용 방법</h4>
-
-            <p>1. 지금 떠오르는 것을 적어보세요.</p>
-
-            <p>2. 질문에 자연스럽게 답해보세요.</p>
-
-            <p>3. 무엇이 보이는지 살펴보세요.</p>
-            <div style={{ textAlign: 'center' }}></div>
-          </section>
-
-          {/* CENTER · CURRENT / RHYTHM / NOTICE */}
-          <section style={{ height: '100%', minHeight: 520, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: '#fff', border: '0.5px solid #E2E4E7', borderRadius: 12, padding: 16 }}>
-            {phase === "done" && (
-              <div
-                aria-live="polite"
-                role="region"
-                aria-label="흐름 요약"
-                style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #EBEDF0' }}
-              >
-                <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 13, letterSpacing: 0.3, margin: 0 }}>흐름 요약</h3>
-                <p style={{ color: '#3a3f47', fontSize: 13, lineHeight: 1.6, margin: '8px 0 0' }}>{reflection}</p>
-              </div>
-            )}
-            <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 13, letterSpacing: 0.3, margin: 0 }}>CURRENT · 현재</h3>
-            <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>What is appearing in your life at this moment.</p>
-            <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>지금 삶 속에 드러나고 있는 모습입니다.</p>
-
-            <hr style={{ border: 'none', borderTop: '1px solid #EBEDF0', margin: '14px 0' }} />
-
-            <h3 style={{ fontWeight: 800, color: '#16345F', fontSize: 13, letterSpacing: 0.3, margin: 0 }}>RHYTHM · 리듬</h3>
-            <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>Your mind is being reflected.</p>
-            <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>당신의 마음이 비춰지고 있습니다.</p>
-            <hr style={{ border: "none", borderTop: "1px solid #EBEDF0", margin: "14px 0" }} />
-
-            <h3 style={{ fontWeight: 800, color: "#16345F", fontSize: 13, letterSpacing: 0.3, margin: 0 }}>
-            MIRROR · 마음의 거울
-           </h3>
-
-            <p style={{ color: "#7e8893", fontSize: 11.5, margin: "5px 0 0" }}>
-            What is your mind reflecting right now?
-           </p>
-
-           <p style={{ color: "#3a3f47", fontSize: 11.5, margin: "2px 0 0" }}>
-            지금 당신의 마음은 무엇을 비추고 있습니까?
-           </p>
-            <hr style={{ border: 'none', borderTop: '1px solid #EBEDF0', margin: '14px 0' }} />
-
-           <p style={{ color: '#7e8893', fontSize: 11.5, margin: '5px 0 0' }}>
-            What is your mind reflecting now?
-           </p>
-
-           <p style={{ color: '#3a3f47', fontSize: 11.5, margin: '2px 0 0' }}>
-            지금 당신의 마음은 무엇을 비추고 있나요?
-           </p>
-            {/* NOTICE — marginTop:'auto'로 패널 바닥에 고정, 빈 공간을 채움 */}
-            <div style={{ marginTop: 'auto', borderTop: '1px solid #EBEDF0', paddingTop: 20 }}>
-              <h4 style={{ fontWeight: 700, color: '#9aa0a8', fontSize: 11, letterSpacing: 0.4, margin: 0 }}>NOTICE · 공지사항</h4>
-              <p style={{ color: '#5a606a', fontSize: 11, lineHeight: 1.5, margin: '5px 0 0' }}>
-                HRI는 평가나 진단을 위한 도구가 아닙니다.<br />
-                현재 삶에 나타나는 생각과 흐름을 통해 당신의 리듬을 관찰할 수 있도록 돕습니다.
-              </p>
-            </div>
-          </section>
-
-          
-        <RuntimePanel />
-
-    </div>
-    </div>
-      </>
-  
+      <Workspace onRestart={handleRestart} />
+    </main>
   )
-  } 
+  }
 

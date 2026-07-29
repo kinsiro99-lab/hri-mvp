@@ -1,0 +1,420 @@
+/* AURINA — rebuilt architecture, not a reskin.
+   One moment on screen at a time: a small persistent identity anchor
+   (you are in AURINA's space) plus a single dominant "now" — greeting,
+   question, thinking, or reflection. Never more than one thing asking
+   for attention. Reference material lives in a separate, plainly
+   distinct zone below, reached by scrolling further. */
+
+.aurina-page {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 40px 24px 96px;
+  box-sizing: border-box;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   IDENTITY — small, quiet, always present. Not a hero moment that
+   happens once; a constant anchor for wherever you are in the room.
+   ══════════════════════════════════════════════════════════════════ */
+
+.aurina-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.aurina-portrait {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex: none;
+}
+
+.aurina-portrait::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 var(--accent-soft);
+  animation: aurina-pulse 4.5s ease-in-out infinite;
+}
+
+.aurina-page[data-state="resonating"] .aurina-portrait::after {
+  box-shadow: 0 0 0 0 rgba(196, 130, 60, 0.28);
+  animation-duration: 2.2s;
+}
+
+.aurina-page[data-state="reflecting"] .aurina-portrait::after {
+  box-shadow: 0 0 0 0 rgba(110, 105, 117, 0.22);
+  animation-duration: 6.5s;
+}
+
+@keyframes aurina-pulse {
+  0% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  70% { box-shadow: 0 0 0 9px rgba(47, 79, 209, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(47, 79, 209, 0); }
+}
+
+.aurina-portrait video {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(27, 24, 32, 0.16), 0 0 0 1px rgba(27, 24, 32, 0.06);
+  transform-origin: center;
+  animation: aurina-breathe var(--p-cycle, 6s) ease-in-out infinite;
+}
+
+.aurina-name {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurina-portrait::after {
+    animation: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PRESENCE — what AURINA is doing, not just what state the app is
+   in. Six intentions (greeting / waiting / listening / thinking /
+   presence / reflection), each expressed only through breathing
+   speed+amplitude, glow color+reach, and — for Thinking alone — the
+   Mirror Wave. Nothing here is decorative: every value is read off
+   `data-presence`, which AurinaSpace derives purely from existing
+   phase/inputValue props. Specificity is intentionally matched to
+   the legacy .aurina-page[data-state] rules above (same selector
+   weight, declared later) so it supersedes them without deleting
+   them — the old system stays inert but present, per "no cleanup yet."
+   ══════════════════════════════════════════════════════════════════ */
+
+.aurina-portrait[data-presence] {
+  --p-scale: 1.02;
+  --p-cycle: 6s;
+  --p-glow: rgba(47, 79, 209, 0.32);
+  --p-glow-spread: 8px;
+  --p-entry: 500ms;
+}
+
+.aurina-identity .aurina-portrait[data-presence="greeting"] {
+  --p-scale: 1.025;
+  --p-cycle: 6s;
+  --p-glow: rgba(47, 79, 209, 0.32);
+  --p-glow-spread: 8px;
+  --p-entry: 700ms;
+}
+
+.aurina-identity .aurina-portrait[data-presence="waiting"] {
+  --p-scale: 1.015;
+  --p-cycle: 7s;
+  --p-glow: rgba(47, 79, 209, 0.2);
+  --p-glow-spread: 5px;
+  --p-entry: 500ms;
+}
+
+.aurina-identity .aurina-portrait[data-presence="listening"] {
+  --p-scale: 1.012;
+  --p-cycle: 4.5s;
+  --p-glow: rgba(47, 79, 209, 0.2);
+  --p-glow-spread: 5px;
+  --p-entry: 350ms;
+}
+
+.aurina-identity .aurina-portrait[data-presence="thinking"] {
+  --p-scale: 1.05;
+  --p-cycle: 1.6s;
+  --p-glow: rgba(196, 130, 60, 0.4);
+  --p-glow-spread: 14px;
+  --p-entry: 300ms;
+}
+
+.aurina-identity .aurina-portrait[data-presence="presence"] {
+  --p-scale: 1.005;
+  --p-glow: rgba(110, 105, 117, 0.3);
+  --p-glow-spread: 4px;
+  --p-entry: 750ms;
+}
+
+.aurina-identity .aurina-portrait[data-presence="reflection"] {
+  --p-scale: 1.018;
+  --p-cycle: 8s;
+  --p-glow: rgba(110, 105, 117, 0.22);
+  --p-glow-spread: 6px;
+  --p-entry: 900ms;
+}
+
+@keyframes aurina-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(var(--p-scale, 1.02)); }
+}
+
+.aurina-identity .aurina-portrait[data-presence]::after {
+  animation-name: aurina-glow-pulse;
+  animation-duration: var(--p-cycle, 6s);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  box-shadow: 0 0 0 0 var(--p-glow, rgba(47, 79, 209, 0.32));
+}
+
+/* Thinking builds rather than breathes symmetrically — an ease-in
+   curve reads as concentration gathering, not a calm inhale/exhale. */
+.aurina-identity .aurina-portrait[data-presence="thinking"]::after {
+  animation-timing-function: ease-in;
+}
+
+@keyframes aurina-glow-pulse {
+  0% { box-shadow: 0 0 0 0 var(--p-glow); }
+  70% { box-shadow: 0 0 0 var(--p-glow-spread, 8px) rgba(0, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+
+/* Mirror Wave — Thinking's signature alone. Every other state keeps
+   this fully inert (no animation, zero opacity). */
+.aurina-mirror-wave {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--p-entry, 400ms) ease;
+}
+
+.aurina-identity .aurina-portrait[data-presence="thinking"] .aurina-mirror-wave {
+  border-color: var(--p-glow);
+  animation: aurina-mirror-wave 1.6s ease-out infinite;
+}
+
+@keyframes aurina-mirror-wave {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.15); opacity: 0; }
+}
+
+/* Presence — a held breath, not a loop. The state itself lasts only
+   ~750ms, so it gets one settle, not a repeating animation: whatever
+   Thinking's motion was relaxes toward stillness over --p-entry. */
+.aurina-identity .aurina-portrait[data-presence="presence"] video,
+.aurina-identity .aurina-portrait[data-presence="presence"]::after {
+  animation: none;
+  transition: transform var(--p-entry) ease, box-shadow var(--p-entry) ease;
+}
+
+.aurina-identity .aurina-portrait[data-presence="presence"] video {
+  transform: scale(var(--p-scale));
+}
+
+.aurina-identity .aurina-portrait[data-presence="presence"]::after {
+  box-shadow: 0 0 0 4px var(--p-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurina-portrait video,
+  .aurina-identity .aurina-portrait[data-presence]::after,
+  .aurina-identity .aurina-portrait[data-presence] .aurina-mirror-wave {
+    animation: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MOMENT — the one thing happening right now. Replaces itself as the
+   state changes rather than accumulating below the fold.
+   ══════════════════════════════════════════════════════════════════ */
+
+.aurina-moment {
+  margin-top: 40px;
+  animation: aurina-settle 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes aurina-settle {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurina-moment {
+    animation: none;
+  }
+}
+
+.aurina-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.aurina-voice {
+  font-size: clamp(23px, 4vw, 28px);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink-1);
+  max-width: 22ch;
+}
+
+.aurina-input-zone {
+  margin-top: 28px;
+}
+
+/* Quiet trail of what's already been said — present so continuity
+   isn't lost, but never competing with the active question for
+   attention: small, muted, no chrome. Capped to the most recent few
+   exchanges by the component; grows naturally with the page when
+   expanded rather than clipping inside a fixed-height scrollbox. */
+.aurina-trail {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.aurina-trail-item {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-4);
+}
+
+.aurina-trail-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.aurina-trail-toggle:hover {
+  color: var(--ink-1);
+}
+
+.aurina-question-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.aurina-question-text {
+  font-size: clamp(22px, 4vw, 26px);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+
+.aurina-thinking {
+  margin-top: 24px;
+  font-size: 15px;
+  color: var(--ink-3);
+}
+
+.aurina-reflection {
+  font-size: clamp(21px, 3.6vw, 25px);
+  font-weight: 500;
+  line-height: 1.65;
+  color: var(--ink-1);
+}
+
+.aurina-error {
+  margin-top: 20px;
+  color: #a3341f;
+  font-size: 15px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   WORKSPACE — a different room entirely: reference material, not
+   narrative. Smaller type, muted color, no accent thread, no card
+   chrome. A visitor should be able to tell at a glance this is not
+   part of the conversation above.
+   ══════════════════════════════════════════════════════════════════ */
+
+.aurina-workspace {
+  margin-top: 96px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.aurina-workspace-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  margin-top: 28px;
+}
+
+.aurina-workspace-col {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.aurina-workspace-col p {
+  margin: 6px 0;
+}
+
+.aurina-workspace-heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-1);
+  margin: 0 0 12px;
+}
+
+.aurina-workspace-subheading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin: 18px 0 8px;
+}
+
+.aurina-workspace-col h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin: 18px 0 6px;
+}
+
+.aurina-workspace-col h3:first-child {
+  margin-top: 0;
+}
+
+.aurina-workspace-lead {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.aurina-workspace-photo {
+  width: 96px;
+  height: 118px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 14px;
+}
+
+.aurina-workspace-notice {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.aurina-text-dim {
+  color: var(--ink-4) !important;
+}
+
+@media (max-width: 560px) {
+  .aurina-page {
+    padding: 32px 18px 72px;
+  }
+}

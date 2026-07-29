@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(curl -s http://localhost:3000 -o /tmp/page5.html)"
+      "Bash(curl -s http://localhost:3000 -o /tmp/page5.html)",
+      "Bash(git commit -m ' *)",
+      "Bash(npm run *)"
     ]
   }
 }
