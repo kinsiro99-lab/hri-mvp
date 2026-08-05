@@ -16,7 +16,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react"
 import ThinkingDots from "./ThinkingDots"
-import { callEngine } from "@/lib/api"
+import { callEngine, logObservationEvent } from "@/lib/api"
 type Turn = number
 import AurinaSpace from "./aurina/AurinaSpace";
 import Workspace from "./aurina/Workspace";
@@ -52,6 +52,16 @@ function scrollInputIntoView() {
   }, 350)
 }
 
+// One id per session (reset on restart) — the only identifier the
+// Observation Console's ObservationEvent contract requires that no
+// existing state in this component already tracked.
+function createSessionId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
 // ── Component ──────────────────────────────────────────────────────
 
 export default function HriSession() {
@@ -69,6 +79,9 @@ export default function HriSession() {
   const [error, setError] = useState<string | null>(null)
   // For fade-in: we key the active question so CSS re-triggers on change
   const [questionKey, setQuestionKey] = useState(0)
+
+  const sessionIdRef = useRef<string>()
+  if (!sessionIdRef.current) sessionIdRef.current = createSessionId()
 
   const turn = allInputs.length as Turn
 
@@ -98,7 +111,14 @@ export default function HriSession() {
         setReflection(result.reflection)
         setMainQuestion(null)
         setPhase("done")
-        return 
+        logObservationEvent({
+          sessionId: sessionIdRef.current!,
+          firstInput: nextInputs[0] ?? "",
+          turnCount: nextTurn,
+          reflectionCompleted: true,
+          feedback: null,
+        })
+        return
       }
 
       if (result.question) {
@@ -132,6 +152,7 @@ export default function HriSession() {
     setMainQuestion(null)
     setError(null)
     setQuestionKey(0)
+    sessionIdRef.current = createSessionId()
   }
  // -----------------------------
 // V3 UI Adapter
