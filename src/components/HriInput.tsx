@@ -1,6 +1,8 @@
 "use client"
 // components/HriInput.tsx
-// The protagonist. One input. The whole experience.
+// The standard input across the whole experience — one pill, one shape,
+// used by both Arrival and Conversation. Not swapped for a different
+// control once Conversation starts.
 
 import {
   useRef,
@@ -29,13 +31,13 @@ export default function HriInput({
 }: HriInputProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
-  // Auto-resize textarea to content
- const resize = useCallback(() => {
-  const el = ref.current
-  if (!el) return
-
-  el.style.height = "120px"
-}, [])
+  // Auto-resize: starts pill-height, grows with content up to a cap.
+  const resize = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }, [])
 
   useEffect(() => { resize() }, [value, resize])
 
@@ -56,42 +58,37 @@ export default function HriInput({
 
   const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     onChange(e.target.value)
-    resize()
+  }
+
+  const handleSubmitClick = () => {
+    if (value.trim()) onSubmit()
   }
 
   return (
-    <div className="input-row">
-      <div className="input-wrap">
-        <textarea
- style={{
-  width: "100%",
-  height: "120px",
-  minHeight: "120px",
-  maxHeight: "120px",
-  overflowY: "auto",
-  resize: "none",
-  boxSizing: "border-box",
-  padding: "20px 22px",
-  fontSize: "24px",
-  fontWeight: 600,
-  lineHeight: "1.55",
-  borderRadius: "20px",
-}}
-          ref={ref}
-          className="hri-input"
-          value={value}
-          onChange={handleChange}
-          onKeyDown={handleKey}
-          placeholder={placeholder}
-          disabled={disabled}
-          rows={1}
-          aria-label="입력창"
-          aria-multiline="true"
-        />
-      </div>
-      <p className={`enter-hint${value.trim() ? " visible" : ""}`}>
-        Enter로 계속하기 · Shift+Enter로 줄바꿈
-      </p>
+    <div className="hri-pill">
+      <textarea
+        ref={ref}
+        className="hri-pill-input"
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKey}
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={1}
+        aria-label="입력창"
+        aria-multiline="true"
+      />
+      <button
+        type="button"
+        className="hri-pill-submit"
+        onClick={handleSubmitClick}
+        disabled={disabled || !value.trim()}
+        aria-label="계속하기"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
     </div>
   )
 }

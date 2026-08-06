@@ -26,8 +26,8 @@
 
 .aurina-portrait {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 76px;
+  height: 76px;
   flex: none;
 }
 
@@ -56,7 +56,8 @@
   100% { box-shadow: 0 0 0 0 rgba(47, 79, 209, 0); }
 }
 
-.aurina-portrait video {
+.aurina-portrait video,
+.aurina-portrait img {
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -198,12 +199,14 @@
    ~750ms, so it gets one settle, not a repeating animation: whatever
    Thinking's motion was relaxes toward stillness over --p-entry. */
 .aurina-identity .aurina-portrait[data-presence="presence"] video,
+.aurina-identity .aurina-portrait[data-presence="presence"] img,
 .aurina-identity .aurina-portrait[data-presence="presence"]::after {
   animation: none;
   transition: transform var(--p-entry) ease, box-shadow var(--p-entry) ease;
 }
 
-.aurina-identity .aurina-portrait[data-presence="presence"] video {
+.aurina-identity .aurina-portrait[data-presence="presence"] video,
+.aurina-identity .aurina-portrait[data-presence="presence"] img {
   transform: scale(var(--p-scale));
 }
 
@@ -213,6 +216,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .aurina-portrait video,
+  .aurina-portrait img,
   .aurina-identity .aurina-portrait[data-presence]::after,
   .aurina-identity .aurina-portrait[data-presence] .aurina-mirror-wave {
     animation: none;
@@ -237,6 +241,452 @@
 @media (prefers-reduced-motion: reduce) {
   .aurina-moment {
     animation: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ARRIVAL (TARGET UI) — the approved AURINA landing experience.
+   Wider stage than the narrow reading column used by Conversation/
+   Reflection (see .aurina-page[data-phase="idle"] below) — that
+   override is scoped to idle only, so their width is untouched.
+   ══════════════════════════════════════════════════════════════════ */
+
+.aurina-page[data-phase="idle"] {
+  max-width: 1080px;
+}
+
+.arrival {
+  display: flex;
+  flex-direction: column;
+  /* Official AURINA background photo. Solid color is a fallback only,
+     shown if the image fails to load — not a design layer of its own. */
+  background-image: url("/assets/aurina-arrival-bg.png");
+  background-size: cover;
+  background-position: center;
+  background-color: #f6ede0;
+  border-radius: 32px;
+  box-shadow: 0 30px 70px rgba(80, 55, 25, 0.1);
+  overflow: hidden;
+}
+
+.arrival-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32px 48px 0;
+}
+
+.arrival-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.arrival-brand-avatar {
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+}
+
+.arrival-brand-name {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ink-1);
+}
+
+.arrival-brand-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+
+.arrival-menu {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.arrival-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: stretch;
+  min-height: 460px;
+}
+
+/* Soft warm glow behind the portrait — ties photo and text side into
+   one lit scene instead of "photo in a box on a flat background." */
+.arrival-hero::before {
+  content: "";
+  position: absolute;
+  top: -15%;
+  right: 2%;
+  width: 55%;
+  height: 130%;
+  background: radial-gradient(circle, rgba(255, 214, 160, 0.45), transparent 70%);
+  filter: blur(50px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.arrival-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px 40px 48px 48px;
+}
+
+/* "Living Stage" — the left hero zone's ambient background. A readability
+   scrim (static) plus a very slow diagonal glass-light sweep (animated
+   via background-position, not moving elements — no particles). Apple /
+   luxury / museum register: slow, quiet, gradients and blur only. */
+.arrival-hero-content::before {
+  content: "";
+  position: absolute;
+  inset: -24px 0 -24px -48px;
+  z-index: -1;
+  background:
+    linear-gradient(to right, rgba(251, 248, 242, 0.55) 0%, rgba(251, 248, 242, 0.3) 60%, transparent 100%),
+    linear-gradient(115deg, transparent 15%, rgba(255, 255, 255, 0.4) 30%, transparent 45%);
+  background-size:
+    100% 100%,
+    280% 280%;
+  background-position:
+    0 0,
+    0% 0%;
+  animation: living-stage-sweep 24s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Slow-breathing gold reflection — a second, independent light source
+   so the scene reads as lit, not flat. */
+.arrival-hero-content::after {
+  content: "";
+  position: absolute;
+  left: -40px;
+  top: 10%;
+  width: 280px;
+  height: 280px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 168, 119, 0.3), transparent 70%);
+  filter: blur(36px);
+  animation: living-stage-breathe 9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes living-stage-sweep {
+  0%, 100% { background-position: 0 0, 0% 0%; }
+  50% { background-position: 0 0, 100% 55%; }
+}
+
+@keyframes living-stage-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrival-hero-content::before,
+  .arrival-hero-content::after {
+    animation: none;
+  }
+}
+
+.arrival-headline {
+  font-size: clamp(34px, 6vw, 60px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+  margin: 0;
+}
+
+.arrival-description {
+  margin: 28px 0 0;
+  font-size: clamp(17px, 2vw, 21px);
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 32ch;
+}
+
+/* A philosophy statement, not a notice — center-aligned and narrower
+   than the surrounding left-aligned column so it reads as a distinct,
+   quieter voice breaking from the hero copy above it, not a
+   continuation of it. */
+.arrival-declaration {
+  align-self: center;
+  max-width: 30ch;
+  margin: 32px auto 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-soft);
+  text-align: center;
+}
+
+.arrival-declaration-label {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+}
+
+.arrival-declaration-text {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ink-3);
+}
+
+.arrival-declaration-text:last-of-type {
+  margin-bottom: 0;
+}
+
+.arrival-declaration-tag {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--ink-4);
+}
+
+.arrival-pill-zone {
+  margin-top: 40px;
+}
+
+.arrival-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.arrival-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-panel);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+button.arrival-chip.arrival-chip--action {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button.arrival-chip.arrival-chip--action:hover {
+  border-color: var(--gold-line);
+  color: var(--ink-1);
+}
+
+.arrival-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--ink-3);
+}
+
+.arrival-notice svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--gold);
+}
+
+.arrival-notice p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.arrival-portrait {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  /* Bleeds flush to the panel's own edge — clipped only by .arrival's
+     own border-radius/overflow, not framed as a separate boxed photo.
+     No margin/gap/shadow: it reads as part of the panel, not a card
+     floating on top of it. */
+}
+
+.arrival-portrait img,
+.arrival-portrait video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Blends the video's left edge into the surrounding background — one
+   continuous stage, not a photo pasted next to a UI panel. CSS overlay
+   only; the video file itself is untouched. */
+.arrival-portrait::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(to right, #f6ede0 0%, rgba(246, 237, 224, 0.45) 10%, transparent 26%);
+  pointer-events: none;
+}
+
+.arrival-quote {
+  position: absolute;
+  z-index: 2;
+  right: 16px;
+  bottom: 16px;
+  max-width: 190px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(27, 24, 32, 0.5);
+  backdrop-filter: blur(6px);
+  color: #fff;
+}
+
+.arrival-quote p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.arrival-quote span {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.arrival-cards {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 32px 48px;
+  background: rgba(255, 255, 255, 0.32);
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Navigation objects, not explanation cards — icon, title, one line,
+   arrow. Curiosity, not a report. Real button (click → focus input),
+   so browser button defaults are reset to match the old <article> look. */
+.arrival-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 28px 26px 32px;
+  border-radius: 18px;
+  border: none;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.55);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Soft ripple — a quiet gold bloom, not a click-tracked interaction. */
+.arrival-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 20%, rgba(201, 168, 119, 0.32), transparent 60%);
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+}
+
+.arrival-card:hover {
+  background: rgba(255, 255, 255, 0.85);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px rgba(201, 168, 119, 0.22);
+}
+
+.arrival-card:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrival-card {
+    transition: none;
+  }
+  .arrival-card::after {
+    transition: none;
+  }
+}
+
+.arrival-card-icon {
+  margin-bottom: 14px;
+}
+
+.arrival-card-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+.arrival-card-line {
+  margin: 10px 0 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.arrival-card-arrow {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  color: var(--ink-4);
+  font-size: 15px;
+}
+
+@media (max-width: 860px) {
+  .arrival-hero {
+    grid-template-columns: 1fr;
+  }
+  .arrival-portrait {
+    order: -1;
+    aspect-ratio: 16 / 9;
+  }
+  .arrival-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .aurina-page[data-phase="idle"] {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+  .arrival-header {
+    padding: 24px 24px 0;
+  }
+  .arrival-hero {
+    padding: 28px 24px 32px;
+  }
+  .arrival-cards {
+    padding: 24px;
+  }
+  .arrival-quote {
+    display: none;
   }
 }
 
@@ -325,12 +775,224 @@
   font-weight: 500;
   line-height: 1.65;
   color: var(--ink-1);
+  /* Reflection text contains meaningful \n\n paragraph breaks from the
+     engine (verified against a real /api/analyze response); without
+     this, default whitespace collapsing runs them into one line. */
+  white-space: pre-line;
 }
 
 .aurina-error {
   margin-top: 20px;
   color: #a3341f;
   font-size: 15px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   REFLECTION EXPERIENCE 1.0 — Page 2. One continuous page across three
+   layers: 마음의 거울 (observation) → 리듬의 이해 (awareness) →
+   함께 걸어갈 길 (acceptance / forward direction). Visual hierarchy:
+   page title > identity > Layer 1 > Layer 2 > Layer 3 > body text.
+   ══════════════════════════════════════════════════════════════════ */
+
+.reflection {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.reflection-header {
+  text-align: center;
+}
+
+@keyframes reflection-fade-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reflection-fade {
+  animation: reflection-fade-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reflection-fade {
+    animation: none;
+  }
+}
+
+.reflection-portrait {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(60, 40, 20, 0.16);
+}
+
+.reflection-portrait video,
+.reflection-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.reflection-wordmark {
+  margin-top: 14px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ink-1);
+}
+
+.reflection-title {
+  margin: 24px 0 0;
+  font-size: clamp(32px, 7vw, 60px);
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--ink-1);
+}
+
+.reflection-subtitle {
+  margin: 16px 0 0;
+  font-size: clamp(17px, 2vw, 21px);
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.reflection-layer {
+  margin-top: 64px;
+}
+
+.reflection-layer-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 18px;
+}
+
+/* Layer 1 — 마음의 거울. The real reflection text, only reshaped
+   typographically (shorter line length, clear paragraph spacing) —
+   no content invented, nothing summarized or repeated from the user. */
+.reflection-mirror {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.reflection-mirror p {
+  margin: 0;
+  font-size: clamp(18px, 2vw, 21px);
+  font-weight: 500;
+  line-height: 1.7;
+  color: var(--ink-1);
+  max-width: 34ch;
+}
+
+/* Layer 2 — 리듬의 이해. A calm vertical path, not a dashboard: no
+   scores, no scales, no bars, no percentages. */
+.rhythm-path {
+  position: relative;
+  padding-left: 24px;
+}
+
+.rhythm-path::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--gold-line), rgba(201, 168, 119, 0.12));
+}
+
+.rhythm-node {
+  position: relative;
+  padding: 12px 0;
+}
+
+.rhythm-node::before {
+  content: "";
+  position: absolute;
+  left: -21px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 3px var(--bg-panel);
+  animation: rhythm-pulse 3s ease-in-out infinite;
+}
+
+.rhythm-node {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rhythm-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.rhythm-label {
+  font-size: clamp(15px, 1.6vw, 17px);
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+@keyframes rhythm-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.75; }
+  50% { transform: scale(1.35); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rhythm-node::before {
+    animation: none;
+  }
+}
+
+/* Layer 3 — 다음 리듬. Static, approved copy; the one restrained
+   action this beta offers. */
+.reflection-layer--closing {
+  padding-top: 40px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.reflection-closing {
+  font-size: clamp(17px, 2vw, 21px);
+  line-height: 1.7;
+  color: var(--ink-2);
+  max-width: 36ch;
+}
+
+.reflection-restart {
+  display: block;
+  margin: 28px auto 0;
+  padding: 12px 28px;
+  border-radius: 999px;
+  border: 1px solid var(--gold-line);
+  background: transparent;
+  color: var(--ink-1);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.reflection-restart:hover {
+  background: var(--gold-soft);
+}
+
+@media (max-width: 560px) {
+  .reflection-layer {
+    margin-top: 40px;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════

@@ -256,6 +256,7 @@ if (!BETA_OPEN) {
         inputValue={inputValue}
         onInputChange={setInputValue}
         onSubmit={handleSubmit}
+        onRestart={handleRestart}
       />
 
       {phase === "thinking" && <ThinkingDots />}

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import HriInput from "../HriInput";
+import Arrival from "./Arrival";
+import Reflection from "./Reflection";
+import { AURINA_ASSETS } from "./assets";
 import "./aurina.css";
 
 type Exchange = {
@@ -16,6 +19,7 @@ type Props = {
   inputValue: string;
   onInputChange: (value: string) => void;
   onSubmit: (rawText?: string) => void;
+  onRestart: () => void;
 };
 
 const TRAIL_VISIBLE_COUNT = 3;
@@ -123,11 +127,19 @@ export default function AurinaSpace({
   inputValue,
   onInputChange,
   onSubmit,
+  onRestart,
 }: Props) {
   const [trailExpanded, setTrailExpanded] = useState(false);
   const display = useDisplayState(phase, mainQuestion, reflection);
   const displayPhase = display.phase;
   const presence = usePresence(displayPhase, inputValue);
+
+  // Restart clears history but this component stays mounted — without
+  // this, an expanded trail from a prior session would carry over into
+  // the next one instead of starting collapsed like a fresh session does.
+  useEffect(() => {
+    if (history.length === 0) setTrailExpanded(false);
+  }, [history.length]);
 
   const isIdle = displayPhase === "idle";
   const isActive = displayPhase === "question" || displayPhase === "thinking";
@@ -139,31 +151,26 @@ export default function AurinaSpace({
 
   return (
     <div className="aurina-space">
-      <div className="aurina-identity">
-        <div className="aurina-portrait" data-presence={presence}>
-          <div className="aurina-mirror-wave" aria-hidden="true" />
-          <video autoPlay muted loop playsInline>
-            <source src="/videos/aurina-greeting.mp4" type="video/mp4" />
-          </video>
+      {/* Arrival and Reflection each bring their own full brand header —
+          the small persistent anchor is for Conversation only, to avoid
+          duplicate branding elsewhere. */}
+      {isActive && (
+        <div className="aurina-identity">
+          <div className="aurina-portrait" data-presence={presence}>
+            <div className="aurina-mirror-wave" aria-hidden="true" />
+            <img src={AURINA_ASSETS.identityImage} alt="AURINA" />
+          </div>
+          <div className="aurina-name">AURINA</div>
         </div>
-        <div className="aurina-name">AURINA</div>
-      </div>
+      )}
 
       <div className="aurina-moment" key={displayPhase}>
         {isIdle && (
-          <>
-            <div className="aurina-eyebrow">HUMAN RHYTHM INTELLIGENCE</div>
-            <p className="aurina-voice">{voice}</p>
-            <div className="aurina-input-zone">
-              <HriInput
-                value={inputValue}
-                onChange={onInputChange}
-                onSubmit={onSubmit}
-                placeholder="지금 떠오르는 것을 적어보세요."
-                autoFocus
-              />
-            </div>
-          </>
+          <Arrival
+            inputValue={inputValue}
+            onInputChange={onInputChange}
+            onSubmit={onSubmit}
+          />
         )}
 
         {isActive && (
@@ -222,9 +229,7 @@ export default function AurinaSpace({
         )}
 
         {isDone && (
-          <p className="aurina-reflection" aria-live="polite">
-            {display.reflection}
-          </p>
+          <Reflection reflection={display.reflection} onRestart={onRestart} />
         )}
       </div>
     </div>
