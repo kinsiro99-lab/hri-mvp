@@ -57,6 +57,31 @@ export default async function ObservationEventsPage({
 }: {
   searchParams: { key?: string };
 }) {
+  // TEMPORARY DIAGNOSTIC — remove after production admin auth issue is
+  // resolved. Logs only booleans/lengths/derived comparisons, never the
+  // secret value or the provided key value, to server-side Vercel
+  // function logs (never rendered to the client).
+  {
+    const accessKey = process.env.ADMIN_ACCESS_KEY;
+    const providedKey = searchParams.key;
+
+    console.log("[ADMIN_AUTH_DIAGNOSTIC]", {
+      envExists: Boolean(accessKey),
+      envLength: accessKey?.length ?? 0,
+      queryExists: Boolean(providedKey),
+      queryLength: providedKey?.length ?? 0,
+      lengthsMatch:
+        (accessKey?.length ?? -1) === (providedKey?.length ?? -2),
+      strictEqual: accessKey === providedKey,
+      trimmedEqual:
+        accessKey?.trim() === providedKey?.trim(),
+      envHasWhitespace:
+        accessKey ? accessKey !== accessKey.trim() : null,
+      queryHasWhitespace:
+        providedKey ? providedKey !== providedKey.trim() : null,
+    });
+  }
+
   if (!isAuthorized(searchParams.key)) {
     notFound();
   }
