@@ -12,7 +12,7 @@ const ROW_LIMIT = 200;
 
 type ObservationRow = {
   id: number;
-  timestamp: string;
+  timestamp: Date | string;
   session_id: string;
   first_input: string;
   turn_count: number;
@@ -126,7 +126,9 @@ export default async function ObservationEventsPage({
             {rows.map((row) => (
               <tr key={row.id}>
                 <td style={{ padding: "6px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}>
-                  {row.timestamp}
+                  {row.timestamp instanceof Date
+                    ? row.timestamp.toISOString()
+                    : String(row.timestamp)}
                 </td>
                 <td style={{ padding: "6px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" }}>
                   {row.session_id}
