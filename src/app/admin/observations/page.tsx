@@ -29,7 +29,9 @@ async function fetchRecentEvents(): Promise<
   }
 
   try {
-    const sql = neon(connectionString);
+    const sql = neon(connectionString, {
+      fetchOptions: { cache: "no-store" },
+    });
     const rows = (await sql`
       SELECT id, timestamp, session_id, first_input, turn_count, reflection_completed, feedback
       FROM observation_events
