@@ -14,11 +14,11 @@ const RECENT_LIMIT = 20;
 type ObservationSummary = {
   total: number;
   completed: number;
-  latestTimestamp: string | null;
+  latestTimestamp: Date | string | null;
 };
 
 type RecentSessionRow = {
-  timestamp: string;
+  timestamp: Date | string;
   first_input: string;
   turn_count: number;
   reflection_completed: boolean;
@@ -127,7 +127,9 @@ export default async function OperationCenterPage({
             <li>DATABASE_URL configured: Yes</li>
             <li>Total observation rows: {summary.total}</li>
             <li>Reflection completed count: {summary.completed}</li>
-            <li>Latest session timestamp: {summary.latestTimestamp ?? "—"}</li>
+            <li>Latest session timestamp: {summary.latestTimestamp instanceof Date
+              ? summary.latestTimestamp.toISOString()
+              : summary.latestTimestamp ?? "—"}</li>
           </ul>
         )}
       </Section>
@@ -153,7 +155,9 @@ export default async function OperationCenterPage({
             <tbody>
               {recent.map((row, index) => (
                 <tr key={index}>
-                  <td style={{ ...cellStyle, whiteSpace: "nowrap" }}>{row.timestamp}</td>
+                  <td style={{ ...cellStyle, whiteSpace: "nowrap" }}>{row.timestamp instanceof Date
+                    ? row.timestamp.toISOString()
+                    : String(row.timestamp)}</td>
                   <td style={{ ...cellStyle, whiteSpace: "pre-wrap", maxWidth: "420px" }}>{row.first_input}</td>
                   <td style={cellStyle}>{row.turn_count}</td>
                   <td style={cellStyle}>{row.reflection_completed ? "Yes" : "No"}</td>
