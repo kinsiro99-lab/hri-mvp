@@ -12,6 +12,7 @@ import {
   shouldObserve,
   coverageDetailScore,
   COVERAGE_THRESHOLD,
+  hasEnoughDetail,
 } from "./v2/understandingEngine";
 import {
   createQuestionEvent,
@@ -20,11 +21,19 @@ import {
   createReflectionEvent,
   createSafetyEvent,
   createUserInputEvent,
+  getUserInputTexts,
 } from "./events";
 import {
   planQuestion,
   planQuestionDecision,
 } from "./v2/questionPlanner";
+import { detectObservationContext } from "./v2/observationContext";
+import type { ObservationContext } from "./v2/observationContext";
+import { planObservation } from "./v2/observationPlanner";
+import type { ObservationPlan } from "./v2/observationPlanner";
+import { buildObservationSnapshot } from "./v2/observationSnapshot";
+import type { ObservationSnapshot } from "./v2/observationSnapshot";
+import { buildReflectionHint } from "./v2/reflectionHint";
 import { detectDomains } from "./v2/domainEngine";
 import { reduceSessionStateV2 } from "./v2/reducerV2";
 import { toCurrentVector, emptyCurrentVector } from "./v2/adapters";
@@ -62,8 +71,46 @@ export function advanceSession({ inputText, state, events }: AdvanceSessionInput
 
   const safety = checkSafetyBoundary(trimmed);
   if (!safety.safe) {
+    // Policy: build a fresh current-turn fallback snapshot rather than
+    // preserving whatever snapshot the previous turn left behind — this
+    // turn never entered the V2 pipeline (no Understanding/coverage
+    // update happens here), so there is nothing to plan a transition or
+    // goal from, and none is fabricated. Context/confidence are still
+    // real (detectObservationContext is a stateless, pure classifier —
+    // computing it doesn't touch Understanding or the safety decision
+    // itself), just gated by an explicit safety reason instead of the
+    // usual Beta scope/confidence reasons. turnCount is NOT incremented
+    // here because reduceSessionState never runs on this path — this
+    // turn's input was not processed, so state.turnCount is already the
+    // correct "after processing" value for this branch (unchanged).
+    let abortContext: ObservationContext = "uncertain";
+    let abortConfidence = 0;
+    try {
+      const observation = detectObservationContext(trimmed);
+      abortContext = observation.context;
+      abortConfidence = observation.confidence;
+    } catch {
+      abortContext = "uncertain";
+      abortConfidence = 0;
+    }
+
+    const abortSnapshot = buildObservationSnapshot({
+      turnCount: state.turnCount,
+      context: abortContext,
+      contextConfidence: abortConfidence,
+      plan: null,
+      fallbackReason: "safety-abort: input flagged unsafe, no observation processing performed",
+    });
+
+    const abortState: SessionState & { observationSnapshot?: ObservationSnapshot } = {
+      ...state,
+      phase: "rest",
+      pendingWhisper: false,
+      observationSnapshot: abortSnapshot,
+    };
+
     return {
-      state: { ...state, phase: "rest", pendingWhisper: false },
+      state: abortState,
       events: [...withUserInput, createSafetyEvent(safety.message)],
     };
   }
@@ -73,6 +120,10 @@ export function advanceSession({ inputText, state, events }: AdvanceSessionInput
 if (HRI_V2) {
   const baseV1 = reduceSessionState(state, rhythmSignal);
   const prevV2 = state as Partial<SessionStateV2>;
+  // Captured before the new observationSnapshot is built below, so
+  // ReflectionHint can conservatively fall back to it (Step 5) without
+  // ever reading the not-yet-overwritten current turn's value by mistake.
+  const previousObservationSnapshot = prevV2.observationSnapshot;
 
   const v2base: SessionStateV2 = {
     ...baseV1,
@@ -107,6 +158,24 @@ if (HRI_V2) {
 
   const coverage = understandingUpdate.coverage;
 
+  // The literal text the user just gave for whatever slot was probed
+  // last turn (undefined if nothing was probed, or the answer was too
+  // weak/short to count — same hasEnoughDetail gate updateUnderstanding
+  // itself uses). Passed to the planner as the preferred anchor source:
+  // the newest concrete thing the user said, instead of a stale emotion
+  // label frozen from several turns earlier.
+  //
+  // "topic" is excluded: unlike the other 6 slots, it's never filled via
+  // probedFor() with the user's literal text — it's always the engine's
+  // own internal classification label (e.g. "몸 상태"/"기억"/"관계"), so
+  // reading it here would quote that category label back at the user as
+  // if it were their own words (the same leak withAnchor()'s emotion-only
+  // fallback was written to avoid).
+  const freshAnswer =
+    prevV2.lastProbedSlot && prevV2.lastProbedSlot !== "topic" && hasEnoughDetail(trimmed)
+      ? understandingUpdate.next[prevV2.lastProbedSlot]
+      : undefined;
+
   // 2) 종료 조건 — coverage 충분 or 턴 초과면 Observation.
   const convergence = evaluateConvergence(hriState, DEFAULT_CONVERGENCE_PARAMS);
   const coverageDone = shouldObserve(
@@ -124,21 +193,110 @@ if (HRI_V2) {
   updateCoverage: understandingUpdate.coverage,
 });
 
+  // 3) Planner 우선 — 미충족 슬롯을 겨냥한 질문.
+  // Computed here (before the reflection branch, not just in the
+  // question branch below) so the Observation Snapshot right after it
+  // reflects this turn's real planner state on every normal turn,
+  // including the one that triggers Reflection — never a carried-
+  // forward value from a previous turn. Pure function, no side effects,
+  // so moving it earlier changes nothing else about its result.
+  const plannerDecision = planQuestionDecision(
+    understandingUpdate.next,
+    coverage,
+    freshAnswer,
+  );
+
+  // --- Observation OS context/plan (Beta, individual/organization only) ---
+  // Computed once per turn and shared by the Observation Snapshot below
+  // (used on every normal turn, reflection or question) and by the
+  // question-branch overlay further down. Never touches Understanding
+  // or coverage; any failure here falls back to safe/uncertain defaults
+  // and a "fallback" snapshot, never a fabricated transition or goal.
+  const recentSlotsForObservation = hriState.recentSlots ?? [];
+  let snapshotContext: ObservationContext = "uncertain";
+  let snapshotConfidence = 0;
+  let observationPlan: ObservationPlan | null = null;
+  let planReason = "observation context not yet evaluated";
+
+  try {
+    // detectObservationContext's confidence = dominance * min(1, hits/3):
+    // a single, wholly unambiguous keyword (no competing context) caps at
+    // ~0.33 — that's the realistic ceiling for the short, single-signal
+    // inputs this Beta targets, not a weak signal. 0.33 is treated as the
+    // "medium" floor; anything below (i.e. a competing context reduced
+    // dominance) stays in "low confidence" and falls back.
+    const BETA_MIN_CONFIDENCE = 0.33;
+    const accumulatedText = getUserInputTexts(withUserInput).join(" ");
+    const observation = detectObservationContext(accumulatedText);
+    snapshotContext = observation.context;
+    snapshotConfidence = observation.confidence;
+
+    if (plannerDecision === null) {
+      planReason = "no planner decision this turn — node/transition/goal not applicable";
+    } else if (observation.context !== "individual" && observation.context !== "organization") {
+      planReason = `context "${observation.context}" is outside Beta planning scope`;
+    } else if (observation.confidence < BETA_MIN_CONFIDENCE) {
+      planReason = `confidence ${observation.confidence.toFixed(2)} below Beta threshold ${BETA_MIN_CONFIDENCE}`;
+    } else {
+      observationPlan = planObservation(
+        observation.context,
+        plannerDecision.slot,
+        coverage,
+        recentSlotsForObservation,
+      );
+      planReason = observationPlan.reason;
+    }
+  } catch {
+    snapshotContext = "uncertain";
+    snapshotConfidence = 0;
+    observationPlan = null;
+    planReason = "error during observation context/planning — fallback";
+  }
+
+  const observationSnapshot = buildObservationSnapshot({
+    turnCount: hriState.turnCount,
+    context: snapshotContext,
+    contextConfidence: snapshotConfidence,
+    plan: observationPlan,
+    fallbackReason: planReason,
+  });
+
   // Reflection can also proceed once the planner has nothing left to ask
   // (plannerDecision === null) and the same hasEnoughDetail-based score
   // shouldObserve uses is already satisfied — without waiting out
   // MIN_OBSERVATION_TURNS. Boolean coverage alone is never enough here;
   // this reuses shouldObserve's own detail threshold, not coverage.xxx.
   const plannerExhaustedWithDepth =
-    planQuestionDecision(understandingUpdate.next, coverage) === null &&
+    plannerDecision === null &&
     coverageDetailScore(understandingUpdate.next) >= COVERAGE_THRESHOLD;
 
-  if (canReflect && (coverageDone || convergence.converged || plannerExhaustedWithDepth)) {
+  // 몸 상태(health) stop-readiness exception — audited separately
+  // (turn3/turn4 실측: meaning이 유일하게 남은 슬롯일 때 강제로 채우게 하면
+  // "그냥요"/"모르겠다"류 답변이 Reflection에 그대로 인용되어 품질이
+  // 떨어지는 경우가 다수였고, presentState/emotion/wish만으로도 이미
+  // COVERAGE_THRESHOLD를 충족하는 것으로 확인됨). decideNextSlot 자체는
+  // 건드리지 않으므로 plannerDecision은 여전히 "meaning"을 가리키지만,
+  // 몸 상태 + 남은 것이 meaning뿐 + 이미 충분한 깊이일 때만 그 질문을
+  // 던지지 않고 Reflection으로 넘어간다. 다른 topic에는 적용되지 않는다.
+  const healthMeaningStopReady =
+    understandingUpdate.next.topic === "몸 상태" &&
+    canReflect &&
+    coverageDetailScore(understandingUpdate.next) >= COVERAGE_THRESHOLD &&
+    plannerDecision?.slot === "meaning";
+
+  if (canReflect && (coverageDone || convergence.converged || plannerExhaustedWithDepth || healthMeaningStopReady)) {
     const probe = selectProbe(hriState, new Set(hriState.usedQuestionIds));
+
+    // Reflection reads Observation via ReflectionHint — conservatively
+    // falls back to the previous turn's snapshot when this turn's own
+    // plan is null/fallback (the common full-coverage case), and to a
+    // no-op hint otherwise. composeReflection only reorders existing
+    // lines with this; it never changes Understanding or wording.
+    const reflectionHint = buildReflectionHint(observationSnapshot, previousObservationSnapshot);
 
     // Flow Summary + Observation 3단 구조.
     const flowSummary = "";
-    const reflectionResult = composeReflection(understandingUpdate.next);
+    const reflectionResult = composeReflection(understandingUpdate.next, reflectionHint);
     const obs = buildObservation(convergence, probe.domain, probe.axis, trimmed, []);
     const nextDirection =
       understandingUpdate.next.wish
@@ -166,6 +324,7 @@ const reflectionText = [
       phase: "reflection",
       lastReflectionAtTurn: hriState.turnCount,
       pendingWhisper: false,
+      observationSnapshot,
     };
 
     return {
@@ -173,12 +332,6 @@ const reflectionText = [
       events: [...withUserInput, createReflectionEvent(reflection)],
     };
   }
-
-  // 3) Planner 우선 — 미충족 슬롯을 겨냥한 질문.
-  const plannerDecision = planQuestionDecision(
-  understandingUpdate.next,
-  coverage,
-);
 
   // 4) Planner가 null이면 selector fallback (used에 직전 답변 검증 반영).
   const usedSet = new Set<string>(hriState.usedQuestionIds);
@@ -192,7 +345,7 @@ const reflectionText = [
 
  const probe = selectProbe(hriState, usedSet);
 
-const finalText =
+const baselineText =
   plannerDecision !== null
     ? selectQuestion(
         plannerDecision.slot,
@@ -204,6 +357,29 @@ const finalText =
         ?? NEUTRAL_DEEPENING[hriState.turnCount % NEUTRAL_DEEPENING.length]
       );
 
+  // --- Observation OS overlay (Beta, individual/organization only) ---
+  // Reuses observationPlan computed above (shared with the Observation
+  // Snapshot) instead of recomputing context/plan here. Auxiliary
+  // role-repetition check only: never touches Understanding or
+  // coverage, never overrides a null plannerDecision (that path stays
+  // on NEUTRAL_DEEPENING exactly as before), and any failure applying
+  // the alternate falls straight back to baselineText/plannerDecision.slot.
+  let finalText = baselineText;
+  let finalSlot = plannerDecision?.slot;
+
+  if (plannerDecision !== null && observationPlan && !observationPlan.fallback && observationPlan.alternateSlot) {
+    try {
+      const altText = selectQuestion(observationPlan.alternateSlot, plannerDecision.anchor, usedSet).question;
+      if (altText && altText !== baselineText) {
+        finalText = altText;
+        finalSlot = observationPlan.alternateSlot;
+      }
+    } catch {
+      finalText = baselineText;
+      finalSlot = plannerDecision?.slot;
+    }
+  }
+
   const question: QuestionOutput = {
     id: `v2-${probe.domain ?? "none"}-${probe.axis ?? "none"}-${hriState.turnCount}`,
     text: finalText,
@@ -212,13 +388,22 @@ const finalText =
     weight: 1,
   };
  console.log("QUESTION SOURCE:", question.id, question.text);
+  const nextRecentSlots = finalSlot
+    ? [...(hriState.recentSlots ?? []), finalSlot].slice(-2)
+    : (hriState.recentSlots ?? []);
   const nextState: SessionStateV2 = {
     ...hriState,
     phase: "probing",
     pendingWhisper: false,
     lastQuestionCategory: question.category,
     usedQuestionIds: [...hriState.usedQuestionIds, question.text],
-    lastProbedSlot: plannerDecision?.slot,
+    // finalSlot is the slot the returned question.text actually asks about
+    // (plannerDecision.slot unless the overlay swapped it) — using it here,
+    // not plannerDecision?.slot, keeps probedFor() attribution correct on
+    // the next turn when the overlay does swap.
+    lastProbedSlot: finalSlot,
+    recentSlots: nextRecentSlots,
+    observationSnapshot,
   };
 
   return {

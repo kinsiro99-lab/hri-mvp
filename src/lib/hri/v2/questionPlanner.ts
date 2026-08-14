@@ -94,66 +94,76 @@ function planDefault(c: UnderstandingCoverage): string | null {
 function withAnchor(
   slot: Slot,
   understanding: UnderstandingState | undefined,
+  freshAnswer?: string,
 ): PlannerDecision {
   // topic is an internal classification label ("관계"/"미래"/"업무 압박"),
   // never something the user actually said — using it as an anchor
-  // quotes the system's own category back at the user. emotion is the
-  // only anchor source; when it's unset, the caller falls back to the
-  // slot's neutral question text.
-  const anchor = understanding?.emotion;
+  // quotes the system's own category back at the user.
+  //
+  // freshAnswer is the literal text the user just gave for whatever slot
+  // was probed last turn (undefined if nothing was probed, or the answer
+  // was too weak to count). It reflects the newest concrete information
+  // the user provided, so it takes priority over `understanding.emotion`,
+  // which — once set — otherwise stays frozen at whatever it was on the
+  // turn it was first detected and would keep being quoted as anchor long
+  // after the conversation has moved on to more specific information.
+  // isUsableAnchor (selector.ts) still filters out anything ungrammatical
+  // before it reaches a question, falling back to neutral phrasing.
+  const anchor = freshAnswer || understanding?.emotion;
   return anchor ? { slot, anchor } : { slot };
 }
 
 function decideNextSlot(
   understanding: UnderstandingState | undefined,
   coverage: UnderstandingCoverage | undefined,
+  freshAnswer?: string,
 ): PlannerDecision | null {
   if (!coverage) return null;
 
   if (!coverage.topic) {
-    return withAnchor("topic", understanding);
+    return withAnchor("topic", understanding, freshAnswer);
   }
 
   switch (understanding?.topic) {
     case "관계":
-      if (!coverage.target) return withAnchor("target", understanding);
-      if (!coverage.relationship) return withAnchor("relationship", understanding);
-      if (!coverage.emotion) return withAnchor("emotion", understanding);
-      if (!coverage.presentState) return withAnchor("presentState", understanding);
-      if (!coverage.meaning) return withAnchor("meaning", understanding);
-      if (!coverage.wish) return withAnchor("wish", understanding);
+      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
+      if (!coverage.relationship) return withAnchor("relationship", understanding, freshAnswer);
+      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
+      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
+      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
+      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
       return null;
 
     case "업무 압박":
-      if (!coverage.target) return withAnchor("target", understanding);
-      if (!coverage.presentState) return withAnchor("presentState", understanding);
-      if (!coverage.emotion) return withAnchor("emotion", understanding);
-      if (!coverage.meaning) return withAnchor("meaning", understanding);
-      if (!coverage.wish) return withAnchor("wish", understanding);
+      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
+      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
+      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
+      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
+      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
       return null;
 
     case "기억":
-      if (!coverage.target) return withAnchor("target", understanding);
-      if (!coverage.emotion) return withAnchor("emotion", understanding);
-      if (!coverage.presentState) return withAnchor("presentState", understanding);
-      if (!coverage.meaning) return withAnchor("meaning", understanding);
-      if (!coverage.wish) return withAnchor("wish", understanding);
+      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
+      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
+      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
+      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
+      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
       return null;
 
     case "몸 상태":
-      if (!coverage.target) return withAnchor("target", understanding);
-      if (!coverage.presentState) return withAnchor("presentState", understanding);
-      if (!coverage.emotion) return withAnchor("emotion", understanding);
-      if (!coverage.meaning) return withAnchor("meaning", understanding);
-      if (!coverage.wish) return withAnchor("wish", understanding);
+      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
+      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
+      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
+      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
+      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
       return null;
 
     default:
-      if (!coverage.target) return withAnchor("target", understanding);
-      if (!coverage.presentState) return withAnchor("presentState", understanding);
-      if (!coverage.emotion) return withAnchor("emotion", understanding);
-      if (!coverage.meaning) return withAnchor("meaning", understanding);
-      if (!coverage.wish) return withAnchor("wish", understanding);
+      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
+      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
+      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
+      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
+      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
       return null;
   }
 }
@@ -161,6 +171,7 @@ function decideNextSlot(
 export function planQuestionDecision(
   understanding: UnderstandingState | undefined,
   coverage: UnderstandingCoverage | undefined,
+  freshAnswer?: string,
 ): PlannerDecision | null {
-  return decideNextSlot(understanding, coverage);
+  return decideNextSlot(understanding, coverage, freshAnswer);
 }

@@ -3,6 +3,7 @@ import type { UnderstandingState, UnderstandingCoverage } from "./understandingE
   SessionState as SessionStateV1,
   RhythmVectorScores,
 } from "../types";
+import type { ObservationSnapshot } from "./observationSnapshot";
 
 export type Domain =
   | "memory"
@@ -87,6 +88,22 @@ export type SessionStateV2 = SessionStateV1 & {
   currentVector: CurrentVector;
   domainHistory: DomainDistribution[];
   configHistory: CurrentVector[];
+  /**
+   * Internal only — the last (at most 2) slots a question was actually
+   * returned for, used by the Observation OS overlay to detect role
+   * repetition. Never read by the API/UI layer (sessionAdapter.ts
+   * derives its response from event text, not from state).
+   */
+  recentSlots?: Slot[];
+  /**
+   * Internal runtime state only — the Observation OS's snapshot of
+   * context/node/transition/goal/strategy as of the current completed
+   * turn. Reflection does not read this yet (a later step wires that
+   * up); never exposed via the API/UI layer for the same reason
+   * recentSlots isn't (sessionAdapter.ts derives its response from
+   * event text, not from state).
+   */
+  observationSnapshot?: ObservationSnapshot;
 };
 
 export type DomainSignal = {
