@@ -1,4 +1,5 @@
 import { runHriSession } from "./hri/sessionAdapter";
+import { devLog } from "./devLog";
 
 export type EngineRequest = {
   turn: number;
@@ -21,13 +22,15 @@ export type EngineResponse = {
 };
 
 export function getNextOutput(request: EngineRequest): EngineResponse {
-  console.log("ENTRY: src/lib/questionEngine.ts getNextOutput");
+  devLog("ENTRY: src/lib/questionEngine.ts getNextOutput");
   const turn = request.turn === 1 || request.turn === 2 || request.turn === 3 ? request.turn : 1;
-  console.log("CALL: runHriSession");
+  devLog("CALL: runHriSession");
   const response = runHriSession({
     turn,
     inputs: Array.isArray(request.inputs) ? request.inputs : [],
-    debug: request.debug === true,
+    // Diagnostic fields are development-only regardless of what a
+    // client requests — never exposed once NODE_ENV is "production".
+    debug: request.debug === true && process.env.NODE_ENV !== "production",
   });
 
  return {

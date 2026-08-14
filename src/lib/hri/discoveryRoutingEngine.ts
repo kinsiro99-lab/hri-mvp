@@ -3,6 +3,7 @@
  * 사용자의 최신 답변에서 신호를 읽어 다음 레이어를 결정한다.
  * 라우팅만 한다. 진단/해석/판단 없음. 어휘 마커 기반 형식 감지.
  */
+import { devLog } from "../devLog";
 
 export type DiscoveryDepth = 'D0' | 'D1' | 'D2' | 'D3' | 'D4';
 
@@ -190,7 +191,7 @@ export function determineNextLayer(
 export function routeDiscovery(input: RoutingInput): RoutingResult {
   const signal = detectSignal(input.answer);
   const depth = signalToDepth(signal);
-  console.log(
+  devLog(
   'HRI DEBUG',
   input.answer,
   signal,

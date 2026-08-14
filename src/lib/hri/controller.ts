@@ -1,5 +1,6 @@
 import { composeReflection } from "./v2/reflectionComposer";
 import type { HriEvent, SessionState, QuestionOutput, ReflectionOutput } from "./types";
+import { devLog } from "../devLog";
 import { checkSafetyBoundary } from "./safetyBoundary";
 import { detectRhythm } from "./rhythmDetection";
 import { reduceSessionState } from "./reducer";
@@ -185,7 +186,7 @@ if (HRI_V2) {
 );
   const minimumObservationTurns = 4;
   const canReflect = hriState.turnCount >= minimumObservationTurns;
-  console.log("OBSERVE CHECK:", {
+  devLog("OBSERVE CHECK:", {
   turnCount: hriState.turnCount,
   coverageDone,
   convergence: convergence.converged,
@@ -387,7 +388,7 @@ const baselineText =
     aperture: "small",
     weight: 1,
   };
- console.log("QUESTION SOURCE:", question.id, question.text);
+ devLog("QUESTION SOURCE:", question.id, question.text);
   const nextRecentSlots = finalSlot
     ? [...(hriState.recentSlots ?? []), finalSlot].slice(-2)
     : (hriState.recentSlots ?? []);

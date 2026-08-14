@@ -1,5 +1,6 @@
 import { detectDomains } from "./v2/domainEngine";
 import type { StateCompass } from "./stateCompass";
+import { devLog } from "../devLog";
 
 /**
  * HRI internal layer.
@@ -187,8 +188,8 @@ function questionForLane(lane: MainQuestionLane, compass: StateCompass): string 
 export function selectMainQuestionFromCompass(compass: StateCompass, inputs: string[]): MainQuestionSeed {
   
   const joinedInput = inputs.join(" ");
-  console.log("MAIN LAYER INPUTS:", inputs);
-console.log("MAIN LAYER JOINED:", joinedInput);
+  devLog("MAIN LAYER INPUTS:", inputs);
+devLog("MAIN LAYER JOINED:", joinedInput);
   const domainSignal = detectDomains(joinedInput);
 if ((domainSignal.distribution.memory ?? 0) > 0) {
   return {

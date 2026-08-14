@@ -1,4 +1,5 @@
 import type { Slot } from "./types.v2";
+import { devLog } from "../../devLog";
 import type { Evidence } from "./evidence";
 export type UnderstandingState = {
   topic?: string;
@@ -432,7 +433,7 @@ function updateTopic(text: string, state: UnderstandingState): string | undefine
 
   const candidates = collectTopicEvidence(text);
   const resolved = resolveTopic(candidates);
-  console.log("TOPIC RESOLVER:", { candidates, resolved });
+  devLog("TOPIC RESOLVER:", { candidates, resolved });
   if (resolved) return resolved.value;
 
   if (has(text, ["미래", "앞으로"])) return "미래";
@@ -571,7 +572,7 @@ function updateEmotion(text: string, state: UnderstandingState, topicHint?: stri
   // 신호가 없으면 기존 값을 보존한다(coverage 되돌림 방지).
   const candidates = collectEmotionEvidence(text, topicHint);
   const resolved = resolveEmotion(candidates);
-  console.log("EMOTION RESOLVER:", { candidates, resolved, topicHint });
+  devLog("EMOTION RESOLVER:", { candidates, resolved, topicHint });
   return resolved?.value ?? state.emotion;
 }
 
@@ -858,11 +859,11 @@ const coverage: UnderstandingCoverage = {
   wish: Boolean(next.wish),
 };
 
-console.log("===== HRI Understanding =====");
-console.log("INPUT :", text);
-console.log("NEXT  :", next);
-console.log("COVER :", coverage);
-console.log("=============================");
+devLog("===== HRI Understanding =====");
+devLog("INPUT :", text);
+devLog("NEXT  :", next);
+devLog("COVER :", coverage);
+devLog("=============================");
   return { next, coverage };
 }
 export const MIN_OBSERVATION_TURNS = 5;

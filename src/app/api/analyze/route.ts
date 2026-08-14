@@ -1,5 +1,6 @@
 import { getNextOutput, type EngineRequest } from "@/lib/hriRuntime";
 import { advanceSession } from "@/lib/hri/controller";
+import { devLog } from "@/lib/devLog";
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store",
@@ -8,7 +9,7 @@ const JSON_HEADERS = {
 export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as EngineRequest;
-    console.log("ROUTE OK");
+    devLog("ROUTE OK");
     const result = getNextOutput(payload);
 
     return new Response(JSON.stringify(result), {
