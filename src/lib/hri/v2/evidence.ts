@@ -42,4 +42,16 @@ export type Evidence = {
    *  functions don't thread turn count through, so this stays unset
    *  there; left available for callers that do have it. */
   turn?: number;
+  /** Sprint05 — the literal core-signal words that justified this
+   *  evidence (e.g. ["아프"]). Additive metadata only, not a new
+   *  EvidenceKind: lets an audit answer "why this value" without
+   *  re-running the resolver. Optional — only the topic resolver
+   *  populates this today (see understandingEngine.ts's
+   *  collectTopicEvidence); other slots may adopt it later. */
+  matchedTerms?: string[];
+  /** Sprint05 — the literal tie-break/context words that additionally
+   *  supported this evidence when core evidence alone was ambiguous
+   *  (e.g. ["머리"] for a topic tie-break toward "몸 상태"). Optional,
+   *  same scope as matchedTerms. */
+  contextTerms?: string[];
 };

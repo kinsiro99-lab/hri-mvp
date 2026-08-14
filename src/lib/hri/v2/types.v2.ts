@@ -4,6 +4,7 @@ import type { UnderstandingState, UnderstandingCoverage } from "./understandingE
   RhythmVectorScores,
 } from "../types";
 import type { ObservationSnapshot } from "./observationSnapshot";
+import type { UnderstandingKnowledge } from "./informationGap";
 
 export type Domain =
   | "memory"
@@ -104,6 +105,13 @@ export type SessionStateV2 = SessionStateV1 & {
    * event text, not from state).
    */
   observationSnapshot?: ObservationSnapshot;
+  /**
+   * Sprint05 — persistent Slot Knowledge (provenance/sufficiency per
+   * slot), carried turn-to-turn the same way understanding/coverage
+   * are. Internal only, same visibility scope as recentSlots/
+   * observationSnapshot — never exposed via the API/UI layer.
+   */
+  knowledge?: UnderstandingKnowledge;
 };
 
 export type DomainSignal = {

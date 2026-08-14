@@ -3,6 +3,7 @@ import { devLog } from "../../devLog";
 import type { Evidence, EvidenceKind } from "./evidence";
 import {
   computeSufficient,
+  mergeUnderstandingKnowledge,
   type UnderstandingKnowledge,
 } from "./informationGap";
 export type UnderstandingState = {
@@ -369,8 +370,8 @@ const TOPIC_GROUP_WORDS: Record<TopicName, readonly string[]> = {
   ],
 };
 
-function countMatches(text: string, words: readonly string[]): number {
-  return words.filter((word) => text.includes(word)).length;
+function matchedWords(text: string, words: readonly string[]): string[] {
+  return words.filter((word) => text.includes(word));
 }
 
 type ScoredTopicEvidence = {
@@ -383,20 +384,33 @@ function collectTopicEvidence(text: string): ScoredTopicEvidence[] {
   const results: ScoredTopicEvidence[] = [];
 
   for (const name of TOPIC_PRIORITY) {
-    const coreScore = countMatches(text, TOPIC_GROUP_WORDS[name]);
-    if (coreScore === 0) continue;
+    const coreTerms = matchedWords(text, TOPIC_GROUP_WORDS[name]);
+    if (coreTerms.length === 0) continue;
 
-    const contextScore =
+    const contextTerms =
       name === "기억"
-        ? countMatches(text, SEMANTIC_GROUPS.memory.pastContext)
+        ? matchedWords(text, SEMANTIC_GROUPS.memory.pastContext)
         : name === "몸 상태"
-          ? countMatches(text, SEMANTIC_GROUPS.health.bodyContext)
-          : 0;
+          ? matchedWords(text, SEMANTIC_GROUPS.health.bodyContext)
+          : [];
 
     results.push({
-      evidence: { value: name, kind: "inferred", sourceText: text, matchedGroup: name },
-      coreScore,
-      contextScore,
+      evidence: {
+        value: name,
+        kind: "inferred",
+        sourceText: text,
+        matchedGroup: name,
+        matchedTerms: coreTerms,
+        // Sprint05: preserve the actual core/context words that decided
+        // this candidate (Sprint04 CASE D found this detail was lost —
+        // only the winning topic name survived to Evidence). Undefined
+        // rather than [] when empty, so callers can tell "no context
+        // evidence applied" apart from "context evidence was checked
+        // and empty" without a separate boolean.
+        contextTerms: contextTerms.length > 0 ? contextTerms : undefined,
+      },
+      coreScore: coreTerms.length,
+      contextScore: contextTerms.length,
     });
   }
 
@@ -879,6 +893,7 @@ export function updateUnderstanding(
   prev: UnderstandingState | undefined,
   answer: string,
   lastProbedSlot?: Slot,
+  prevKnowledge?: UnderstandingKnowledge,
 ): UnderstandingUpdate {
   const state = prev ?? {};
   const text = (answer ?? "").trim();
@@ -938,13 +953,20 @@ const coverage: UnderstandingCoverage = {
   wish: Boolean(next.wish),
 };
 
-  const knowledge = buildUnderstandingKnowledge({
+  const freshKnowledge = buildUnderstandingKnowledge({
     text,
     lastProbedSlot,
     state,
     next,
     resolvedTopic,
   });
+
+  // Sprint05: turn-local evidence -> persistent knowledge. Fresh
+  // evidence (this turn) always wins for a slot; otherwise the prior
+  // turn's knowledge carries forward only if it still explains the
+  // current value (mergeUnderstandingKnowledge's stale-provenance
+  // guard) — see informationGap.ts's doc comment.
+  const knowledge = mergeUnderstandingKnowledge(prevKnowledge, freshKnowledge, next);
 
 devLog("===== HRI Understanding =====");
 devLog("INPUT :", text);

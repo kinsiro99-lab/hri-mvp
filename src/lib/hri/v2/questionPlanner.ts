@@ -10,7 +10,36 @@ import type { Slot, PlannerDecision } from "./types.v2";;
  * decideNextSlot()은 '슬롯만 결정'하는 단일 진입점이다.
  * 슬롯 순서는 토픽별로 고정되어 있으며, freshAnswer가 있으면
  * anchor 우선순위로 사용된다(withAnchor 참고).
+ *
+ * Sprint05 note: a gap-aware fallback pass (using buildGapMap/
+ * classifySlotGap/questionWorthiness from informationGap.ts) was
+ * built and tested here, then explicitly reverted before commit —
+ * empirically it changed plannerDecision from null to non-null at the
+ * same boundary controller.ts's plannerExhaustedWithDepth reads,
+ * indirectly shifting Reflection timing, and it re-surfaced
+ * placeholder/sideEffect slots (e.g. target) as real questions in ways
+ * that read as regression rather than progress (see Sprint05 Gate
+ * report for the exact cases). Question Decision and Stop/Reflection
+ * readiness are coupled in a way that can't be safely changed
+ * independently — a future Sprint will design them together as one
+ * Decision Gate. Until then, this file only ever returns null exactly
+ * where the fixed slot order runs out, unchanged since before Sprint05.
+ * Persistent Knowledge / Gap Map (informationGap.ts, controller.ts)
+ * are still computed every turn — this file just doesn't consume them.
  * ========================================================= */
+
+const SLOT_ORDER_BY_TOPIC: Record<string, readonly Slot[]> = {
+  "관계": ["target", "relationship", "emotion", "presentState", "meaning", "wish"],
+  "업무 압박": ["target", "presentState", "emotion", "meaning", "wish"],
+  "기억": ["target", "emotion", "presentState", "meaning", "wish"],
+  "몸 상태": ["target", "presentState", "emotion", "meaning", "wish"],
+};
+const DEFAULT_SLOT_ORDER: readonly Slot[] = ["target", "presentState", "emotion", "meaning", "wish"];
+
+function slotOrderForTopic(topic: string | undefined): readonly Slot[] {
+  if (topic && SLOT_ORDER_BY_TOPIC[topic]) return SLOT_ORDER_BY_TOPIC[topic];
+  return DEFAULT_SLOT_ORDER;
+}
 
 function withAnchor(
   slot: Slot,
@@ -45,48 +74,18 @@ function decideNextSlot(
     return withAnchor("topic", understanding, freshAnswer);
   }
 
-  switch (understanding?.topic) {
-    case "관계":
-      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
-      if (!coverage.relationship) return withAnchor("relationship", understanding, freshAnswer);
-      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
-      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
-      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
-      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
-      return null;
+  const slotsInOrder = slotOrderForTopic(understanding?.topic);
 
-    case "업무 압박":
-      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
-      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
-      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
-      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
-      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
-      return null;
-
-    case "기억":
-      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
-      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
-      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
-      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
-      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
-      return null;
-
-    case "몸 상태":
-      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
-      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
-      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
-      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
-      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
-      return null;
-
-    default:
-      if (!coverage.target) return withAnchor("target", understanding, freshAnswer);
-      if (!coverage.presentState) return withAnchor("presentState", understanding, freshAnswer);
-      if (!coverage.emotion) return withAnchor("emotion", understanding, freshAnswer);
-      if (!coverage.meaning) return withAnchor("meaning", understanding, freshAnswer);
-      if (!coverage.wish) return withAnchor("wish", understanding, freshAnswer);
-      return null;
+  // Fixed-order walk, unchanged from before Sprint05: returns
+  // immediately, unconditionally, the moment it finds any genuinely
+  // uncovered (coverage=false) slot; returns null once every slot in
+  // this topic's sequence is boolean-covered. No gap-aware override —
+  // see the file-level note above for why that was tried and reverted.
+  for (const slot of slotsInOrder) {
+    if (!coverage[slot]) return withAnchor(slot, understanding, freshAnswer);
   }
+
+  return null;
 }
 
 export function planQuestionDecision(

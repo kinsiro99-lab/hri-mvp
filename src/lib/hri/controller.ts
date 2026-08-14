@@ -27,6 +27,7 @@ import {
 import {
   planQuestionDecision,
 } from "./v2/questionPlanner";
+import { buildGapMap } from "./v2/informationGap";
 import { detectObservationContext } from "./v2/observationContext";
 import type { ObservationContext } from "./v2/observationContext";
 import { planObservation } from "./v2/observationPlanner";
@@ -146,6 +147,7 @@ if (HRI_V2) {
     v2state.understanding,
     trimmed,
     prevV2.lastProbedSlot,
+    prevV2.knowledge,
 );
 
   // 갱신된 이해/커버리지를 이후 모든 결정의 단일 출처로 삼는다.
@@ -153,10 +155,32 @@ if (HRI_V2) {
     ...v2state,
     understanding: understandingUpdate.next,
     coverage: understandingUpdate.coverage,
+    // Sprint05 — persistent Slot Knowledge, merged inside
+    // updateUnderstanding() (fresh evidence this turn, else the prior
+    // turn's knowledge when it still explains the current value — see
+    // informationGap.ts's mergeUnderstandingKnowledge). Persisted here
+    // and carried turn-to-turn the same way understanding/coverage are,
+    // but not read by any question/Reflection decision below yet — see
+    // the Gap Map note further down for why that wiring was reverted.
+    knowledge: understandingUpdate.knowledge,
     lastAnswer: trimmed,
   };
 
   const coverage = understandingUpdate.coverage;
+
+  // Sprint05 — computed every turn purely for observability/future use
+  // (devLog only). A gap-aware fallback that fed this into
+  // planQuestionDecision() was built and tested, then reverted before
+  // commit: it changed plannerDecision from null to non-null at exactly
+  // the boundary plannerExhaustedWithDepth (below) reads, indirectly
+  // shifting Reflection timing, and re-surfaced placeholder/sideEffect
+  // slots as real questions in ways that read as regression. Question
+  // Decision and Stop/Reflection readiness are coupled closely enough
+  // that they need to be redesigned together, not touched independently
+  // — a future Sprint. Until then this map exists and is accurate, but
+  // nothing downstream consumes it.
+  const gapMap = buildGapMap(understandingUpdate.knowledge);
+  devLog("GAP MAP:", gapMap);
 
   // The literal text the user just gave for whatever slot was probed
   // last turn (undefined if nothing was probed, or the answer was too
