@@ -303,23 +303,6 @@ function isPressure(text: string): boolean {
   );
 }
 
-function isRelationshipSignal(text: string): boolean {
-  return (
-    inRelationship(text, "person") ||
-    inRelationship(text, "separation") ||
-    inRelationship(text, "longing") ||
-    inRelationship(text, "warmth")
-  );
-}
-
-function isMemorySignal(text: string): boolean {
-  return (
-    inMemory(text, "scene") ||
-    inMemory(text, "positive") ||
-    inMemory(text, "regret")
-  );
-}
-
 function isHealthSignal(text: string): boolean {
   return (
     inHealth(text, "fatigue") ||

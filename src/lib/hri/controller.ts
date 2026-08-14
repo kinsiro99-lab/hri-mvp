@@ -25,7 +25,6 @@ import {
   getUserInputTexts,
 } from "./events";
 import {
-  planQuestion,
   planQuestionDecision,
 } from "./v2/questionPlanner";
 import { detectObservationContext } from "./v2/observationContext";
