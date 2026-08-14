@@ -10,6 +10,8 @@ import { NEUTRAL_DEEPENING } from "./v2/neutralQuestions";
 import {
   updateUnderstanding,
   shouldObserve,
+  coverageDetailScore,
+  COVERAGE_THRESHOLD,
 } from "./v2/understandingEngine";
 import {
   createQuestionEvent,
@@ -121,7 +123,17 @@ if (HRI_V2) {
   coverage,
   updateCoverage: understandingUpdate.coverage,
 });
-  if (canReflect && (coverageDone || convergence.converged)) {
+
+  // Reflection can also proceed once the planner has nothing left to ask
+  // (plannerDecision === null) and the same hasEnoughDetail-based score
+  // shouldObserve uses is already satisfied — without waiting out
+  // MIN_OBSERVATION_TURNS. Boolean coverage alone is never enough here;
+  // this reuses shouldObserve's own detail threshold, not coverage.xxx.
+  const plannerExhaustedWithDepth =
+    planQuestionDecision(understandingUpdate.next, coverage) === null &&
+    coverageDetailScore(understandingUpdate.next) >= COVERAGE_THRESHOLD;
+
+  if (canReflect && (coverageDone || convergence.converged || plannerExhaustedWithDepth)) {
     const probe = selectProbe(hriState, new Set(hriState.usedQuestionIds));
 
     // Flow Summary + Observation 3단 구조.

@@ -682,12 +682,8 @@ console.log("=============================");
 export const MIN_OBSERVATION_TURNS = 5;
 export const COVERAGE_THRESHOLD = 5;
 
-export function shouldObserve(
-    next: UnderstandingState,
-    coverage: UnderstandingCoverage,
-    turnCount: number,
-): boolean {
-  const score = [
+export function coverageDetailScore(next: UnderstandingState): number {
+  return [
     hasEnoughDetail(next.topic),
     hasEnoughDetail(next.target),
     hasEnoughDetail(next.emotion),
@@ -695,9 +691,16 @@ export function shouldObserve(
     hasEnoughDetail(next.presentState),
     hasEnoughDetail(next.meaning),
     hasEnoughDetail(next.wish),
-].filter(Boolean).length;
+  ].filter(Boolean).length;
+}
+
+export function shouldObserve(
+    next: UnderstandingState,
+    coverage: UnderstandingCoverage,
+    turnCount: number,
+): boolean {
   return (
     turnCount >= MIN_OBSERVATION_TURNS &&
-    score >= COVERAGE_THRESHOLD
+    coverageDetailScore(next) >= COVERAGE_THRESHOLD
   );
 }
