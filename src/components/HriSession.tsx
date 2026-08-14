@@ -19,7 +19,6 @@ import ThinkingDots from "./ThinkingDots"
 import { callEngine, logObservationEvent } from "@/lib/api"
 type Turn = number
 import AurinaSpace from "./aurina/AurinaSpace";
-import Workspace from "./aurina/Workspace";
 
 import type {
   AurinaState,
@@ -246,7 +245,7 @@ if (!BETA_OPEN) {
   );
 }
  return (
-    <main className="aurina-page" data-state={aurinaState}>
+    <main className="aurina-page" data-state={aurinaState} data-phase={phase}>
       <AurinaSpace
         phase={phase}
         voice={aurinaVoice}
@@ -267,7 +266,13 @@ if (!BETA_OPEN) {
         </p>
       )}
 
-      <Workspace onRestart={handleRestart} />
+      {/* "done" now has its own restart CTA inside Reflection's closing
+          layer — this generic control is only for active Conversation. */}
+      {phase !== "idle" && phase !== "done" && (
+        <button className="restart-btn" onClick={handleRestart} type="button">
+          새로 시작
+        </button>
+      )}
     </main>
   )
   }

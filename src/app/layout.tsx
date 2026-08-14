@@ -17,9 +17,10 @@ export const metadata: Metadata = {
     title: "HRI — Human Rhythm Intelligence",
     description: "지금, 당신의 마음을 살펴보세요",
   },
-  icons: {
-    icon: "/favicon.ico",
-  },
+  // No explicit icons field — src/app/icon.png (existing AURINA asset)
+  // is picked up automatically by Next.js's file convention. An
+  // explicit `icons` entry here would override that and point back at
+  // a nonexistent /favicon.ico.
 }
 
 export const viewport: Viewport = {

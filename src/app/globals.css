@@ -123,18 +123,19 @@ body {
   display: block;
   margin: 24px auto 0;
   padding: 10px 24px;
-  background: transparent;
-  color: var(--ink-3);
-  border: 1px solid var(--border-strong);
+  background: rgba(27, 24, 32, 0.08);
+  color: var(--ink-1);
+  border: 2.5px solid rgba(27, 24, 32, 0.55);
   border-radius: 999px;
   font-size: 13px;
+  font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .restart-btn:hover {
-  background: var(--bg-panel);
-  border-color: var(--ink-3);
+  background: rgba(27, 24, 32, 0.14);
+  border-color: var(--ink-1);
   color: var(--ink-1);
 }
