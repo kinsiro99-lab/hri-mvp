@@ -95,7 +95,12 @@ function withAnchor(
   slot: Slot,
   understanding: UnderstandingState | undefined,
 ): PlannerDecision {
-  const anchor = understanding?.emotion ?? understanding?.topic;
+  // topic is an internal classification label ("관계"/"미래"/"업무 압박"),
+  // never something the user actually said — using it as an anchor
+  // quotes the system's own category back at the user. emotion is the
+  // only anchor source; when it's unset, the caller falls back to the
+  // slot's neutral question text.
+  const anchor = understanding?.emotion;
   return anchor ? { slot, anchor } : { slot };
 }
 

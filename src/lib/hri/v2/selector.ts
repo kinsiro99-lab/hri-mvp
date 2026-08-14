@@ -103,6 +103,13 @@ function isUsableAnchor(anchor: string | undefined): anchor is string {
   if (trimmed.length === 0) return false;
   if (trimmed.length > 20) return false;
 
+  // Reject multi-word text ending in a typical Korean sentence-final
+  // syllable (해요체 "-요" / 평서형 "-다") — a strong signal this is a
+  // full clause (e.g. "그냥 사소한 걸로 다퉜어요"), not a short noun-like
+  // concept, which breaks grammar when inserted into "그 '{anchor}'..."
+  // templates. Single-word anchors are never affected by this check.
+  if (/\s/.test(trimmed) && /[요다]$/.test(trimmed)) return false;
+
   return true;
 }
 
