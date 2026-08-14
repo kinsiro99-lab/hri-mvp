@@ -1,4 +1,5 @@
 import type { Slot } from "./types.v2";
+import type { Evidence } from "./evidence";
 export type UnderstandingState = {
   topic?: string;
   target?: string;
@@ -205,6 +206,15 @@ export const SEMANTIC_GROUPS = {
       "아쉬",
       "안타깝",
     ],
+    // Context evidence, not a signal on its own (see isMemorySignal —
+    // deliberately NOT included there). Only consulted by updateTopic's
+    // resolver as a tie-break when "기억" already has real core evidence
+    // (e.g. the "아프" overlap with health.pain) tied against another
+    // topic — never enough by itself to create a "기억" candidate.
+    pastContext: [
+      "옛일",
+      "지난 일",
+    ],
   },
 
   health: {
@@ -231,6 +241,22 @@ export const SEMANTIC_GROUPS = {
       "쉬고싶",
       "나아지고",
       "괜찮아지고",
+    ],
+    // Context evidence, not a signal on its own (see isHealthSignal —
+    // deliberately NOT included there). Only consulted by updateTopic's
+    // resolver as a tie-break when "몸 상태" already has real core
+    // evidence tied against another topic — a bare body-part mention
+    // ("머리를 잘랐다") can never alone flip topic to health.
+    bodyContext: [
+      "머리",
+      "몸",
+      "배",
+      "허리",
+      "어깨",
+      "다리",
+      "무릎",
+      "가슴",
+      "목",
     ],
   },
 } as const;
@@ -301,13 +327,114 @@ function isHealthSignal(text: string): boolean {
   );
 }
 
+/* =========================================================
+ * Topic resolver — Evidence-based candidate collection.
+ *
+ * Replaces the old if-else-if first-match chain (work > relationship >
+ * memory > health > future), which meant a word shared by two groups
+ * (e.g. "아프" in both memory.regret and health.pain) always resolved
+ * to whichever group happened to be checked first in the code, with no
+ * regard for which group actually fit the sentence.
+ *
+ * Every group with real core evidence becomes a candidate; ties are
+ * broken by context evidence (health.bodyContext / memory.pastContext —
+ * words that on their own never create a candidate, only disambiguate
+ * one that already exists); ties that survive that fall back to the
+ * original group order, so any input that used to match exactly one
+ * group resolves identically to before.
+ * ========================================================= */
+
+type TopicName = "업무 압박" | "관계" | "기억" | "몸 상태";
+
+const TOPIC_PRIORITY: readonly TopicName[] = ["업무 압박", "관계", "기억", "몸 상태"];
+
+const TOPIC_GROUP_WORDS: Record<TopicName, readonly string[]> = {
+  "업무 압박": [
+    ...SEMANTIC_GROUPS.work.workload,
+    ...SEMANTIC_GROUPS.work.timePressure,
+    ...SEMANTIC_GROUPS.work.stress,
+    ...SEMANTIC_GROUPS.work.blockage,
+  ],
+  "관계": [
+    ...SEMANTIC_GROUPS.relationship.person,
+    ...SEMANTIC_GROUPS.relationship.separation,
+    ...SEMANTIC_GROUPS.relationship.longing,
+    ...SEMANTIC_GROUPS.relationship.warmth,
+  ],
+  "기억": [
+    ...SEMANTIC_GROUPS.memory.scene,
+    ...SEMANTIC_GROUPS.memory.positive,
+    ...SEMANTIC_GROUPS.memory.regret,
+  ],
+  "몸 상태": [
+    ...SEMANTIC_GROUPS.health.fatigue,
+    ...SEMANTIC_GROUPS.health.pain,
+    ...SEMANTIC_GROUPS.health.recovery,
+  ],
+};
+
+function countMatches(text: string, words: readonly string[]): number {
+  return words.filter((word) => text.includes(word)).length;
+}
+
+type ScoredTopicEvidence = {
+  evidence: Evidence;
+  coreScore: number;
+  contextScore: number;
+};
+
+function collectTopicEvidence(text: string): ScoredTopicEvidence[] {
+  const results: ScoredTopicEvidence[] = [];
+
+  for (const name of TOPIC_PRIORITY) {
+    const coreScore = countMatches(text, TOPIC_GROUP_WORDS[name]);
+    if (coreScore === 0) continue;
+
+    const contextScore =
+      name === "기억"
+        ? countMatches(text, SEMANTIC_GROUPS.memory.pastContext)
+        : name === "몸 상태"
+          ? countMatches(text, SEMANTIC_GROUPS.health.bodyContext)
+          : 0;
+
+    results.push({
+      evidence: { value: name, kind: "inferred", sourceText: text, matchedGroup: name },
+      coreScore,
+      contextScore,
+    });
+  }
+
+  return results;
+}
+
+function resolveTopic(scored: ScoredTopicEvidence[]): Evidence | undefined {
+  if (scored.length === 0) return undefined;
+
+  const maxCore = Math.max(...scored.map((s) => s.coreScore));
+  const topByCore = scored.filter((s) => s.coreScore === maxCore);
+  if (topByCore.length === 1) return topByCore[0].evidence;
+
+  const maxContext = Math.max(...topByCore.map((s) => s.contextScore));
+  const topByContext = topByCore.filter((s) => s.contextScore === maxContext);
+  if (topByContext.length === 1) return topByContext[0].evidence;
+
+  // Still tied (including when no context evidence applies to any
+  // candidate) — fall back to the original group priority order.
+  for (const name of TOPIC_PRIORITY) {
+    const found = topByContext.find((s) => s.evidence.value === name);
+    if (found) return found.evidence;
+  }
+  return topByCore[0].evidence;
+}
+
 function updateTopic(text: string, state: UnderstandingState): string | undefined {
   if (state.topic) return state.topic;
 
-  if (isWorkSignal(text)) return "업무 압박";
-  if (isRelationshipSignal(text)) return "관계";
-  if (isMemorySignal(text)) return "기억";
-  if (isHealthSignal(text)) return "몸 상태";
+  const candidates = collectTopicEvidence(text);
+  const resolved = resolveTopic(candidates);
+  console.log("TOPIC RESOLVER:", { candidates, resolved });
+  if (resolved) return resolved.value;
+
   if (has(text, ["미래", "앞으로"])) return "미래";
 
   return state.topic;
@@ -381,23 +508,71 @@ if (
   return state.target;
 }
 
-function updateEmotion(text: string, state: UnderstandingState): string | undefined {
+/* =========================================================
+ * Emotion resolver — Evidence-based candidate collection.
+ *
+ * Same principle as the topic resolver above: every branch that matches
+ * becomes a candidate instead of returning on the first one, so no
+ * signal is silently discarded. `topicHint` (this turn's just-resolved
+ * topic, passed in by updateUnderstanding — never state.topic, which
+ * would be a turn stale) is used ONLY to relabel the memory.regret
+ * candidate when topic is "관계": topic never filters or picks the
+ * winning candidate, it only adjusts what one specific candidate's
+ * label means in context — "아프" reads as being let down by someone
+ * in a relationship, not wistful regret over a memory.
+ *
+ * Tie-break priority is the exact order the old if-else-if chain used,
+ * so any input that used to match exactly one branch (the large
+ * majority) resolves to the identical label as before.
+ * ========================================================= */
+
+const EMOTION_PRIORITY: readonly string[] = [
+  "그리움", "즐거움", "따뜻함", "아쉬움", "서운함", "부담감",
+  "쫓기는 느낌", "막막함", "무거움", "불안", "혼란", "외로움", "편안함",
+];
+
+function collectEmotionEvidence(text: string, topicHint?: string): Evidence[] {
+  const candidates: Evidence[] = [];
+  const push = (value: string, matchedGroup: string) =>
+    candidates.push({ value, kind: "inferred", sourceText: text, matchedGroup });
+
+  if (inRelationship(text, "longing")) push("그리움", "relationship.longing");
+  if (has(text, ["기쁨", "기쁘", "즐겁", "행복", "만족", "뿌듯", "성취", "완성", "보람"]))
+    push("즐거움", "direct.joy");
+  if (inRelationship(text, "warmth") || inMemory(text, "positive"))
+    push("따뜻함", "relationship.warmth|memory.positive");
+  if (inMemory(text, "regret"))
+    push(topicHint === "관계" ? "서운함" : "아쉬움", "memory.regret");
+  if (inWork(text, "stress")) push("부담감", "work.stress");
+  if (inWork(text, "timePressure")) push("쫓기는 느낌", "work.timePressure");
+  if (inWork(text, "blockage")) push("막막함", "work.blockage");
+  if (has(text, ["우울", "가라앉", "무겁"])) push("무거움", "direct.heavy");
+  if (has(text, ["불안", "걱정"])) push("불안", "direct.anxiety");
+  if (has(text, ["혼란", "어지럽"])) push("혼란", "direct.confusion");
+  if (has(text, ["외롭", "쓸쓸"])) push("외로움", "direct.lonely");
+  if (has(text, ["편안", "안도"])) push("편안함", "direct.calm");
+
+  return candidates;
+}
+
+function resolveEmotion(candidates: Evidence[]): Evidence | undefined {
+  if (candidates.length === 0) return undefined;
+  if (candidates.length === 1) return candidates[0];
+
+  for (const label of EMOTION_PRIORITY) {
+    const found = candidates.find((c) => c.value === label);
+    if (found) return found;
+  }
+  return candidates[0];
+}
+
+function updateEmotion(text: string, state: UnderstandingState, topicHint?: string): string | undefined {
   // lock 아님: 이번 입력에 감정 신호가 있으면 최신 값으로 덮어쓴다.
   // 신호가 없으면 기존 값을 보존한다(coverage 되돌림 방지).
-  let latest: string | undefined;
-  if (inRelationship(text, "longing")) latest = "그리움";
-  else if (inRelationship(text, "warmth") || inMemory(text, "positive")) latest = "따뜻함";
-  else if (inMemory(text, "regret")) latest = "아쉬움";
-  else if (inWork(text, "stress")) latest = "부담감";
-  else if (inWork(text, "timePressure")) latest = "쫓기는 느낌";
-  else if (inWork(text, "blockage")) latest = "막막함";
-  else if (has(text, ["우울", "가라앉", "무겁"])) latest = "무거움";
-  else if (has(text, ["불안", "걱정"])) latest = "불안";
-  else if (has(text, ["혼란", "어지럽"])) latest = "혼란";
-  else if (has(text, ["외롭", "쓸쓸"])) latest = "외로움";
-  else if (has(text, ["기쁨", "기쁘", "즐겁", "행복", "만족", "뿌듯", "성취", "완성", "보람"])) latest = "즐거움";
-  else if (has(text, ["편안", "안도"])) latest = "편안함";
-  return latest ?? state.emotion;
+  const candidates = collectEmotionEvidence(text, topicHint);
+  const resolved = resolveEmotion(candidates);
+  console.log("EMOTION RESOLVER:", { candidates, resolved, topicHint });
+  return resolved?.value ?? state.emotion;
 }
 
 function updateRelationship(text: string, state: UnderstandingState): string | undefined {
@@ -455,7 +630,11 @@ function updatePresentState(text: string, state: UnderstandingState): string | u
   if (inWork(text, "timePressure")) return "시간에 쫓기는 상태";
   if (inWork(text, "stress")) return "압박이 지속되는 상태";
   if (inWork(text, "workload")) return "부담이 누적된 상태";
-  if (isHealthSignal(text)) return "회복이 필요한 상태";
+  // isHealthSignal fallback removed: it fired on the same turn as the
+  // topic classification itself (any fatigue/pain keyword), pre-filling
+  // presentState with a generic placeholder before the user ever
+  // described their actual current state — this skipped the natural
+  // "how are you right now" follow-up question entirely.
   if (has(text, ["지금도", "아직", "남아", "함께", "즐거웠던", "시간", "추억", "보고싶", "보고 싶", "그립"]))
   return "현재에도 따뜻하게 남아 있음";
   if (has(text, ["모르다", "잘 모르다", "어디에 있는지"])) return "불분명한 상태";
@@ -531,7 +710,7 @@ function updateMemoryTone(
 
   return state.memoryTone;
 }
- function hasEnoughDetail(value?: string): boolean {
+ export function hasEnoughDetail(value?: string): boolean {
   if (!value) return false;
 
   const text = value.trim();
@@ -542,7 +721,10 @@ function updateMemoryTone(
     "모름",
     "모르겠다",
     "글쎄",
-    "잘",
+    // "잘" removed: as a bare substring it matched inside concrete,
+    // detailed sentences ("서비스 오픈이 잘된다", "일이 잘 풀린다"), flagging
+    // them as weak/vague. The hedge phrase it was meant to catch ("잘
+    // 모르겠다") is still caught via "모르겠다" above.
     "그냥",
     "둘다",
     "둘 다",
@@ -632,8 +814,12 @@ export function updateUnderstanding(
 
   return probedValue ?? text.trim();
 };
+  // Resolved once so updateEmotion can use *this turn's* topic as a
+  // tie-break hint (see its doc comment) — state.topic would be a turn
+  // stale on the very turn topic is first classified.
+  const resolvedTopic = updateTopic(text, state);
   const next: UnderstandingState = {
-    topic: updateTopic(text, state),
+    topic: resolvedTopic,
 
     target:
   probedFor("target") ??
@@ -641,7 +827,7 @@ export function updateUnderstanding(
 
     emotion:
   probedFor("emotion") ??
-  (state.emotion ?? updateEmotion(text, state)),
+  (state.emotion ?? updateEmotion(text, state, resolvedTopic)),
 
     relationship:
   probedFor("relationship") ??
@@ -677,7 +863,7 @@ console.log("INPUT :", text);
 console.log("NEXT  :", next);
 console.log("COVER :", coverage);
 console.log("=============================");
-  return { next, coverage };     
+  return { next, coverage };
 }
 export const MIN_OBSERVATION_TURNS = 5;
 export const COVERAGE_THRESHOLD = 5;
