@@ -1,6 +1,10 @@
 import type { Slot } from "./types.v2";
 import { devLog } from "../../devLog";
-import type { Evidence } from "./evidence";
+import type { Evidence, EvidenceKind } from "./evidence";
+import {
+  computeSufficient,
+  type UnderstandingKnowledge,
+} from "./informationGap";
 export type UnderstandingState = {
   topic?: string;
   target?: string;
@@ -26,6 +30,14 @@ export type UnderstandingCoverage = {
 export type UnderstandingUpdate = {
   next: UnderstandingState;
   coverage: UnderstandingCoverage;
+  /**
+   * Additive, Sprint04 — this turn's provenance evidence for whichever
+   * slots got fresh evidence during this call (see informationGap.ts's
+   * scope note). Not consumed anywhere yet: existing callers (e.g.
+   * controller.ts) can destructure only `next`/`coverage` and see zero
+   * behavior change.
+   */
+  knowledge: UnderstandingKnowledge;
 };
 
 function has(text: string, words: readonly string[]): boolean {
@@ -450,15 +462,53 @@ function extractConcreteTarget(text: string): string | undefined {
 
   return undefined;
 }
-function updateTarget(text: string, state: UnderstandingState): string | undefined {
-  if (state.target) return state.target;
+/* =========================================================
+ * Slot evidence candidates — Sprint04 Knowledge Foundation.
+ *
+ * Each classifyXCandidate() mirrors its sibling updateX() function's
+ * branch order exactly (same conditions, same returned strings) but
+ * also reports *why* — the classification that updateUnderstanding()
+ * uses to build UnderstandingKnowledge (informationGap.ts). updateX()
+ * now derives its value from the same classifier instead of
+ * duplicating the branch logic, so there is a single source of truth
+ * and no risk of the value and its evidence drifting apart.
+ *
+ * kind here reflects only the branch's own on-topic/cross-domain
+ * nature ("inferred" for a signal genuinely about this slot's concept,
+ * "placeholder" for a generic representative label — most visibly
+ * target's branches, which are ALL placeholder except the one literal
+ * extraction, since nothing but a real extracted phrase can represent
+ * a concrete target). Whether the *final* recorded kind becomes
+ * "sideEffect" is decided by updateUnderstanding() by comparing
+ * lastProbedSlot against the slot being filled — this file has no
+ * access to lastProbedSlot and never assigns "sideEffect" itself.
+ * ========================================================= */
+type SlotEvidenceCandidate = {
+  value: string;
+  kind: EvidenceKind;
+  matchedGroup: string;
+  isLiteral: boolean;
+};
+
+function classifyTargetCandidate(text: string): SlotEvidenceCandidate | undefined {
   const concreteTarget = extractConcreteTarget(text);
-  if (concreteTarget) return concreteTarget;
-  if (inRelationship(text, "person")) return "사람";
-  if (inWork(text, "workload")) return "업무";
-  if (inWork(text, "timePressure")) return "시간 압박";
-  if (inWork(text, "blockage")) return "막힌 일";
-  if (inWork(text, "stress")) return "압박 상황";
+  if (concreteTarget)
+    return { value: concreteTarget, kind: "inferred", matchedGroup: "pattern.concreteTarget", isLiteral: true };
+
+  // Every branch below is a generic representative label, never the
+  // user's own words — target's whole purpose is "the concrete
+  // referent", so anything short of a real extracted phrase is a
+  // placeholder standing in for one, not a genuine on-topic inference.
+  if (inRelationship(text, "person"))
+    return { value: "사람", kind: "placeholder", matchedGroup: "relationship.person", isLiteral: false };
+  if (inWork(text, "workload"))
+    return { value: "업무", kind: "placeholder", matchedGroup: "work.workload", isLiteral: false };
+  if (inWork(text, "timePressure"))
+    return { value: "시간 압박", kind: "placeholder", matchedGroup: "work.timePressure", isLiteral: false };
+  if (inWork(text, "blockage"))
+    return { value: "막힌 일", kind: "placeholder", matchedGroup: "work.blockage", isLiteral: false };
+  if (inWork(text, "stress"))
+    return { value: "압박 상황", kind: "placeholder", matchedGroup: "work.stress", isLiteral: false };
   if (
     has(text, [
         "가끔 연락",
@@ -471,9 +521,10 @@ function updateTarget(text: string, state: UnderstandingState): string | undefin
         "이따금",
         "안부"
     ])
-) return "이어지고 있는 연결";
+  )
+    return { value: "이어지고 있는 연결", kind: "placeholder", matchedGroup: "direct.frequentContact", isLiteral: false };
 
-if (
+  if (
     has(text, [
         "알고 있는",
         "아는",
@@ -483,13 +534,21 @@ if (
         "친구이다",
         "친구다"
     ])
-) return "느슨한 연결";
-  if (isWorkSignal(text)) return "업무 상황";
- 
-  if (isHealthSignal(text)) return "몸 상태";
-  if (has(text, ["대화", "말", "이야기"])) return "대화";
+  )
+    return { value: "느슨한 연결", kind: "placeholder", matchedGroup: "direct.acquaintance", isLiteral: false };
+  if (isWorkSignal(text))
+    return { value: "업무 상황", kind: "placeholder", matchedGroup: "work.*", isLiteral: false };
+  if (isHealthSignal(text))
+    return { value: "몸 상태", kind: "placeholder", matchedGroup: "health.*", isLiteral: false };
+  if (has(text, ["대화", "말", "이야기"]))
+    return { value: "대화", kind: "placeholder", matchedGroup: "direct.conversation", isLiteral: false };
 
-  return state.target;
+  return undefined;
+}
+
+function updateTarget(text: string, state: UnderstandingState): string | undefined {
+  if (state.target) return state.target;
+  return classifyTargetCandidate(text)?.value ?? state.target;
 }
 
 /* =========================================================
@@ -559,77 +618,103 @@ function updateEmotion(text: string, state: UnderstandingState, topicHint?: stri
   return resolved?.value ?? state.emotion;
 }
 
-function updateRelationship(text: string, state: UnderstandingState): string | undefined {
- 
+function classifyRelationshipCandidate(text: string): SlotEvidenceCandidate | undefined {
+  // separation/longing/warmth/frequent-contact/acquaintance are all
+  // genuinely on-topic for "relationship" (they describe the nature or
+  // frequency of the connection itself), so they're inferred, not
+  // placeholder, even though the stored label is synthesized rather
+  // than the user's literal words.
+  if (inRelationship(text, "separation"))
+    return { value: "끊어진 연결", kind: "inferred", matchedGroup: "relationship.separation", isLiteral: false };
+  if (inRelationship(text, "longing"))
+    return { value: "남아 있는 연결", kind: "inferred", matchedGroup: "relationship.longing", isLiteral: false };
+  if (inRelationship(text, "warmth"))
+    return { value: "따뜻했던 연결", kind: "inferred", matchedGroup: "relationship.warmth", isLiteral: false };
 
-  if (inRelationship(text, "separation")) return "끊어진 연결";
-  if (inRelationship(text, "longing")) return "남아 있는 연결";
-  if (inRelationship(text, "warmth")) return "따뜻했던 연결";
- 
+  if (
+      has(text, [
+          "가끔",
+          "가끔 연락",
+          "연락한다",
+          "연락이 왔",
+          "연락이 온",
+          "연락하",
+          "종종",
+          "이따금",
+          "안부"
+      ])
+  )
+    return { value: "이어지고 있는 연결", kind: "inferred", matchedGroup: "direct.frequentContact", isLiteral: false };
 
-    if (
-        has(text, [
-            "가끔",
-            "가끔 연락",
-            "연락한다",
-            "연락이 왔",
-            "연락이 온",
-            "연락하",
-            "종종",
-            "이따금",
-            "안부"
-        ])
-    ) return "이어지고 있는 연결";
+  if (
+      has(text, [
+          "아는",
+          "알고 있는",
+          "알던",
+          "지인",
+          "친구",
+          "친구이다",
+          "친구다",
+          "만났던 친구",
+          "옛날",
+          "예전",
+          "예전에",
+          "오래전",
+          "오랜 친구"
+      ])
+  )
+    return { value: "느슨한 연결", kind: "inferred", matchedGroup: "direct.acquaintance", isLiteral: false };
 
-    if (
-        has(text, [
-            "아는",
-            "알고 있는",
-            "알던",
-            "지인",
-            "친구",
-            "친구이다",
-            "친구다",
-            "만났던 친구",
-            "옛날",
-            "예전",
-            "예전에",
-            "오래전",
-            "오랜 친구"
-        ])
-    ) return "느슨한 연결";
+  // Cross-domain: a work-pressure signal has nothing to do with
+  // relationship in the interpersonal sense — this is a genuine
+  // placeholder, not a real inference about "relationship".
+  if (isWorkSignal(text))
+    return { value: "부담을 주는 대상", kind: "placeholder", matchedGroup: "work.*", isLiteral: false };
 
-if (isWorkSignal(text)) return "부담을 주는 대상";
- 
-
-  return state.relationship;
+  return undefined;
 }
 
-function updatePresentState(text: string, state: UnderstandingState): string | undefined {
- 
+function updateRelationship(text: string, state: UnderstandingState): string | undefined {
+  return classifyRelationshipCandidate(text)?.value ?? state.relationship;
+}
 
-  if (inRelationship(text, "separation")) return "현재는 멀어진 상태";
-  if (inRelationship(text, "longing")) return "아직 남아 있는 감정";
-  if (inWork(text, "blockage")) return "일이 막힌 상태";
-  if (inWork(text, "timePressure")) return "시간에 쫓기는 상태";
-  if (inWork(text, "stress")) return "압박이 지속되는 상태";
-  if (inWork(text, "workload")) return "부담이 누적된 상태";
+function classifyPresentStateCandidate(text: string): SlotEvidenceCandidate | undefined {
+  // presentState has no inherent domain of its own (unlike relationship,
+  // which is specifically about interpersonal connection) — "what is
+  // the current state of things" is meaningfully answered by a signal
+  // from any domain, so every branch here is inferred, not placeholder.
+  if (inRelationship(text, "separation"))
+    return { value: "현재는 멀어진 상태", kind: "inferred", matchedGroup: "relationship.separation", isLiteral: false };
+  if (inRelationship(text, "longing"))
+    return { value: "아직 남아 있는 감정", kind: "inferred", matchedGroup: "relationship.longing", isLiteral: false };
+  if (inWork(text, "blockage"))
+    return { value: "일이 막힌 상태", kind: "inferred", matchedGroup: "work.blockage", isLiteral: false };
+  if (inWork(text, "timePressure"))
+    return { value: "시간에 쫓기는 상태", kind: "inferred", matchedGroup: "work.timePressure", isLiteral: false };
+  if (inWork(text, "stress"))
+    return { value: "압박이 지속되는 상태", kind: "inferred", matchedGroup: "work.stress", isLiteral: false };
+  if (inWork(text, "workload"))
+    return { value: "부담이 누적된 상태", kind: "inferred", matchedGroup: "work.workload", isLiteral: false };
   // isHealthSignal fallback removed: it fired on the same turn as the
   // topic classification itself (any fatigue/pain keyword), pre-filling
   // presentState with a generic placeholder before the user ever
   // described their actual current state — this skipped the natural
   // "how are you right now" follow-up question entirely.
   if (has(text, ["지금도", "아직", "남아", "함께", "즐거웠던", "시간", "추억", "보고싶", "보고 싶", "그립"]))
-  return "현재에도 따뜻하게 남아 있음";
-  if (has(text, ["모르다", "잘 모르다", "어디에 있는지"])) return "불분명한 상태";
-  if (has(text, ["혼란", "뒤엉", "복잡"])) return "혼란스러운 상태";
+    return { value: "현재에도 따뜻하게 남아 있음", kind: "inferred", matchedGroup: "direct.stillPresent", isLiteral: false };
+  if (has(text, ["모르다", "잘 모르다", "어디에 있는지"]))
+    return { value: "불분명한 상태", kind: "inferred", matchedGroup: "direct.unknown", isLiteral: false };
+  if (has(text, ["혼란", "뒤엉", "복잡"]))
+    return { value: "혼란스러운 상태", kind: "inferred", matchedGroup: "direct.confusion", isLiteral: false };
 
-  return state.presentState;
+  return undefined;
 }
 
-function updateWish(text: string, state: UnderstandingState): string | undefined {
-  if (state.wish) return state.wish;
+function updatePresentState(text: string, state: UnderstandingState): string | undefined {
+  return classifyPresentStateCandidate(text)?.value ?? state.presentState;
+}
 
+function classifyWishCandidate(text: string): SlotEvidenceCandidate | undefined {
   if (
     has(text, [
       "싶다",
@@ -645,16 +730,22 @@ function updateWish(text: string, state: UnderstandingState): string | undefined
       "하고 싶",
     ])
   ) {
-    return text;
+    // The keyword trigger is broad and the attribution to "wish"
+    // specifically is inferred, but the stored value is the user's own
+    // sentence verbatim — a literal value reached via an inferred path.
+    return { value: text, kind: "inferred", matchedGroup: "direct.wishKeyword", isLiteral: true };
   }
   if (has(text, ["그리움", "그립", "보고싶", "보고 싶"]))
-  return "다시 만나고 싶음";
-  return state.wish;
+    return { value: "다시 만나고 싶음", kind: "inferred", matchedGroup: "relationship.longing", isLiteral: false };
+  return undefined;
 }
 
-function updateMeaning(text: string, state: UnderstandingState): string | undefined {
-  if (state.meaning) return state.meaning;
+function updateWish(text: string, state: UnderstandingState): string | undefined {
+  if (state.wish) return state.wish;
+  return classifyWishCandidate(text)?.value ?? state.wish;
+}
 
+function classifyMeaningCandidate(text: string): SlotEvidenceCandidate | undefined {
   if (
     has(text, [
       "의미",
@@ -667,11 +758,16 @@ function updateMeaning(text: string, state: UnderstandingState): string | undefi
       "교훈",
     ])
   ) {
-    return text;
+    return { value: text, kind: "inferred", matchedGroup: "direct.meaningKeyword", isLiteral: true };
   }
   if (has(text, ["그리움", "그립", "보고싶", "보고 싶"]))
-  return "소중한 관계에 대한 그리움";
-  return state.meaning;
+    return { value: "소중한 관계에 대한 그리움", kind: "inferred", matchedGroup: "relationship.longing", isLiteral: false };
+  return undefined;
+}
+
+function updateMeaning(text: string, state: UnderstandingState): string | undefined {
+  if (state.meaning) return state.meaning;
+  return classifyMeaningCandidate(text)?.value ?? state.meaning;
 }
 
 function updateMemoryTone(
@@ -842,12 +938,161 @@ const coverage: UnderstandingCoverage = {
   wish: Boolean(next.wish),
 };
 
+  const knowledge = buildUnderstandingKnowledge({
+    text,
+    lastProbedSlot,
+    state,
+    next,
+    resolvedTopic,
+  });
+
 devLog("===== HRI Understanding =====");
 devLog("INPUT :", text);
 devLog("NEXT  :", next);
 devLog("COVER :", coverage);
 devLog("=============================");
-  return { next, coverage };
+  return { next, coverage, knowledge };
+}
+
+/* =========================================================
+ * Knowledge construction — Sprint04 Knowledge Foundation.
+ *
+ * Purely additive: reads next/state/lastProbedSlot and produces a
+ * UnderstandingKnowledge snapshot of THIS TURN's evidence only (see
+ * informationGap.ts's scope note — no cross-turn persistence yet).
+ * Never influences `next`/`coverage`, and nothing downstream
+ * (decideNextSlot / planObservation / Reflection readiness) reads it
+ * this Sprint.
+ * ========================================================= */
+function recordSlotKnowledge(
+  knowledge: UnderstandingKnowledge,
+  slot: Slot,
+  text: string,
+  lastProbedSlot: Slot | undefined,
+  finalValue: string | undefined,
+  stateValue: string | undefined,
+  classify: (text: string) => SlotEvidenceCandidate | undefined,
+): void {
+  if (!finalValue) return;
+
+  if (lastProbedSlot === slot) {
+    const evidence: Evidence = {
+      value: finalValue,
+      kind: "explicit",
+      sourceText: text,
+      matchedGroup: "probed.directAnswer",
+    };
+    knowledge[slot] = {
+      value: finalValue,
+      evidence,
+      isLiteral: true,
+      sufficient: computeSufficient(finalValue, evidence, hasEnoughDetail),
+    };
+    return;
+  }
+
+  // Value carried over unchanged from a prior turn (call site
+  // short-circuited before updateX() ever ran) — no fresh evidence
+  // this turn, so no entry (see informationGap.ts's scope note).
+  if (stateValue) return;
+
+  const candidate = classify(text);
+  if (!candidate) return;
+
+  // A slot was actively probed this turn (lastProbedSlot is set) but
+  // it wasn't THIS slot — whatever filled this slot did so as a
+  // byproduct of answering a different question.
+  const kind: EvidenceKind = lastProbedSlot ? "sideEffect" : candidate.kind;
+  const evidence: Evidence = {
+    value: candidate.value,
+    kind,
+    sourceText: text,
+    matchedGroup: candidate.matchedGroup,
+  };
+  knowledge[slot] = {
+    value: candidate.value,
+    evidence,
+    isLiteral: candidate.isLiteral,
+    sufficient: computeSufficient(candidate.value, evidence, hasEnoughDetail),
+  };
+}
+
+function buildUnderstandingKnowledge(args: {
+  text: string;
+  lastProbedSlot: Slot | undefined;
+  state: UnderstandingState;
+  next: UnderstandingState;
+  resolvedTopic: string | undefined;
+}): UnderstandingKnowledge {
+  const { text, lastProbedSlot, state, next, resolvedTopic } = args;
+  const knowledge: UnderstandingKnowledge = {};
+
+  // topic: never explicit (doesn't go through probedFor). Only ever has
+  // fresh evidence on the turn it's first classified (state.topic was
+  // empty going in) — recomputing collectTopicEvidence/resolveTopic
+  // here is cheap and keeps updateTopic()'s own signature untouched.
+  if (next.topic && !state.topic) {
+    const topicCandidates = collectTopicEvidence(text);
+    const resolved = resolveTopic(topicCandidates);
+    if (resolved) {
+      knowledge.topic = {
+        value: resolved.value,
+        evidence: resolved,
+        isLiteral: false,
+        sufficient: computeSufficient(resolved.value, resolved, hasEnoughDetail),
+      };
+    } else if (next.topic === "미래") {
+      const evidence: Evidence = { value: "미래", kind: "inferred", sourceText: text, matchedGroup: "direct.future" };
+      knowledge.topic = {
+        value: "미래",
+        evidence,
+        isLiteral: false,
+        sufficient: computeSufficient("미래", evidence, hasEnoughDetail),
+      };
+    }
+  }
+
+  // emotion: has its own Evidence-producing resolver (Sprint02), so it
+  // gets the same probed/carried/fresh treatment as the other slots but
+  // sources its "fresh" branch from collectEmotionEvidence/resolveEmotion
+  // instead of a classifyXCandidate() function.
+  if (next.emotion) {
+    if (lastProbedSlot === "emotion") {
+      const evidence: Evidence = {
+        value: next.emotion,
+        kind: "explicit",
+        sourceText: text,
+        matchedGroup: "probed.directAnswer",
+      };
+      knowledge.emotion = {
+        value: next.emotion,
+        evidence,
+        isLiteral: true,
+        sufficient: computeSufficient(next.emotion, evidence, hasEnoughDetail),
+      };
+    } else if (!state.emotion) {
+      const emotionCandidates = collectEmotionEvidence(text, resolvedTopic);
+      const resolved = resolveEmotion(emotionCandidates);
+      if (resolved) {
+        const kind: EvidenceKind = lastProbedSlot ? "sideEffect" : resolved.kind;
+        const evidence: Evidence = { ...resolved, kind };
+        knowledge.emotion = {
+          value: resolved.value,
+          evidence,
+          isLiteral: false,
+          sufficient: computeSufficient(resolved.value, evidence, hasEnoughDetail),
+        };
+      }
+    }
+  }
+
+  recordSlotKnowledge(knowledge, "target", text, lastProbedSlot, next.target, state.target, classifyTargetCandidate);
+  recordSlotKnowledge(knowledge, "relationship", text, lastProbedSlot, next.relationship, state.relationship, classifyRelationshipCandidate);
+  recordSlotKnowledge(knowledge, "presentState", text, lastProbedSlot, next.presentState, state.presentState, classifyPresentStateCandidate);
+  recordSlotKnowledge(knowledge, "meaning", text, lastProbedSlot, next.meaning, state.meaning, classifyMeaningCandidate);
+  recordSlotKnowledge(knowledge, "wish", text, lastProbedSlot, next.wish, state.wish, classifyWishCandidate);
+
+  return knowledge;
 }
 export const MIN_OBSERVATION_TURNS = 5;
 export const COVERAGE_THRESHOLD = 5;
