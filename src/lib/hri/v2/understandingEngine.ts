@@ -894,6 +894,7 @@ export function updateUnderstanding(
   answer: string,
   lastProbedSlot?: Slot,
   prevKnowledge?: UnderstandingKnowledge,
+  turnCount?: number,
 ): UnderstandingUpdate {
   const state = prev ?? {};
   const text = (answer ?? "").trim();
@@ -959,6 +960,7 @@ const coverage: UnderstandingCoverage = {
     state,
     next,
     resolvedTopic,
+    turn: turnCount,
   });
 
   // Sprint05: turn-local evidence -> persistent knowledge. Fresh
@@ -994,6 +996,7 @@ function recordSlotKnowledge(
   finalValue: string | undefined,
   stateValue: string | undefined,
   classify: (text: string) => SlotEvidenceCandidate | undefined,
+  turn: number | undefined,
 ): void {
   if (!finalValue) return;
 
@@ -1003,6 +1006,7 @@ function recordSlotKnowledge(
       kind: "explicit",
       sourceText: text,
       matchedGroup: "probed.directAnswer",
+      turn,
     };
     knowledge[slot] = {
       value: finalValue,
@@ -1030,6 +1034,7 @@ function recordSlotKnowledge(
     kind,
     sourceText: text,
     matchedGroup: candidate.matchedGroup,
+    turn,
   };
   knowledge[slot] = {
     value: candidate.value,
@@ -1045,8 +1050,9 @@ function buildUnderstandingKnowledge(args: {
   state: UnderstandingState;
   next: UnderstandingState;
   resolvedTopic: string | undefined;
+  turn: number | undefined;
 }): UnderstandingKnowledge {
-  const { text, lastProbedSlot, state, next, resolvedTopic } = args;
+  const { text, lastProbedSlot, state, next, resolvedTopic, turn } = args;
   const knowledge: UnderstandingKnowledge = {};
 
   // topic: never explicit (doesn't go through probedFor). Only ever has
@@ -1057,14 +1063,15 @@ function buildUnderstandingKnowledge(args: {
     const topicCandidates = collectTopicEvidence(text);
     const resolved = resolveTopic(topicCandidates);
     if (resolved) {
+      const evidence: Evidence = { ...resolved, turn };
       knowledge.topic = {
         value: resolved.value,
-        evidence: resolved,
+        evidence,
         isLiteral: false,
-        sufficient: computeSufficient(resolved.value, resolved, hasEnoughDetail),
+        sufficient: computeSufficient(resolved.value, evidence, hasEnoughDetail),
       };
     } else if (next.topic === "미래") {
-      const evidence: Evidence = { value: "미래", kind: "inferred", sourceText: text, matchedGroup: "direct.future" };
+      const evidence: Evidence = { value: "미래", kind: "inferred", sourceText: text, matchedGroup: "direct.future", turn };
       knowledge.topic = {
         value: "미래",
         evidence,
@@ -1085,6 +1092,7 @@ function buildUnderstandingKnowledge(args: {
         kind: "explicit",
         sourceText: text,
         matchedGroup: "probed.directAnswer",
+        turn,
       };
       knowledge.emotion = {
         value: next.emotion,
@@ -1097,7 +1105,7 @@ function buildUnderstandingKnowledge(args: {
       const resolved = resolveEmotion(emotionCandidates);
       if (resolved) {
         const kind: EvidenceKind = lastProbedSlot ? "sideEffect" : resolved.kind;
-        const evidence: Evidence = { ...resolved, kind };
+        const evidence: Evidence = { ...resolved, kind, turn };
         knowledge.emotion = {
           value: resolved.value,
           evidence,
@@ -1108,11 +1116,11 @@ function buildUnderstandingKnowledge(args: {
     }
   }
 
-  recordSlotKnowledge(knowledge, "target", text, lastProbedSlot, next.target, state.target, classifyTargetCandidate);
-  recordSlotKnowledge(knowledge, "relationship", text, lastProbedSlot, next.relationship, state.relationship, classifyRelationshipCandidate);
-  recordSlotKnowledge(knowledge, "presentState", text, lastProbedSlot, next.presentState, state.presentState, classifyPresentStateCandidate);
-  recordSlotKnowledge(knowledge, "meaning", text, lastProbedSlot, next.meaning, state.meaning, classifyMeaningCandidate);
-  recordSlotKnowledge(knowledge, "wish", text, lastProbedSlot, next.wish, state.wish, classifyWishCandidate);
+  recordSlotKnowledge(knowledge, "target", text, lastProbedSlot, next.target, state.target, classifyTargetCandidate, turn);
+  recordSlotKnowledge(knowledge, "relationship", text, lastProbedSlot, next.relationship, state.relationship, classifyRelationshipCandidate, turn);
+  recordSlotKnowledge(knowledge, "presentState", text, lastProbedSlot, next.presentState, state.presentState, classifyPresentStateCandidate, turn);
+  recordSlotKnowledge(knowledge, "meaning", text, lastProbedSlot, next.meaning, state.meaning, classifyMeaningCandidate, turn);
+  recordSlotKnowledge(knowledge, "wish", text, lastProbedSlot, next.wish, state.wish, classifyWishCandidate, turn);
 
   return knowledge;
 }

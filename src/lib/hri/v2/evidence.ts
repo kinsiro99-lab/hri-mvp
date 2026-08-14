@@ -38,9 +38,11 @@ export type Evidence = {
    *  Optional — omitted when there is no single matched group to name. */
   matchedGroup?: string;
   /** Turn number this evidence was produced on, when the caller can
-   *  safely supply it. Optional — understandingEngine.ts's current
-   *  functions don't thread turn count through, so this stays unset
-   *  there; left available for callers that do have it. */
+   *  safely supply it. Sprint09 — controller.ts passes its current
+   *  turnCount into updateUnderstanding(), which stamps it on every
+   *  freshly-created Evidence this turn; undefined only when no caller
+   *  supplied a turn number (e.g. a test calling updateUnderstanding()
+   *  directly without one). */
   turn?: number;
   /** Sprint05 — the literal core-signal words that justified this
    *  evidence (e.g. ["아프"]). Additive metadata only, not a new

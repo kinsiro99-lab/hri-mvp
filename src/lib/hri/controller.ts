@@ -144,11 +144,17 @@ if (HRI_V2) {
   const v2state = reduceSessionStateV2(v2base, domainSignal, vectorSignal);
 
   // 1) Understanding 갱신 — 이번 답으로 coverage를 채운다.
+  // Sprint09 — v2state.turnCount (reduceSessionState가 이미 이번 턴 값으로
+  // 증가시켜 놓음) 을 그대로 넘겨 이번 턴 새로 생성되는 Evidence마다
+  // turn을 기록한다. decideNextSlot/coverage/질문 선택 로직에는 영향 없음
+  // — Evidence.turn은 devLog/향후 신호 계산 전용이며 어떤 분기 조건에도
+  // 쓰이지 않는다.
   const understandingUpdate = updateUnderstanding(
     v2state.understanding,
     trimmed,
     prevV2.lastProbedSlot,
     prevV2.knowledge,
+    v2state.turnCount,
 );
 
   // 갱신된 이해/커버리지를 이후 모든 결정의 단일 출처로 삼는다.
