@@ -28,6 +28,7 @@ import {
   planQuestionDecision,
 } from "./v2/questionPlanner";
 import { buildGapMap } from "./v2/informationGap";
+import { decideDecisionGate } from "./v2/decisionGate";
 import { detectObservationContext } from "./v2/observationContext";
 import type { ObservationContext } from "./v2/observationContext";
 import { planObservation } from "./v2/observationPlanner";
@@ -285,14 +286,26 @@ if (HRI_V2) {
     fallbackReason: planReason,
   });
 
-  // Reflection can also proceed once the planner has nothing left to ask
-  // (plannerDecision === null) and the same hasEnoughDetail-based score
-  // shouldObserve uses is already satisfied — without waiting out
-  // MIN_OBSERVATION_TURNS. Boolean coverage alone is never enough here;
-  // this reuses shouldObserve's own detail threshold, not coverage.xxx.
-  const plannerExhaustedWithDepth =
-    plannerDecision === null &&
-    coverageDetailScore(understandingUpdate.next) >= COVERAGE_THRESHOLD;
+  // Sprint06 — Decision Gate Step 1. Reflection can also proceed once
+  // the planner has nothing left to ask (plannerDecision === null) and
+  // the same hasEnoughDetail-based score shouldObserve uses is already
+  // satisfied — without waiting out MIN_OBSERVATION_TURNS. Boolean
+  // coverage alone is never enough here; this reuses shouldObserve's
+  // own detail threshold, not coverage.xxx. This used to be an inline
+  // boolean (plannerExhaustedWithDepth) computed right here; the same
+  // two facts now go through decideDecisionGate() so the decision has
+  // an explicit name and reason instead of an anonymous boolean.
+  // gapMap/knowledge are passed in for visibility but do not change
+  // this result this Sprint — see decisionGate.ts's module doc.
+  const gateDecision = decideDecisionGate({
+    plannerDecision,
+    gapMap,
+    knowledge: understandingUpdate.knowledge,
+    coverageDetailScore: coverageDetailScore(understandingUpdate.next),
+    coverageThreshold: COVERAGE_THRESHOLD,
+    turnCount: hriState.turnCount,
+  });
+  devLog("DECISION GATE:", gateDecision);
 
   // 몸 상태(health) stop-readiness exception — audited separately
   // (turn3/turn4 실측: meaning이 유일하게 남은 슬롯일 때 강제로 채우게 하면
@@ -308,7 +321,7 @@ if (HRI_V2) {
     coverageDetailScore(understandingUpdate.next) >= COVERAGE_THRESHOLD &&
     plannerDecision?.slot === "meaning";
 
-  if (canReflect && (coverageDone || convergence.converged || plannerExhaustedWithDepth || healthMeaningStopReady)) {
+  if (canReflect && (coverageDone || convergence.converged || gateDecision.action === "reflect" || healthMeaningStopReady)) {
     const probe = selectProbe(hriState, new Set(hriState.usedQuestionIds));
 
     // Reflection reads Observation via ReflectionHint — conservatively
