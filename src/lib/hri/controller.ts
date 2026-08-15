@@ -29,6 +29,7 @@ import {
 } from "./v2/questionPlanner";
 import { buildGapMap } from "./v2/informationGap";
 import { decideDecisionGate } from "./v2/decisionGate";
+import { evaluateTargetUsefulness } from "./v2/decisionSignals";
 import { detectObservationContext } from "./v2/observationContext";
 import type { ObservationContext } from "./v2/observationContext";
 import { planObservation } from "./v2/observationPlanner";
@@ -337,9 +338,26 @@ if (HRI_V2) {
     // lines with this; it never changes Understanding or wording.
     const reflectionHint = buildReflectionHint(observationSnapshot, previousObservationSnapshot);
 
+    // Sprint11 — Reflection-only target suppression. understanding.target
+    // itself is never touched here: nextState below still spreads the
+    // original understandingUpdate.next unchanged, so UnderstandingState/
+    // UnderstandingKnowledge/coverage/plannerDecision/Decision Gate all
+    // see the real (possibly placeholder) value exactly as before. Only
+    // composeReflection's input gets a locally-built shallow clone.
+    // USEFUL keeps the real value; SELF_REFERENTIAL_OR_GENERIC (generic
+    // placeholder or weak explicit like "그냥요") and NEUTRAL (no value)
+    // are both treated as absent, letting each topic composer's own
+    // existing target-less fallback line take over unchanged — see
+    // reflectionComposer.ts, no composer function is edited this Sprint.
+    const targetUsefulness = evaluateTargetUsefulness(understandingUpdate.knowledge.target);
+    const reflectionUnderstanding =
+      targetUsefulness === "USEFUL"
+        ? understandingUpdate.next
+        : { ...understandingUpdate.next, target: undefined };
+
     // Flow Summary + Observation 3단 구조.
     const flowSummary = "";
-    const reflectionResult = composeReflection(understandingUpdate.next, reflectionHint);
+    const reflectionResult = composeReflection(reflectionUnderstanding, reflectionHint);
     const obs = buildObservation(convergence, probe.domain, probe.axis, trimmed, []);
     const nextDirection =
       understandingUpdate.next.wish
