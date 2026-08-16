@@ -119,9 +119,22 @@ export function emptyContextGraph(): ContextGraph {
 
 export type ConversationTurn = { turn: number; text: string };
 
+/**
+ * Sprint12-E8 §7: `unresolved` added — Sprint12-E4 through E7 never
+ * exposed the graph's unresolved points back to the Interpreter at
+ * all, which meant a NOT_DECIDABLE/unresolved item created at turn N
+ * was invisible to the very process that would need to see it to
+ * recognize the same open question resurfacing at turn N+1 (Sprint12-E7
+ * report §M — the confirmed "Information Preservation" break). Fields
+ * here are a minimal passthrough of what UnresolvedPoint already
+ * stores — the single most recent grounding quote/turn, not the full
+ * evidence history, and never a freshly-generated paraphrase (§7 "새로운
+ * 자유 텍스트 해석을 생성해서 summary를 만들지 않는다").
+ */
 export type ContextGraphSummary = {
   elements: Array<Pick<ContextElement, "id" | "kind" | "description" | "active" | "status" | "confidence">>;
   openRelations: Array<Pick<ContextRelation, "id" | "type" | "from" | "to" | "status">>;
+  unresolved: Array<Pick<UnresolvedPoint, "id" | "relatesTo" | "reason" | "uncertainty" | "potentialInformationGain"> & { latestGroundingTurn: number; latestGroundingText: string }>;
 };
 
 export function summarizeGraph(graph: ContextGraph): ContextGraphSummary {
@@ -132,8 +145,28 @@ export function summarizeGraph(graph: ContextGraph): ContextGraphSummary {
     openRelations: graph.relations
       .filter((r) => r.status === "open")
       .map(({ id, type, from, to, status }) => ({ id, type, from, to, status })),
+    unresolved: graph.unresolved.map(({ id, relatesTo, reason, uncertainty, potentialInformationGain, grounding }) => {
+      const latest = grounding[grounding.length - 1];
+      return { id, relatesTo, reason, uncertainty, potentialInformationGain, latestGroundingTurn: latest?.turn ?? 0, latestGroundingText: latest?.sourceText ?? "" };
+    }),
   };
 }
+
+/**
+ * Minimal cross-turn feedback (Sprint12-E2 §15) so a stateless Provider
+ * does not mistake its own rejected proposal for approved graph truth on
+ * the next call — Sprint12-E's CASE Topic Shift finding was a Provider
+ * re-targeting a localRef from a proposal that had been REJECTED the
+ * previous turn, because it had no way to know that. This is NOT a
+ * history log: only the immediately preceding turn's outcome is
+ * carried, and none of it is ever persisted into ContextGraph.
+ */
+export type PreviousProposalFeedback = {
+  acceptedRefs: string[];
+  rejectedRefs: string[];
+  uncertainRefs: string[];
+  reasons: string[];
+};
 
 export type InterpreterInput = {
   /** A small window of the conversation, never the full history — see
@@ -141,6 +174,8 @@ export type InterpreterInput = {
   recentTurns: ConversationTurn[];
   activeContext: ContextGraphSummary;
   mode: ConversationMode;
+  /** Absent on the first turn of a session. */
+  previousProposal?: PreviousProposalFeedback;
 };
 
 /**
@@ -160,9 +195,37 @@ export type ProposedElement = {
   confidence: number;
 };
 
+/**
+ * Explicit self-reported identity judgment (Sprint12-E2 §13): does this
+ * turn continue, clarify, or revise the target element, or is the
+ * interpreter unsure it is even the same referent? Originally (E2) this
+ * was cross-checked by Validator V9 via lexical overlap with the
+ * target's description — that check was removed in Sprint12-E3 §10
+ * (it was itself a disguised semantic judgment, and empirically wrong
+ * in both directions: false-rejects on a genuine continuation written
+ * in a different language, false-accepts on a false merge padded with
+ * boilerplate copied from the target). Since Sprint12-E4, an
+ * independent SemanticIdentityReviewer (identityReview.ts) judges this
+ * claim instead, structurally outside the Validator entirely — see
+ * that file and the Sprint12-E4/E5 reports for the current mechanism.
+ */
+export type IdentityRelation = "continuation" | "clarification" | "revision" | "uncertainSameElement";
+
 export type ProposedUpdate = {
   targetElementId: string;
   kind: Exclude<ContextUpdateKind, "create">;
+  identityRelation: IdentityRelation;
+  /**
+   * Sprint12-E5 §6/§9: "if this turns out NOT to be the same element as
+   * targetElementId after all, what ElementKind would this content be
+   * as its own, independent element?" Always required, even when the
+   * Interpreter is confident this IS the same element — this is what
+   * lets Sprint12-E5's identity review PROMOTE a reclassified update
+   * straight into a real newElement (identityReview.ts) using only
+   * content the Interpreter already generated, never inventing a kind
+   * after the fact (§18 "Promotion은 정보 발명이 아니다").
+   */
+  impliedElementKind: ElementKind;
   note: string;
   groundingTurn: number;
   groundingText: string;
@@ -179,6 +242,17 @@ export type ProposedRelation = {
 };
 
 export type ProposedUnresolved = {
+  /**
+   * Sprint12-E8 §5/§7: if this evidence is about the SAME open question
+   * as an existing unresolved point (visible in activeContext.unresolved
+   * — see ContextGraphSummary below), echo its id here so the harness
+   * updates that point in place instead of creating a duplicate.
+   * Omitted (or an id not yet present in the graph) means "new" — see
+   * evaluationHarness.ts's mergeInterpreterOutput for exactly how this
+   * is resolved. Mirrors the existing `targetElementId` pattern for
+   * ProposedUpdate — same mechanism, not a new concept.
+   */
+  existingUnresolvedId?: string;
   relatesTo: string[];
   reason: string;
   groundingTurn: number;
