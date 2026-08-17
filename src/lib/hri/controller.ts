@@ -51,8 +51,23 @@ import {
   DEFAULT_CONVERGENCE_PARAMS,
   type SessionStateV2,
 } from "./v2/types.v2";
+import { updateEvidence, decideNextQuestion, renderQuestion } from "./v2/questionCorePrototype";
 
 const HRI_V2 = true;
+
+/**
+ * HRI New Question Core — Prototype 1 (Sprint "Question Core Restructure
+ * — Prototype 1"). Single rollback switch: flipping this to false
+ * restores byte-identical old behavior (old understandingEngine.ts/
+ * questionPlanner.ts/selector.ts question-text path, unmodified, still
+ * fully present below) with zero further changes anywhere in this file.
+ * Scope of what this flag actually changes: ONLY which text is chosen
+ * inside the existing "question" branch below. It does NOT change
+ * safety-boundary timing, decision-gate reflect-vs-question timing, or
+ * reflection composition — plannerDecision/coverage/gateDecision still
+ * run exactly as before and still own that timing.
+ */
+const USE_PROTOTYPE_QUESTION_CORE = true;
 
 export type AdvanceSessionInput = {
   inputText: string;
@@ -72,7 +87,12 @@ export function advanceSession({ inputText, state, events }: AdvanceSessionInput
   const userEvent = createUserInputEvent(trimmed);
   const withUserInput = [...events, userEvent];
 
-  const safety = checkSafetyBoundary(trimmed);
+  // Last 3 prior user turns only — bounded recent context for the
+  // ambiguous-marker check in safetyBoundary.ts (see that file's module
+  // doc). Never includes the current turn's own text (events here is
+  // pre-this-turn); never affects self-contained crisis markers.
+  const recentUserTexts = getUserInputTexts(events).slice(-3);
+  const safety = checkSafetyBoundary(trimmed, recentUserTexts);
   if (!safety.safe) {
     // Policy: build a fresh current-turn fallback snapshot rather than
     // preserving whatever snapshot the previous turn left behind — this
@@ -138,6 +158,8 @@ if (HRI_V2) {
     lastProbedSlot: prevV2.lastProbedSlot,
     domainHistory: prevV2.domainHistory ?? [],
     configHistory: prevV2.configHistory ?? [],
+    prototypeEvidence: prevV2.prototypeEvidence ?? [],
+    prototypeUsedTriggers: prevV2.prototypeUsedTriggers ?? [],
   };
 
   const domainSignal = detectDomains(trimmed);
@@ -158,6 +180,16 @@ if (HRI_V2) {
     v2state.turnCount,
 );
 
+  // Question Core Prototype 1 — runs unconditionally alongside the old
+  // Understanding update above (both pure, side-effect-free, so
+  // computing both costs nothing but a few array operations) so the
+  // toggle below can switch which one actually drives question text
+  // with zero other change. wasCorrection/understandingChange are
+  // devLog'd inside updateEvidence itself for the causal trace.
+  const prototypeUpdateResult = USE_PROTOTYPE_QUESTION_CORE
+    ? updateEvidence(v2base.prototypeEvidence ?? [], trimmed, v2state.turnCount)
+    : null;
+
   // 갱신된 이해/커버리지를 이후 모든 결정의 단일 출처로 삼는다.
   const hriState: SessionStateV2 = {
     ...v2state,
@@ -172,6 +204,7 @@ if (HRI_V2) {
     // the Gap Map note further down for why that wiring was reverted.
     knowledge: understandingUpdate.knowledge,
     lastAnswer: trimmed,
+    prototypeEvidence: prototypeUpdateResult ? prototypeUpdateResult.evidence : v2base.prototypeEvidence,
   };
 
   const coverage = understandingUpdate.coverage;
@@ -357,7 +390,7 @@ if (HRI_V2) {
 
     // Flow Summary + Observation 3단 구조.
     const flowSummary = "";
-    const reflectionResult = composeReflection(reflectionUnderstanding, reflectionHint);
+    const reflectionResult = composeReflection(reflectionUnderstanding, reflectionHint, hriState.prototypeEvidence);
     const obs = buildObservation(convergence, probe.domain, probe.axis, trimmed, []);
     const nextDirection =
       understandingUpdate.next.wish
@@ -406,17 +439,35 @@ const reflectionText = [
 
  const probe = selectProbe(hriState, usedSet);
 
-const baselineText =
-  plannerDecision !== null
-    ? selectQuestion(
-        plannerDecision.slot,
-        plannerDecision.anchor,
-        usedSet,
-      ).question
-    : (
-        NEUTRAL_DEEPENING.find((q) => !usedSet.has(q))
-        ?? NEUTRAL_DEEPENING[hriState.turnCount % NEUTRAL_DEEPENING.length]
-      );
+  // Question Core Prototype 1 — always anchored to the newest not-yet-
+  // used evidence item (never a "next empty slot" walk). null means
+  // "nothing new to ask about", same contract as the old
+  // plannerDecision === null case, and falls back to the same
+  // NEUTRAL_DEEPENING pool unchanged.
+  const prototypeUsedTriggers = new Set<string>(hriState.prototypeUsedTriggers ?? []);
+  const prototypeDecision =
+    USE_PROTOTYPE_QUESTION_CORE && prototypeUpdateResult
+      ? decideNextQuestion(hriState.prototypeEvidence ?? [], prototypeUsedTriggers, prototypeUpdateResult.wasCorrection)
+      : null;
+
+const baselineText = USE_PROTOTYPE_QUESTION_CORE
+  ? (
+      prototypeDecision
+        ? renderQuestion(prototypeDecision)
+        : (NEUTRAL_DEEPENING.find((q) => !usedSet.has(q)) ?? NEUTRAL_DEEPENING[hriState.turnCount % NEUTRAL_DEEPENING.length])
+    )
+  : (
+      plannerDecision !== null
+        ? selectQuestion(
+            plannerDecision.slot,
+            plannerDecision.anchor,
+            usedSet,
+          ).question
+        : (
+            NEUTRAL_DEEPENING.find((q) => !usedSet.has(q))
+            ?? NEUTRAL_DEEPENING[hriState.turnCount % NEUTRAL_DEEPENING.length]
+          )
+    );
 
   // --- Observation OS overlay (Beta, individual/organization only) ---
   // Reuses observationPlan computed above (shared with the Observation
@@ -425,10 +476,12 @@ const baselineText =
   // coverage, never overrides a null plannerDecision (that path stays
   // on NEUTRAL_DEEPENING exactly as before), and any failure applying
   // the alternate falls straight back to baselineText/plannerDecision.slot.
+  // Skipped entirely under the prototype core — it is Slot-keyed and
+  // has no equivalent concept in the prototype's evidence-trigger model.
   let finalText = baselineText;
   let finalSlot = plannerDecision?.slot;
 
-  if (plannerDecision !== null && observationPlan && !observationPlan.fallback && observationPlan.alternateSlot) {
+  if (!USE_PROTOTYPE_QUESTION_CORE && plannerDecision !== null && observationPlan && !observationPlan.fallback && observationPlan.alternateSlot) {
     try {
       const altText = selectQuestion(observationPlan.alternateSlot, plannerDecision.anchor, usedSet).question;
       if (altText && altText !== baselineText) {
@@ -438,6 +491,13 @@ const baselineText =
     } catch {
       finalText = baselineText;
       finalSlot = plannerDecision?.slot;
+    }
+  }
+
+  if (USE_PROTOTYPE_QUESTION_CORE) {
+    finalSlot = undefined;
+    if (prototypeDecision?.triggerEvidence) {
+      prototypeUsedTriggers.add(prototypeDecision.triggerEvidence);
     }
   }
 
@@ -465,6 +525,7 @@ const baselineText =
     lastProbedSlot: finalSlot,
     recentSlots: nextRecentSlots,
     observationSnapshot,
+    prototypeUsedTriggers: [...prototypeUsedTriggers],
   };
 
   return {

@@ -5,6 +5,7 @@ import type { UnderstandingState, UnderstandingCoverage } from "./understandingE
 } from "../types";
 import type { ObservationSnapshot } from "./observationSnapshot";
 import type { UnderstandingKnowledge } from "./informationGap";
+import type { EvidenceItem } from "./questionCorePrototype";
 
 export type Domain =
   | "memory"
@@ -112,6 +113,15 @@ export type SessionStateV2 = SessionStateV1 & {
    * observationSnapshot — never exposed via the API/UI layer.
    */
   knowledge?: UnderstandingKnowledge;
+  /**
+   * Question Core Prototype 1 — internal only, same visibility scope as
+   * knowledge/observationSnapshot (never exposed via the API/UI layer).
+   * Carried turn-to-turn only when USE_PROTOTYPE_QUESTION_CORE is true
+   * in controller.ts; unused and always undefined otherwise. Rollback
+   * is a single flag flip in controller.ts, not a type change.
+   */
+  prototypeEvidence?: EvidenceItem[];
+  prototypeUsedTriggers?: string[];
 };
 
 export type DomainSignal = {
