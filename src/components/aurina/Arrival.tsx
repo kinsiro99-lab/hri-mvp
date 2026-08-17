@@ -56,25 +56,11 @@ export default function Arrival({ inputValue, onInputChange, onSubmit }: Props) 
 
           <p className="arrival-description">
             당신의 지금을 함께 바라봅니다.
-            <br />
-            <br />
-            지금 이 순간
-            <br />
-            당신의 마음은 어떤 모습인가요?
           </p>
 
-          <div className="arrival-declaration">
-            <p className="arrival-declaration-label">우리의 약속</p>
-            <p className="arrival-declaration-text">
-              HRI는 사용자의 성장을 돕는 동시에, 스스로의 질문도 끊임없이
-              진화시키는 자동 성장 시스템입니다.
-            </p>
-            <p className="arrival-declaration-text">
-              여러분과의 모든 대화는 HRI의 생명력이 되어, 내일의 더 나은
-              질문으로 이어집니다.
-            </p>
-            <p className="arrival-declaration-tag">HRI Evolution Beta</p>
-          </div>
+          <p className="arrival-core-question">
+            지금 마음에 가장 먼저 떠오르는 것은 무엇인가요?
+          </p>
 
           <div className="arrival-pill-zone">
             <HriInput
@@ -106,6 +92,13 @@ export default function Arrival({ inputValue, onInputChange, onSubmit }: Props) 
               <br />
               현재 삶에 나타나는 생각과 흐름을 통해 당신의 리듬을 관찰할 수 있도록 돕습니다.
             </p>
+          </div>
+
+          <div className="arrival-declaration">
+            <p className="arrival-declaration-text">
+              당신의 대화는 더 나은 질문으로 이어집니다.
+            </p>
+            <p className="arrival-declaration-tag">HRI Evolution Beta</p>
           </div>
         </div>
 

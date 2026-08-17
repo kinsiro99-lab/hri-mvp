@@ -346,6 +346,12 @@
   flex-direction: column;
   justify-content: center;
   padding: 40px 40px 48px 48px;
+  /* Pre-existing gap, not introduced by this Sprint: this element had
+     no box-sizing, so its own padding was ADDED to (not included in)
+     the width the CSS grid allocated it — the real cause of the
+     horizontal overflow/clipping seen on narrow (mobile) viewports,
+     independent of which text happens to be inside it. */
+  box-sizing: border-box;
 }
 
 /* "Living Stage" — the left hero zone's ambient background. A readability
@@ -415,37 +421,44 @@
 
 .arrival-description {
   margin: 28px 0 0;
-  font-size: clamp(17px, 2vw, 21px);
+  font-size: clamp(15px, 1.6vw, 17px);
   line-height: 1.6;
-  color: var(--ink-2);
+  color: var(--ink-3);
   max-width: 32ch;
 }
 
-/* A philosophy statement, not a notice — center-aligned and narrower
-   than the surrounding left-aligned column so it reads as a distinct,
-   quieter voice breaking from the hero copy above it, not a
-   continuation of it. */
+/* The Landing's core question — the single most important line
+   between the headline and the input, so it sits clearly above the
+   supporting description in both size and weight (see Landing UI
+   Sprint §2/§3: this is the hierarchy the whole page is built around). */
+.arrival-core-question {
+  margin: 10px 0 0;
+  font-size: clamp(21px, 2.6vw, 27px);
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+  max-width: 34ch;
+}
+
+/* A quiet closing line, deliberately placed after the input/chips/
+   notice so it never competes with .arrival-core-question above —
+   center-aligned and narrower than the surrounding left-aligned
+   column so it reads as a distinct, quieter voice, not a continuation
+   of the hero copy. */
 .arrival-declaration {
   align-self: center;
   max-width: 30ch;
-  margin: 32px auto 0;
-  padding-top: 24px;
+  margin: 28px auto 0;
+  padding-top: 20px;
   border-top: 1px solid var(--border-soft);
   text-align: center;
 }
 
-.arrival-declaration-label {
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: var(--gold);
-}
-
 .arrival-declaration-text {
   margin: 0 0 10px;
-  font-size: 15px;
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--ink-3);
 }
 
@@ -465,6 +478,36 @@
   margin-top: 40px;
 }
 
+/* Landing-only input legibility pass (Landing UI Sprint §5) — scoped to
+   .arrival-pill-zone so the shared .hri-pill rules in globals.css,
+   also used by Conversation, are left untouched. Typed text, border,
+   and the submit button all get stronger contrast; the placeholder in
+   particular moves off the faint --ink-4 default so it no longer reads
+   as disabled/greyed-out text. */
+.arrival-pill-zone .hri-pill {
+  border-width: 1.75px;
+  border-color: rgba(27, 24, 32, 0.32);
+}
+
+.arrival-pill-zone .hri-pill:focus-within {
+  border-color: var(--gold);
+}
+
+.arrival-pill-zone .hri-pill-input {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.arrival-pill-zone .hri-pill-input::placeholder {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+.arrival-pill-zone .hri-pill-submit {
+  background: #b8935e;
+}
+
 .arrival-chips {
   display: flex;
   flex-wrap: wrap;
@@ -477,9 +520,10 @@
   align-items: center;
   padding: 8px 16px;
   border-radius: 999px;
-  border: 1px solid var(--border-soft);
+  border: 1.5px solid var(--border);
   background: var(--bg-panel);
   font-size: 12.5px;
+  font-weight: 600;
   color: var(--ink-2);
 }
 
@@ -530,6 +574,11 @@ button.arrival-chip.arrival-chip--action:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Frames the upper body/face rather than a centered crop, so AURINA
+     reads as a present figure in the scene rather than a background
+     fill on the right edge (Landing UI Sprint §7). Crop/positioning
+     only — the image asset itself is untouched. */
+  object-position: center 18%;
   display: block;
 }
 
@@ -681,6 +730,9 @@ button.arrival-chip.arrival-chip--action:hover {
   }
   .arrival-hero {
     padding: 28px 24px 32px;
+  }
+  .arrival-hero-content {
+    padding: 0;
   }
   .arrival-cards {
     padding: 24px;

@@ -16,8 +16,8 @@ export const AURINA_ASSETS = {
   arrivalBackground: "/assets/aurina-arrival-bg.png",
 
   /** Arrival hero host image (.arrival-portrait) */
-  arrivalHeroImage: "/photo/aurina-greeting.png",
+  arrivalHeroImage: "/photo/aurina-master.png",
 
   /** Small identity anchor shown during Conversation/Reflection (.aurina-portrait, .reflection-portrait) */
-  identityImage: "/photo/aurina-greeting.png",
+  identityImage: "/photo/aurina-master.png",
 } as const;
