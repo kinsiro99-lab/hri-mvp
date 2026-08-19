@@ -5,7 +5,8 @@ import type { UnderstandingState, UnderstandingCoverage } from "./understandingE
 } from "../types";
 import type { ObservationSnapshot } from "./observationSnapshot";
 import type { UnderstandingKnowledge } from "./informationGap";
-import type { EvidenceItem } from "./questionCorePrototype";
+import type { EvidenceItem, Probe, UnderstandingEntry } from "./questionCorePrototype";
+import type { ContextGraph, PreviousProposalFeedback } from "../context/types";
 
 export type Domain =
   | "memory"
@@ -122,6 +123,28 @@ export type SessionStateV2 = SessionStateV1 & {
    */
   prototypeEvidence?: EvidenceItem[];
   prototypeUsedTriggers?: string[];
+  /**
+   * Gate 23 — Probe / Provisional Understanding, same visibility scope
+   * as prototypeEvidence above (internal only, never exposed via the
+   * API/UI layer, carried turn-to-turn only under
+   * USE_PROTOTYPE_QUESTION_CORE). See questionCorePrototype.ts for the
+   * types and the functions that produce these arrays.
+   */
+  prototypeProbes?: Probe[];
+  prototypeUnderstanding?: UnderstandingEntry[];
+  /**
+   * Gate 26 — Intelligence Core Prototype 1, same visibility scope as
+   * prototypeEvidence/prototypeProbes above (internal only, never
+   * exposed via the API/UI layer, carried turn-to-turn only under
+   * USE_INTELLIGENCE_CORE in controller.ts). Deliberately separate
+   * from prototypeProbes/prototypeUnderstanding above — the two Cores
+   * never share or mix state (Gate 26 §9). See
+   * src/lib/hri/intelligence/intelligenceCore.ts and
+   * src/lib/hri/context/types.ts for what these actually hold.
+   */
+  intelligenceGraph?: ContextGraph;
+  intelligenceProbedRefs?: string[];
+  intelligenceProposalFeedback?: PreviousProposalFeedback;
 };
 
 export type DomainSignal = {

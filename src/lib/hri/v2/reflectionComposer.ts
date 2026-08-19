@@ -468,3 +468,122 @@ function canonicalize(value: string): string {
     .replace(/\s+/g, "")
     .toLowerCase();
 }
+
+/* =========================================================
+ * Gate 12 — Minimal Natural Reflection (ADD ONLY, not wired
+ * into controller.ts this Gate — see module doc below).
+ *
+ * Output Authority Contract (Gate 10/11):
+ *   LEVEL 1 USER VERBATIM        — evidence.text, unedited
+ *   LEVEL 2 USER-STATED STRUCTURE — a reason/contrast/conclusion
+ *     marker the user's OWN sentence already contains; never used
+ *     to link across turns, only to pick which lead phrase quotes it
+ *   LEVEL 3 SEQUENCE-SAFE        — 먼저/이어/그리고 style lead phrases,
+ *     coexistence only, never a causal/importance claim
+ *   LEVEL 4 HRI INTERPRETATION   — not produced anywhere below
+ *
+ * old Understanding is not read here at all (no PRIMARY, no fallback
+ * inside this function) — every active evidence item is included
+ * unconditionally, no first/middle/latest selection, no scoring.
+ * ========================================================= */
+
+type StructuralSignal = "reason" | "contrast" | "conclusion";
+
+/**
+ * Gate 11 audit result: "아서"/"어서" (reason-vs-sequence ambiguous,
+ * unsafe without morphological analysis) and "따라서" (conclusion vs
+ * "~에 따라서"/"따르다" verb form, high false-positive) are
+ * deliberately excluded. "라서"/"지만" are bound grammatical endings
+ * that are safe in MEANING but could theoretically appear mid-word,
+ * so they require a lightweight word-boundary check (trailing space/
+ * comma/period/end-of-string) rather than a bare substring match.
+ */
+const REASON_MARKERS = ["때문에", "때문이다", "때문입니다", "때문이라", "그래서"];
+const CONTRAST_MARKERS = ["하지만", "그렇지만", "그러나", "반면"];
+const CONCLUSION_MARKERS = ["결국", "결론적으로"];
+
+function hasBoundedSuffix(text: string, suffix: string): boolean {
+  return (
+    text.includes(`${suffix} `) ||
+    text.includes(`${suffix},`) ||
+    text.includes(`${suffix}.`) ||
+    text.endsWith(suffix)
+  );
+}
+
+/**
+ * Pure, closed-union classification of a SINGLE evidence text's own
+ * self-declared structure — never reads any other evidence, never
+ * infers what a marker relates to. Multiple tags are expected (see
+ * Gate 11 CASE C T5: one sentence carrying both "때문에" and "결국").
+ */
+function detectStructuralSignals(text: string): StructuralSignal[] {
+  const signals: StructuralSignal[] = [];
+  if (REASON_MARKERS.some((m) => text.includes(m)) || hasBoundedSuffix(text, "라서")) {
+    signals.push("reason");
+  }
+  if (CONTRAST_MARKERS.some((m) => text.includes(m)) || hasBoundedSuffix(text, "지만")) {
+    signals.push("contrast");
+  }
+  if (CONCLUSION_MARKERS.some((m) => text.includes(m))) {
+    signals.push("conclusion");
+  }
+  return signals;
+}
+
+/**
+ * Grammar safety (Gate 5 precedent): never attach "라는"/"다고"/
+ * "이라고" directly to a quoted evidence string — a copula ending
+ * ("...이다") needs "이라고" while a plain verb ending ("...싶다")
+ * needs "다고", and picking wrong reproduces the exact "'...다'
+ * 이라는" bug class. Every template below closes the quote with only
+ * "도" (batchim-invariant), and puts the signal-aware wording in a
+ * FIXED lead phrase before the quote instead — same "dash-quote
+ * aside" principle as questionCorePrototype.ts and Gate 4B/5/6B.
+ *
+ * "이유로" this task explains and "결론으로" this task concludes are
+ * never asserted for anything outside the quote itself — no target
+ * evidence id, no prior-turn reference (Gate 11 §4: relation target
+ * inference is out of scope and stays out of scope here).
+ */
+function leadPhraseFor(signals: StructuralSignal[], position: number, total: number): string {
+  if (signals.includes("reason")) return "그 이유로는";
+  if (signals.includes("conclusion")) return "그 결론으로는";
+  if (position === 0) return "먼저";
+  if (position === total - 1 && total > 1) return "그리고";
+  return "이어";
+}
+
+function renderEvidenceClause(item: EvidenceItem, position: number, total: number): string {
+  const signals = detectStructuralSignals(item.text);
+  const lead = leadPhraseFor(signals, position, total);
+
+  return item.certainty === "uncertain"
+    ? `${lead} '${item.text}'처럼 아직 확실하지 않다는 표현도 있었습니다.`
+    : `${lead} '${item.text}'도 있었습니다.`;
+}
+
+export type NaturalReflectionResult = {
+  body: string;
+  /** Every active evidence text actually reflected in `body` — for
+   *  Source Audit (Gate 12 §11): sourceRefs.length should always equal
+   *  the active-evidence input count, by construction (no selection). */
+  sourceRefs: string[];
+};
+
+/**
+ * Not called from controller.ts this Gate (see Gate 12 §12 — wiring
+ * is a separate future Gate's decision). superseded items are
+ * excluded (never re-presented as current); every remaining active
+ * item is included unconditionally — no first/middle/latest, no
+ * importance ranking, no old Understanding read anywhere in this
+ * function.
+ */
+export function composeNaturalReflection(evidence: EvidenceItem[] | undefined): NaturalReflectionResult {
+  const active = (evidence ?? []).filter((item) => item.status === "active");
+  if (active.length === 0) return { body: "", sourceRefs: [] };
+
+  const body = active.map((item, index) => renderEvidenceClause(item, index, active.length)).join(" ");
+
+  return { body, sourceRefs: active.map((item) => item.text) };
+}

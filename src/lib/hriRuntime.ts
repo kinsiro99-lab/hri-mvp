@@ -21,11 +21,11 @@ export type EngineResponse = {
   source?: string;
 };
 
-export function getNextOutput(request: EngineRequest): EngineResponse {
+export async function getNextOutput(request: EngineRequest): Promise<EngineResponse> {
   devLog("ENTRY: src/lib/questionEngine.ts getNextOutput");
   const turn = request.turn === 1 || request.turn === 2 || request.turn === 3 ? request.turn : 1;
   devLog("CALL: runHriSession");
-  const response = runHriSession({
+  const response = await runHriSession({
     turn,
     inputs: Array.isArray(request.inputs) ? request.inputs : [],
     // Diagnostic fields are development-only regardless of what a

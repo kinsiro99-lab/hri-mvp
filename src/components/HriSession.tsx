@@ -26,6 +26,7 @@ import type {
   ObservationData,
   TimelineEntry,
 } from "./hri/v3/types"
+import type { Notice } from "@/lib/notice/types"
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ function createSessionId(): string {
 
 // ── Component ──────────────────────────────────────────────────────
 
-export default function HriSession() {
+export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
 
   const BETA_OPEN = true;
   const BETA_PASSWORD = "Mirror2026!";
@@ -87,7 +88,14 @@ export default function HriSession() {
   // ── Submit ─────────────────────────────────────────────────────
   const handleSubmit = useCallback(async (rawText?: string) => {
   const text = (rawText ?? inputValue).trim()
-    if (!text || phase === "thinking" || phase === "done") return
+    // Gate 18 — Reflection is a Mirror Snapshot, not Conversation End:
+    // "done" no longer blocks further submission (only "thinking" —
+    // already-in-flight — does). allInputs/history/sessionId are
+    // untouched here, so a continuation turn replays the same growing
+    // input list through the same stateless engine call below; nothing
+    // about server-side evidence/session identity changes. Restart
+    // (handleRestart) remains the only path that resets them.
+    if (!text || phase === "thinking") return
 
     const nextInputs = [...allInputs, text]
     const nextTurn = nextInputs.length as Turn
@@ -153,6 +161,25 @@ export default function HriSession() {
     setQuestionKey(0)
     sessionIdRef.current = createSessionId()
   }
+
+  // ── Non-destructive navigation ────────────────────────────────
+  // Unlike handleRestart above, none of these clear allInputs/history/
+  // reflection/sessionId — they only move which view `phase` renders.
+  // No engine call happens here, so a returning "Final" is always the
+  // exact same object already in state, never recomputed.
+  const handleGoHome = useCallback(() => {
+    setPhase("idle")
+  }, [])
+
+  const handleViewHistory = useCallback(() => {
+    if (allInputs.length === 0) return
+    setPhase("question")
+  }, [allInputs.length])
+
+  const handleViewFinal = useCallback(() => {
+    if (!reflection) return
+    setPhase("done")
+  }, [reflection])
  // -----------------------------
 // V3 UI Adapter
 // -----------------------------
@@ -256,6 +283,12 @@ if (!BETA_OPEN) {
         onInputChange={setInputValue}
         onSubmit={handleSubmit}
         onRestart={handleRestart}
+        notices={notices}
+        hasHistory={allInputs.length > 0}
+        hasFinal={reflection !== null}
+        onGoHome={handleGoHome}
+        onViewHistory={handleViewHistory}
+        onViewFinal={handleViewFinal}
       />
 
       {phase === "thinking" && <ThinkingDots />}
@@ -264,14 +297,6 @@ if (!BETA_OPEN) {
         <p className="aurina-error" role="alert">
           {error}
         </p>
-      )}
-
-      {/* "done" now has its own restart CTA inside Reflection's closing
-          layer — this generic control is only for active Conversation. */}
-      {phase !== "idle" && phase !== "done" && (
-        <button className="restart-btn" onClick={handleRestart} type="button">
-          새로 시작
-        </button>
       )}
     </main>
   )

@@ -3,6 +3,7 @@ import HriInput from "../HriInput";
 import Arrival from "./Arrival";
 import Reflection from "./Reflection";
 import { AURINA_ASSETS } from "./assets";
+import type { Notice } from "@/lib/notice/types";
 import "./aurina.css";
 
 type Exchange = {
@@ -20,6 +21,12 @@ type Props = {
   onInputChange: (value: string) => void;
   onSubmit: (rawText?: string) => void;
   onRestart: () => void;
+  notices: Notice[];
+  hasHistory: boolean;
+  hasFinal: boolean;
+  onGoHome: () => void;
+  onViewHistory: () => void;
+  onViewFinal: () => void;
 };
 
 const TRAIL_VISIBLE_COUNT = 3;
@@ -128,6 +135,12 @@ export default function AurinaSpace({
   onInputChange,
   onSubmit,
   onRestart,
+  notices,
+  hasHistory,
+  hasFinal,
+  onGoHome,
+  onViewHistory,
+  onViewFinal,
 }: Props) {
   const [trailExpanded, setTrailExpanded] = useState(false);
   const display = useDisplayState(phase, mainQuestion, reflection);
@@ -170,26 +183,49 @@ export default function AurinaSpace({
             inputValue={inputValue}
             onInputChange={onInputChange}
             onSubmit={onSubmit}
+            notices={notices}
+            hasHistory={hasHistory}
+            hasFinal={hasFinal}
+            onViewHistory={onViewHistory}
+            onViewFinal={onViewFinal}
+            onRestart={onRestart}
           />
         )}
 
         {isActive && (
           <>
+            <div className="aurina-utility-row">
+              <button type="button" className="aurina-utility-link" onClick={onGoHome}>
+                홈
+              </button>
+              {hasFinal && (
+                <button type="button" className="aurina-utility-link" onClick={onViewFinal}>
+                  Final 결과 보기
+                </button>
+              )}
+              <button type="button" className="aurina-utility-link aurina-utility-link--muted" onClick={onRestart}>
+                새로 시작
+              </button>
+            </div>
+
             {history.length > 0 && (
-              <div className="aurina-trail" aria-label="이전 답변">
+              <div className="aurina-trail" aria-label="이전 대화">
                 {hiddenCount > 0 && !trailExpanded && (
                   <button
                     type="button"
                     className="aurina-trail-toggle"
                     onClick={() => setTrailExpanded(true)}
                   >
-                    이전 답변 더보기 ({hiddenCount})
+                    이전 대화 더보기 ({hiddenCount})
                   </button>
                 )}
 
                 {visibleHistory.map((exchange, index) => (
                   <div key={`${exchange.userText}-${index}`} className="aurina-trail-item">
-                    {exchange.userText}
+                    <p className="aurina-trail-user">{exchange.userText}</p>
+                    {exchange.hriResponse && (
+                      <p className="aurina-trail-aurina">{exchange.hriResponse}</p>
+                    )}
                   </div>
                 ))}
 
@@ -205,15 +241,21 @@ export default function AurinaSpace({
               </div>
             )}
 
-            {display.mainQuestion && (
-              <div aria-live="polite">
+            {displayPhase !== "thinking" && display.mainQuestion && (
+              <div className="aurina-conversation-zone" aria-live="polite">
+                {history.length > 0 && (
+                  <div className="aurina-mine-block">
+                    <div className="aurina-mine-label">나의 이야기</div>
+                    <p className="aurina-mine-text">{history[history.length - 1]?.userText}</p>
+                  </div>
+                )}
                 <div className="aurina-question-label">AURINA</div>
                 <p className="aurina-question-text">{display.mainQuestion}</p>
               </div>
             )}
 
             {displayPhase === "thinking" ? (
-              <p className="aurina-thinking">AURINA가 흐름을 살펴보고 있습니다…</p>
+              <p className="aurina-thinking">AURINA가 지금까지의 이야기를 천천히 바라보고 있습니다…</p>
             ) : (
               <div className="aurina-input-zone">
                 <HriInput
@@ -229,7 +271,38 @@ export default function AurinaSpace({
         )}
 
         {isDone && (
-          <Reflection reflection={display.reflection} onRestart={onRestart} />
+          <>
+            <Reflection
+              reflection={display.reflection}
+              onRestart={onRestart}
+              hasHistory={hasHistory}
+              onViewHistory={onViewHistory}
+              onGoHome={onGoHome}
+            />
+            {/* Gate 18 — Reflection is a Mirror Snapshot, not
+                Conversation End: the input stays available underneath
+                it so the user can keep adding evidence and receive an
+                updated Reflection, without conflating that with
+                Restart (onRestart above, unchanged, still resets the
+                whole session). Same HriInput used everywhere else —
+                no new input component.
+                Release UI Cleanup — given its own labeled section
+                (border-top + caption, muted gray vs. the reflection
+                layers' gold) so it doesn't read as an appendage to the
+                restart button above it; placeholder shortened since
+                the caption above it already carries that context. */}
+            <div className="aurina-continuation">
+              <h2 className="aurina-continuation-title">더 떠오르는 것이 있다면</h2>
+              <div className="aurina-input-zone aurina-input-zone--continuation">
+                <HriInput
+                  value={inputValue}
+                  onChange={onInputChange}
+                  onSubmit={onSubmit}
+                  placeholder="이어서 적어보세요."
+                />
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

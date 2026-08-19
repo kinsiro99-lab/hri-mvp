@@ -1,12 +1,31 @@
 import HriInput from "../HriInput";
 import { AURINA_ASSETS } from "./assets";
+import type { Notice } from "@/lib/notice/types";
 import "./aurina.css";
 
 type Props = {
   inputValue: string;
   onInputChange: (value: string) => void;
   onSubmit: (rawText?: string) => void;
+  notices: Notice[];
+  hasHistory: boolean;
+  hasFinal: boolean;
+  onViewHistory: () => void;
+  onViewFinal: () => void;
+  onRestart: () => void;
 };
+
+const NOTICE_PREVIEW_LIMIT = 60;
+
+function formatNoticeDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+}
+
+function noticePreview(body: string): string {
+  const oneLine = body.replace(/\s+/g, " ").trim();
+  return oneLine.length > NOTICE_PREVIEW_LIMIT ? `${oneLine.slice(0, NOTICE_PREVIEW_LIMIT)}…` : oneLine;
+}
 
 /**
  * Arrival — the landing experience, built to the approved AURINA target
@@ -18,9 +37,12 @@ type Props = {
  * no state. AurinaVoice is intentionally not used here; it begins once
  * Conversation starts.
  */
-// Cards are navigation objects into the journey, not explanations — a
-// click brings the user straight to the input, the only real "next step"
-// this beta has. No fabricated per-card destinations.
+// Cards are real navigation objects into HRI's actual 3-stage
+// experience (Conversation -> Reflection -> new Conversation), not a
+// single fabricated destination: each one branches on whether a
+// session/Final already exists (hasHistory/hasFinal, both computed
+// upstream in HriSession.tsx from the same allInputs/reflection state
+// every other view already reads — no new state model invented here).
 function focusArrivalInput() {
   const zone = document.querySelector(".arrival-pill-zone");
   zone?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -28,7 +50,30 @@ function focusArrivalInput() {
   field?.focus();
 }
 
-export default function Arrival({ inputValue, onInputChange, onSubmit }: Props) {
+export default function Arrival({
+  inputValue,
+  onInputChange,
+  onSubmit,
+  notices,
+  hasHistory,
+  hasFinal,
+  onViewHistory,
+  onViewFinal,
+  onRestart,
+}: Props) {
+  const handleMirrorCard = () => {
+    if (hasHistory) onViewHistory();
+    else focusArrivalInput();
+  };
+  const handleRhythmCard = () => {
+    if (hasFinal) onViewFinal();
+    else focusArrivalInput();
+  };
+  const handleNextCard = () => {
+    if (hasHistory || hasFinal) onRestart();
+    else focusArrivalInput();
+  };
+
   return (
     <section className="arrival">
       <header className="arrival-header">
@@ -51,7 +96,7 @@ export default function Arrival({ inputValue, onInputChange, onSubmit }: Props) 
       <div className="arrival-hero">
         <div className="arrival-hero-content">
           <h1 className="arrival-headline">
-            당신의 마음을 비추는 거울.
+            마음의 거울
           </h1>
 
           <p className="arrival-description">
@@ -59,7 +104,7 @@ export default function Arrival({ inputValue, onInputChange, onSubmit }: Props) 
           </p>
 
           <p className="arrival-core-question">
-            지금 마음에 가장 먼저 떠오르는 것은 무엇인가요?
+            마음에 가장 먼저 떠오르는 것은 무엇인가요?
           </p>
 
           <div className="arrival-pill-zone">
@@ -94,12 +139,24 @@ export default function Arrival({ inputValue, onInputChange, onSubmit }: Props) 
             </p>
           </div>
 
-          <div className="arrival-declaration">
-            <p className="arrival-declaration-text">
-              당신의 대화는 더 나은 질문으로 이어집니다.
-            </p>
-            <p className="arrival-declaration-tag">HRI Evolution Beta</p>
-          </div>
+          {/* Notice System Gate §4 — sits right after the required
+              legal notice, deliberately quieter than the question/
+              input above it. No notices -> no DOM at all (no empty
+              box). Capped to 3, most-recently-published first
+              (already enforced server-side by listPublishedNotices). */}
+          {notices.length > 0 && (
+            <div className="arrival-notices">
+              {notices.map((n) => (
+                <div key={n.id} className="arrival-notice-item">
+                  <div className="arrival-notice-kicker">
+                    공지 · {formatNoticeDate(n.publishedAt ?? n.createdAt)}
+                  </div>
+                  <div className="arrival-notice-title">{n.title}</div>
+                  <p className="arrival-notice-preview">{noticePreview(n.body)}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="arrival-portrait">
@@ -108,9 +165,24 @@ export default function Arrival({ inputValue, onInputChange, onSubmit }: Props) 
       </div>
 
       <div className="arrival-cards">
-        <ServiceCard icon={<OrbIcon />} title="마음의 거울" line="지금의 나를 비추어 봅니다." />
-        <ServiceCard icon={<WaveIcon />} title="리듬의 이해" line="마음의 흐름을 발견합니다." />
-        <ServiceCard icon={<SproutIcon />} title="다음 리듬" line="새로운 방향을 함께 찾습니다." />
+        <ServiceCard
+          icon={<OrbIcon />}
+          title="마음의 거울"
+          line={hasHistory ? "지금까지의 대화를 다시 봅니다." : "지금의 나를 비추어 봅니다."}
+          onClick={handleMirrorCard}
+        />
+        <ServiceCard
+          icon={<WaveIcon />}
+          title="리듬의 이해"
+          line={hasFinal ? "완성된 Final을 다시 봅니다." : "마음의 흐름을 발견합니다."}
+          onClick={handleRhythmCard}
+        />
+        <ServiceCard
+          icon={<SproutIcon />}
+          title="다음 리듬"
+          line={hasHistory || hasFinal ? "새로운 대화를 시작합니다." : "새로운 방향을 함께 찾습니다."}
+          onClick={handleNextCard}
+        />
       </div>
     </section>
   );
@@ -120,13 +192,15 @@ function ServiceCard({
   icon,
   title,
   line,
+  onClick,
 }: {
   icon: React.ReactNode;
   title: string;
   line: string;
+  onClick: () => void;
 }) {
   return (
-    <button type="button" className="arrival-card" onClick={focusArrivalInput}>
+    <button type="button" className="arrival-card" onClick={onClick}>
       <div className="arrival-card-icon">{icon}</div>
       <h3 className="arrival-card-title">{title}</h3>
       <p className="arrival-card-line">{line}</p>

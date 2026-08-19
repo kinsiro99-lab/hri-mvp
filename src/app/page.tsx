@@ -1,4 +1,5 @@
 import HriSession from "@/components/HriSession";
+import { listPublishedNotices } from "@/lib/notice/store";
 
 // Operational open/closed switch for the public site, controlled by
 // SITE_ACCESS_MODE. Only the exact string "closed" closes it — unset,
@@ -25,7 +26,7 @@ function isAdminBypass(providedKey: string | undefined): boolean {
   return Boolean(accessKey) && providedKey === accessKey;
 }
 
-export default function Home({
+export default async function Home({
   searchParams,
 }: {
   searchParams: { key?: string };
@@ -36,9 +37,14 @@ export default function Home({
     return <ClosedNotice />;
   }
 
+  // Fetched server-side (this page is already force-dynamic — no ISR
+  // to worry about) and passed down as a plain prop, since HriSession/
+  // Arrival are client components and cannot query Neon themselves.
+  const notices = await listPublishedNotices();
+
   return (
     <div className="hri-main">
-      <HriSession />
+      <HriSession notices={notices} />
     </div>
   );
 }

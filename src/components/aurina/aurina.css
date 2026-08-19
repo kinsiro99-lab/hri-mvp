@@ -24,11 +24,22 @@
   gap: 12px;
 }
 
+/* Conversation Experience Gate §A — enlarged from 76px so AURINA reads
+   as a present listener, not a favicon-sized avatar. 108px sits inside
+   the spec's desktop target (100-120px); the mobile target (76-92px)
+   is set separately below (this file's own existing 560px threshold). */
 .aurina-portrait {
   position: relative;
-  width: 76px;
-  height: 76px;
+  width: 108px;
+  height: 108px;
   flex: none;
+}
+
+@media (max-width: 560px) {
+  .aurina-portrait {
+    width: 84px;
+    height: 84px;
+  }
 }
 
 .aurina-portrait::after {
@@ -68,7 +79,7 @@
 }
 
 .aurina-name {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--ink-1);
@@ -229,7 +240,7 @@
    ══════════════════════════════════════════════════════════════════ */
 
 .aurina-moment {
-  margin-top: 40px;
+  margin-top: 28px;
   animation: aurina-settle 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -253,6 +264,22 @@
 
 .aurina-page[data-phase="idle"] {
   max-width: 1080px;
+}
+
+/* Release UI Cleanup — Conversation/Reflection's 620px reading column
+   left a large empty margin on wide desktop screens (1440px+). Widened
+   moderately for larger viewports only — still a single readable text
+   column, not Arrival's two-column hero layout, and not a new
+   structure. Mobile (below this breakpoint) is completely untouched. */
+@media (min-width: 1024px) {
+  .aurina-page:not([data-phase="idle"]) {
+    max-width: 760px;
+  }
+
+  .reflection,
+  .aurina-continuation {
+    max-width: 720px;
+  }
 }
 
 .arrival {
@@ -316,10 +343,24 @@
   cursor: pointer;
 }
 
+/* Landing/First Page Refinement — single-column is the universal
+   default now, not a "mobile" special case. Root cause: .aurina-page
+   (globals.css) caps every screen at max-width:620px regardless of
+   monitor size, so the old grid-template-columns:1.1fr 0.9fr split
+   never actually had more than ~227px for .arrival-hero-content at ANY
+   real viewport — 20 Hangul characters cannot read as one line at a
+   legible size in that width (font-size alone cannot fix this; verified
+   by direct measurement, not assumption). The single-column composition
+   below was already built, tested, and working for narrow viewports
+   (previously gated behind @media max-width:860px, still present for
+   .arrival-cards further down, deliberately left untouched/protected);
+   this promotes the SAME composition to the base rule so it applies at
+   every width instead of just <860px. .arrival-cards's own row/stack
+   breakpoint is intentionally NOT touched by this change. */
 .arrival-hero {
   position: relative;
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1fr;
   align-items: stretch;
   min-height: 460px;
 }
@@ -441,39 +482,28 @@
   max-width: 34ch;
 }
 
+/* Landing/First Page Refinement — "max-width: 34ch" above still wrapped
+   this line even after the hero went single-column: "ch" is defined by
+   the Latin "0" glyph, which is much narrower than a Hangul syllable
+   block, so 34ch under-measures real Korean text width and clipped the
+   line one character short. Above 560px (this file's own existing
+   mobile threshold, e.g. .arrival-headline's mobile-only rule further
+   down) the question is forced to one line, matching the parent width
+   the single-column hero now actually provides; at/under 560px the
+   ch-based max-width and natural wrap are left alone, exactly as
+   specified ("Mobile에서는 자연스러운 줄바꿈 허용"). */
+@media (min-width: 561px) {
+  .arrival-core-question {
+    max-width: 100%;
+    white-space: nowrap;
+  }
+}
+
 /* A quiet closing line, deliberately placed after the input/chips/
    notice so it never competes with .arrival-core-question above —
    center-aligned and narrower than the surrounding left-aligned
    column so it reads as a distinct, quieter voice, not a continuation
    of the hero copy. */
-.arrival-declaration {
-  align-self: center;
-  max-width: 30ch;
-  margin: 28px auto 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-soft);
-  text-align: center;
-}
-
-.arrival-declaration-text {
-  margin: 0 0 10px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--ink-3);
-}
-
-.arrival-declaration-text:last-of-type {
-  margin-bottom: 0;
-}
-
-.arrival-declaration-tag {
-  margin: 14px 0 0;
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  color: var(--ink-4);
-}
-
 .arrival-pill-zone {
   margin-top: 40px;
 }
@@ -484,13 +514,43 @@
    and the submit button all get stronger contrast; the placeholder in
    particular moves off the faint --ink-4 default so it no longer reads
    as disabled/greyed-out text. */
-.arrival-pill-zone .hri-pill {
-  border-width: 1.75px;
-  border-color: rgba(27, 24, 32, 0.32);
+/* Landing/First Page Refinement, extended per Conversation Redesign
+   §5 — the input frame, not the typed text, is what should read as
+   "the important space", now shared identically by Arrival and
+   Conversation ("PAGE 1 visual language와 통일"). A single 2px border
+   read as "one thin line" at a glance, so this is a genuine DOUBLE
+   ring: an opaque inner champagne-gold border directly on the pill,
+   plus a second, fainter ring 5px further out via ::after — same
+   "outer edge / inset gap / inner edge" structure as the Gift Frame
+   (see .reflection-giftcard), not a coincidence, the same visual
+   vocabulary applied to input. No black, no heavy glow — the outer
+   box-shadow ring stays a modest 3px on focus only. */
+.arrival-pill-zone .hri-pill,
+.aurina-input-zone .hri-pill {
+  position: relative;
+  border-width: 2px;
+  border-color: #b8935e;
 }
 
-.arrival-pill-zone .hri-pill:focus-within {
-  border-color: var(--gold);
+.arrival-pill-zone .hri-pill::after,
+.aurina-input-zone .hri-pill::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(184, 147, 94, 0.38);
+  pointer-events: none;
+}
+
+.arrival-pill-zone .hri-pill:focus-within,
+.aurina-input-zone .hri-pill:focus-within {
+  border-color: #a67c3d;
+  box-shadow: 0 0 0 3px var(--gold-soft);
+}
+
+.arrival-pill-zone .hri-pill:focus-within::after,
+.aurina-input-zone .hri-pill:focus-within::after {
+  border-color: rgba(166, 124, 61, 0.6);
 }
 
 .arrival-pill-zone .hri-pill-input {
@@ -559,6 +619,50 @@ button.arrival-chip.arrival-chip--action:hover {
   line-height: 1.6;
 }
 
+/* Notice System Gate §4 — sits right below the required legal notice,
+   quieter than the question/input above (smaller type, no gold input-
+   style border) but a touch more present than the 12px disclaimer
+   text, since this is real operator content, not boilerplate. No
+   empty-state chrome: the whole block is simply absent when there are
+   no published notices (enforced in Arrival.tsx, not here). */
+.arrival-notices {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.arrival-notice-item {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid var(--border-soft);
+}
+
+.arrival-notice-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.arrival-notice-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+.arrival-notice-preview {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 .arrival-portrait {
   position: relative;
   z-index: 1;
@@ -567,6 +671,11 @@ button.arrival-chip.arrival-chip--action:hover {
      own border-radius/overflow, not framed as a separate boxed photo.
      No margin/gap/shadow: it reads as part of the panel, not a card
      floating on top of it. */
+  /* Now the base rule (was media-query-only, see .arrival-hero's own
+     comment above) — portrait stacks above the text column at every
+     width, since the hero itself is single-column at every width. */
+  order: -1;
+  aspect-ratio: 16 / 9;
 }
 
 .arrival-portrait img,
@@ -707,14 +816,10 @@ button.arrival-chip.arrival-chip--action:hover {
   font-size: 15px;
 }
 
+/* .arrival-hero/.arrival-portrait's single-column composition is now
+   the base rule above (Landing/First Page Refinement) — only
+   .arrival-cards still needs a breakpoint, protected unchanged. */
 @media (max-width: 860px) {
-  .arrival-hero {
-    grid-template-columns: 1fr;
-  }
-  .arrival-portrait {
-    order: -1;
-    aspect-ratio: 16 / 9;
-  }
   .arrival-cards {
     grid-template-columns: 1fr;
   }
@@ -740,6 +845,43 @@ button.arrival-chip.arrival-chip--action:hover {
   .arrival-quote {
     display: none;
   }
+
+  /* Mobile-only hero headline scale-down (~18%) — PC's clamp() is
+     untouched; the 2-line wrap stays, only the size/rhythm around it
+     tightens for narrow viewports. */
+  .arrival-headline {
+    font-size: 28px;
+    line-height: 1.18;
+  }
+  .arrival-description {
+    margin-top: 20px;
+  }
+
+  /* Mobile-only tidy-up of the disclaimer footer block — copy
+     unchanged, only size/line-height/spacing, still visually below
+     Hero and Input. (Was also handling .arrival-declaration/-tag —
+     removed with that block, Landing/First Page Refinement §3.) */
+  .arrival-notice {
+    margin-top: 20px;
+    padding-top: 16px;
+  }
+  .arrival-notice p {
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+
+  /* Final UI Gate §10 — frames use the screen width actively on
+     mobile; only their own padding shrinks, so body copy never gets
+     squeezed narrower than it needs to be. */
+  .reflection-mirror-frame {
+    padding: 24px 20px;
+  }
+  .reflection-giftcard {
+    padding: 7px;
+  }
+  .reflection-giftcard-inner {
+    padding: 30px 22px 26px;
+  }
 }
 
 .aurina-eyebrow {
@@ -760,11 +902,43 @@ button.arrival-chip.arrival-chip--action:hover {
 }
 
 .aurina-input-zone {
-  margin-top: 28px;
+  margin-top: 20px;
+}
+
+/* Shared small secondary-navigation row (Conversation utility row +
+   Reflection's own .reflection-utility-row both use .aurina-utility-
+   link) — deliberately text-only, no border/pill chrome, so it never
+   competes with the primary content above it or the one real CTA
+   (.reflection-history-btn / HriInput submit) nearby. */
+.aurina-utility-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.aurina-utility-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.aurina-utility-link:hover {
+  color: var(--ink-1);
+}
+
+.aurina-utility-link--muted {
+  color: var(--ink-4);
 }
 
 /* Quiet trail of what's already been said — present so continuity
-   isn't lost, but never competing with the active question for
+   isn't lost, but never competing with the current exchange for
    attention: small, muted, no chrome. Capped to the most recent few
    exchanges by the component; grows naturally with the page when
    expanded rather than clipping inside a fixed-height scrollbox. */
@@ -774,13 +948,29 @@ button.arrival-chip.arrival-chip--action:hover {
   border-bottom: 1px solid var(--border-soft);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .aurina-trail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aurina-trail-user,
+.aurina-trail-aurina {
+  margin: 0;
   font-size: 13.5px;
   line-height: 1.5;
+}
+
+.aurina-trail-user {
+  color: var(--ink-3);
+}
+
+.aurina-trail-aurina {
   color: var(--ink-4);
+  padding-left: 14px;
 }
 
 .aurina-trail-toggle {
@@ -800,19 +990,56 @@ button.arrival-chip.arrival-chip--action:hover {
   color: var(--ink-1);
 }
 
+/* The current exchange — the page's one dominant "now" (Conversation
+   Experience Gate §A/§B/§C): what I just said (quiet, small, clearly
+   mine) directly above what AURINA just said back (the hero text of
+   this whole page — large, bold, unmistakably hers). Not chat
+   bubbles — role is carried by typography/label alone, matching HRI's
+   restrained register. */
+.aurina-conversation-zone {
+  margin-top: 8px;
+}
+
+/* Mirrors AURINA's own label+text shape one tier down (Conversation
+   Redesign §3) — same structure, smaller/quieter, so "who said this"
+   is legible from shape alone even before reading the words. */
+.aurina-mine-block {
+  margin-bottom: 22px;
+}
+
+.aurina-mine-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.aurina-mine-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 .aurina-question-label {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: var(--accent);
+  color: var(--gold);
   text-transform: uppercase;
   margin-bottom: 10px;
 }
 
+/* Conversation Redesign §2 — the single most important text on the
+   page: 24-30px range (not the earlier pass's 38px ceiling), weight
+   ~600, generous line-height. */
 .aurina-question-text {
-  font-size: clamp(22px, 4vw, 26px);
+  font-size: clamp(24px, 3.4vw, 30px);
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
   color: var(--ink-1);
 }
 
@@ -840,10 +1067,11 @@ button.arrival-chip.arrival-chip--action:hover {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   REFLECTION EXPERIENCE 1.0 — Page 2. One continuous page across three
-   layers: 마음의 거울 (observation) → 리듬의 이해 (awareness) →
-   함께 걸어갈 길 (acceptance / forward direction). Visual hierarchy:
-   page title > identity > Layer 1 > Layer 2 > Layer 3 > body text.
+   FINAL EXPERIENCE — Page 2. AURINA greets you as Host (enlarged
+   portrait, independent presence) → 마음의 거울 (Empathic Reflection,
+   read as calm typography) → 마음이 머무는 곳, presented as a Gift
+   Card. Visual hierarchy: host presence > page title > Layer 1 (mirror)
+   > Layer 2 (gift card) > actions (quietest tier).
    ══════════════════════════════════════════════════════════════════ */
 
 .reflection {
@@ -870,25 +1098,45 @@ button.arrival-chip.arrival-chip--action:hover {
   }
 }
 
-.reflection-portrait {
-  width: 120px;
-  height: 120px;
+/* AURINA as Host — independent presence above the experience, not an
+   avatar bubble and not inside the Gift Frame. A soft, static gold
+   glow (no sweep/breathe animation — Final is a settled moment, not
+   an invitation) keeps it from reading as a flat cutout; size targets
+   Final UI Gate's explicit range — desktop ~180-220px, mobile
+   ~130-160px — tuned via clamp against real viewport width, not
+   assumed: 30vw lands at 210px by ~700px viewport (desktop) and at
+   140px by ~360-460px viewport (mobile), both inside spec. */
+.reflection-host {
+  position: relative;
+  width: clamp(140px, 30vw, 210px);
+  aspect-ratio: 510 / 588;
   margin: 0 auto;
-  border-radius: 50%;
+  border-radius: 28px;
   overflow: hidden;
-  box-shadow: 0 12px 28px rgba(60, 40, 20, 0.16);
+  box-shadow: 0 20px 40px rgba(60, 40, 20, 0.18);
+  border: 1px solid var(--gold-line);
 }
 
-.reflection-portrait video,
-.reflection-portrait img {
+.reflection-host::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(255, 214, 160, 0.4), transparent 70%);
+  filter: blur(30px);
+  pointer-events: none;
+}
+
+.reflection-host img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center 20%;
   display: block;
 }
 
 .reflection-wordmark {
-  margin-top: 14px;
+  margin-top: 18px;
   font-size: 20px;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -896,36 +1144,74 @@ button.arrival-chip.arrival-chip--action:hover {
 }
 
 .reflection-title {
-  margin: 24px 0 0;
-  font-size: clamp(32px, 7vw, 60px);
+  margin: 20px 0 0;
+  font-size: clamp(28px, 5.4vw, 44px);
   font-weight: 800;
   line-height: 1.2;
   color: var(--ink-1);
 }
 
+/* Desktop must render this as one line (Final UI Gate §3-1) — same
+   "ch under-measures Hangul" root cause and fix as Arrival's
+   .arrival-core-question (see that rule's own comment): forcing
+   nowrap above this file's mobile threshold (560px) guarantees it,
+   given .reflection's own width (720px at >=1024px, see the
+   .aurina-page[data-phase] rules near the top of this file). Mobile
+   keeps natural wrapping, untouched. */
+@media (min-width: 561px) {
+  .reflection-title {
+    white-space: nowrap;
+  }
+}
+
 .reflection-subtitle {
-  margin: 16px 0 0;
-  font-size: clamp(17px, 2vw, 21px);
-  line-height: 1.6;
+  margin: 10px 0 0;
+  font-size: clamp(16px, 1.8vw, 18px);
+  line-height: 1.55;
   color: var(--ink-2);
+  max-width: 46ch;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .reflection-layer {
-  margin-top: 64px;
+  margin-top: 44px;
 }
 
-.reflection-layer-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--gold);
-  margin: 0 0 18px;
+/* Both section headings (마음의 거울 / 마음이 머무는 곳) share this —
+   Final UI Gate §3-2/§3-3: "작은 label 수준에서 벗어난다", a real
+   heading, not a small caps kicker. The two FRAMES beneath them are
+   what differentiate Reflection from Gift (§3-4), not the headings. */
+.reflection-section-title {
+  display: inline-block;
+  font-size: clamp(22px, 2.4vw, 26px);
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--ink-1);
+  margin: 0 0 20px;
+  padding-bottom: 8px;
+  border-bottom: 3px solid var(--gold);
 }
 
-/* Layer 1 — 마음의 거울. The real reflection text, only reshaped
-   typographically (shorter line length, clear paragraph spacing) —
-   no content invented, nothing summarized or repeated from the user. */
+/* Layer 1 — 마음의 거울, in a Reflection Frame (Final UI Gate §3-2):
+   "내 마음을 비춰 받은 한 장" — champagne-gold edge, an ivory surface
+   distinct from the page background, generous padding, a soft shadow.
+   Deliberately the WEAKER of the two frames (§3-4: value rises toward
+   the Gift below it) — no corner accents here, that's reserved for
+   the Gift Frame. */
+/* Border strengthened from the first pass (gold-line at 50% opacity
+   read as barely-there — Final UI Gate §4: "확대해서 찾아야 하는 수준 =
+   FAIL") to an opaque champagne-gold at 2px, plus an inset white
+   hairline for the "inner fine line" the spec allows — still visibly
+   lighter than the Gift Frame's actual double-border below it. */
+.reflection-mirror-frame {
+  padding: 32px 30px;
+  border-radius: 20px;
+  border: 2px solid rgba(184, 147, 94, 0.7);
+  background: linear-gradient(165deg, rgba(201, 168, 119, 0.07), transparent 60%), #fdf9f1;
+  box-shadow: 0 12px 28px rgba(60, 40, 20, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
 .reflection-mirror {
   display: flex;
   flex-direction: column;
@@ -938,107 +1224,160 @@ button.arrival-chip.arrival-chip--action:hover {
   font-weight: 500;
   line-height: 1.7;
   color: var(--ink-1);
-  max-width: 34ch;
+  max-width: 42ch;
 }
 
-/* Layer 2 — 리듬의 이해. A calm vertical path, not a dashboard: no
-   scores, no scales, no bars, no percentages. */
-.rhythm-path {
+/* Layer 2 — 마음이 머무는 곳, as a real double-edged Gift Frame (Final
+   UI Gate §5: "outer gold edge -> small inset gap -> inner fine gold
+   edge -> gift text"), the visually STRONGEST object on the page
+   (§3-4/§6: value rises toward the Gift). .reflection-giftcard is the
+   OUTER edge + the inset gap (its own padding); .reflection-giftcard-
+   inner is the second, finer edge holding the actual content. Still
+   no floral/decorative graphics/hearts/ribbons/stars (§3-3/§5) —
+   every accent is typographic/geometric (quote mark, corner brackets,
+   signature). */
+.reflection-giftcard {
+  padding: 9px;
+  border-radius: 27px;
+  border: 2px solid var(--gold);
+  background: linear-gradient(165deg, rgba(201, 168, 119, 0.16), transparent 55%), #fdf3e0;
+  box-shadow: 0 28px 56px rgba(60, 40, 20, 0.16);
+}
+
+.reflection-giftcard-inner {
   position: relative;
-  padding-left: 24px;
+  padding: 40px 34px 34px;
+  border-radius: 20px;
+  border: 1px solid rgba(201, 168, 119, 0.6);
+  background: #fffaf0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
 }
 
-.rhythm-path::before {
-  content: "";
+/* Corner brackets — the "this is a special frame, not a paragraph"
+   accent §3-3 asks for, kept strictly geometric/typographic. */
+.reflection-giftcard-corner {
   position: absolute;
-  left: 3px;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--gold);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.reflection-giftcard-corner--tl {
   top: 10px;
+  left: 10px;
+  border-right: none;
+  border-bottom: none;
+  border-top-left-radius: 8px;
+}
+
+.reflection-giftcard-corner--br {
   bottom: 10px;
-  width: 2px;
-  background: linear-gradient(to bottom, var(--gold-line), rgba(201, 168, 119, 0.12));
+  right: 10px;
+  border-left: none;
+  border-top: none;
+  border-bottom-right-radius: 8px;
 }
 
-.rhythm-node {
-  position: relative;
-  padding: 12px 0;
-}
-
-.rhythm-node::before {
-  content: "";
+.reflection-giftcard-mark {
   position: absolute;
-  left: -21px;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  margin-top: -4px;
-  border-radius: 50%;
-  background: var(--gold);
-  box-shadow: 0 0 0 3px var(--bg-panel);
-  animation: rhythm-pulse 3s ease-in-out infinite;
+  top: 16px;
+  left: 32px;
+  font-size: 50px;
+  line-height: 1;
+  font-weight: 800;
+  color: var(--gold);
+  font-family: Georgia, "Times New Roman", serif;
+  user-select: none;
 }
 
-.rhythm-node {
+.reflection-giftcard-body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
 }
 
-.rhythm-tag {
-  font-size: 11px;
+.reflection-giftcard-body p {
+  margin: 0;
+  font-size: clamp(18px, 2.1vw, 21px);
+  line-height: 1.75;
+  color: var(--ink-1);
+  max-width: 44ch;
+}
+
+.reflection-giftcard-sign {
+  margin-top: 24px;
+  text-align: right;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0.14em;
   color: var(--gold);
 }
 
-.rhythm-label {
-  font-size: clamp(15px, 1.6vw, 17px);
-  font-weight: 600;
-  line-height: 1.5;
-  color: var(--ink-2);
+/* Actions — deliberately below both Frames in position (Gate spec §5),
+   but §7 requires the two actions to carry DIFFERENT weight from each
+   other, not just from the Gift above: "대화 다시 보기" (History) is
+   the more important navigation — real user words + AURINA's replies,
+   never deleted by visiting it — so it gets the one filled, higher-
+   contrast pill on this screen. "다시 대화하기" (restart) is what
+   actually discards the session, so it's demoted to the same small
+   text-link tier as "홈", not a second competing pill. */
+.reflection-actions {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-soft);
+  text-align: center;
 }
 
-@keyframes rhythm-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.75; }
-  50% { transform: scale(1.35); opacity: 1; }
+.reflection-history-btn {
+  display: inline-block;
+  margin: 0 auto;
+  padding: 13px 30px;
+  border-radius: 999px;
+  border: 1.5px solid var(--gold);
+  background: var(--gold);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(201, 168, 119, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .rhythm-node::before {
-    animation: none;
-  }
+.reflection-history-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(201, 168, 119, 0.4);
 }
 
-/* Layer 3 — 다음 리듬. Static, approved copy; the one restrained
-   action this beta offers. */
-.reflection-layer--closing {
-  padding-top: 40px;
+.reflection-utility-row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+/* Release UI Cleanup — Reflection continuation. Same reading-column
+   width as .reflection so it lines up underneath it, but its own
+   labeled section (border-top + caption) rather than sitting directly
+   under the restart button — and a muted gray caption (vs. the
+   reflection layers' gold) so it reads as a different KIND of thing
+   (an action, not another layer of the mirror) without adding new
+   chrome. */
+.aurina-continuation {
+  max-width: 600px;
+  margin: 40px auto 0;
+  padding-top: 28px;
   border-top: 1px solid var(--border-soft);
 }
 
-.reflection-closing {
-  font-size: clamp(17px, 2vw, 21px);
-  line-height: 1.7;
-  color: var(--ink-2);
-  max-width: 36ch;
-}
-
-.reflection-restart {
-  display: block;
-  margin: 28px auto 0;
-  padding: 12px 28px;
-  border-radius: 999px;
-  border: 1px solid var(--gold-line);
-  background: transparent;
-  color: var(--ink-1);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-
-.reflection-restart:hover {
-  background: var(--gold-soft);
+.aurina-continuation-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 14px;
 }
 
 @media (max-width: 560px) {

@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as EngineRequest;
     devLog("ROUTE OK");
-    const result = getNextOutput(payload);
+    const result = await getNextOutput(payload);
 
     return new Response(JSON.stringify(result), {
       status: 200,

@@ -49,7 +49,7 @@ function latestOutput(events: HriEvent[]): OutputEvent | undefined {
  */
 const MAX_SESSION_INPUTS = 12;
 
-export function runHriSession(request: RuntimeRequest): RuntimeResponse {
+export async function runHriSession(request: RuntimeRequest): Promise<RuntimeResponse> {
   const inputs = Array.isArray(request.inputs)
     ? request.inputs
         .map((value) => String(value ?? "").trim())
@@ -61,7 +61,7 @@ export function runHriSession(request: RuntimeRequest): RuntimeResponse {
   let events: HriEvent[] = [];
 
   for (const inputText of inputs) {
-    const next = advanceSession({ inputText, state, events });
+    const next = await advanceSession({ inputText, state, events });
     state = next.state;
     events = next.events;
   }

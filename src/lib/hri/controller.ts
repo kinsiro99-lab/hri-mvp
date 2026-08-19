@@ -1,4 +1,4 @@
-import { composeReflection } from "./v2/reflectionComposer";
+import { composeReflection, composeNaturalReflection } from "./v2/reflectionComposer";
 import type { HriEvent, SessionState, QuestionOutput, ReflectionOutput } from "./types";
 import { devLog } from "../devLog";
 import { checkSafetyBoundary } from "./safetyBoundary";
@@ -51,7 +51,20 @@ import {
   DEFAULT_CONVERGENCE_PARAMS,
   type SessionStateV2,
 } from "./v2/types.v2";
-import { updateEvidence, decideNextQuestion, renderQuestion } from "./v2/questionCorePrototype";
+import {
+  updateEvidence,
+  decideNextQuestion,
+  renderQuestion,
+  markMostRecentProbeAddressed,
+  applyEvidenceToUnderstanding,
+  type Probe,
+} from "./v2/questionCorePrototype";
+import { advanceIntelligence, updateGraph } from "./intelligence/intelligenceCore";
+import { createContextFirstSemanticAdapter } from "./context/providers/contextFirstSemanticAdapter";
+import { emptyContextGraph, type ConversationTurn } from "./context/types";
+import { buildFinalExperienceGrounding } from "./intelligence/finalExperienceComposer";
+import { phraseFinalExperience, renderFinalExperienceTemplate } from "./intelligence/finalExperiencePhraser";
+import { joinFinalExperience } from "./intelligence/finalExperienceTypes";
 
 const HRI_V2 = true;
 
@@ -69,6 +82,50 @@ const HRI_V2 = true;
  */
 const USE_PROTOTYPE_QUESTION_CORE = true;
 
+/**
+ * Gate 13 — Natural Reflection Runtime Verification. Single rollback
+ * switch, same pattern as USE_PROTOTYPE_QUESTION_CORE above: flipping
+ * to false restores the byte-identical old-composeReflection reflect
+ * output with zero other change. When true, the reflect branch below
+ * uses composeNaturalReflection(hriState.prototypeEvidence)'s body AS
+ * THE ENTIRE reflection text (no title/closing wrapper) whenever it
+ * produces non-empty output; the existing composeReflection call and
+ * its 5-domain fallbackReflectionText are still computed either way
+ * (never deleted, never skipped) and are used automatically when
+ * natural output is empty (e.g. no active evidence yet).
+ */
+const USE_NATURAL_REFLECTION = true;
+
+/**
+ * Gate 26 — Intelligence Core Prototype 1. Single rollback switch, same
+ * pattern as USE_PROTOTYPE_QUESTION_CORE above. Defaults to false: the
+ * new Core depends on a live semantic provider
+ * (context/providers/contextFirstSemanticAdapter.ts, OPENAI_API_KEY),
+ * which this environment does not have configured (see Gate 26 report
+ * §A) — flipping this on here would only ever produce the honest
+ * evidence-anchored fallback, never real Hypothesis-driven questions.
+ * When true, this flag makes src/lib/hri/intelligence/intelligenceCore.ts
+ * the SOLE owner of question generation for that turn — none of
+ * USE_PROTOTYPE_QUESTION_CORE's decideNextQuestion/renderQuestion or
+ * old V2's plannerDecision/selectQuestion runs on that turn (Gate 26
+ * §9: old and new Question Intelligence are never mixed in one turn).
+ * Evidence storage/correction/uncertainty detection (updateEvidence)
+ * and everything above the question-decision branch — safety, rhythm,
+ * old Understanding/coverage, readyToReflect/Guard/hardCap, Reflection
+ * — are completely unaffected by this flag either way.
+ */
+const USE_INTELLIGENCE_CORE = true;
+
+/**
+ * Gate 31 — AURINA Final Experience. Single rollback switch, same
+ * pattern as every flag above. See its own doc at the call site
+ * (readyToReflect branch) for exactly what it changes and what it
+ * leaves untouched (everything above the reflect branch — safety,
+ * rhythm, Evidence, ContextGraph formation itself — is unaffected
+ * either way).
+ */
+const USE_FINAL_EXPERIENCE = true;
+
 export type AdvanceSessionInput = {
   inputText: string;
   state: SessionState;
@@ -80,7 +137,7 @@ export type AdvanceSessionResult = {
   events: HriEvent[];
 };
 
-export function advanceSession({ inputText, state, events }: AdvanceSessionInput): AdvanceSessionResult {
+export async function advanceSession({ inputText, state, events }: AdvanceSessionInput): Promise<AdvanceSessionResult> {
   const trimmed = inputText.trim();
   if (!trimmed) return { state, events };
 
@@ -190,6 +247,47 @@ if (HRI_V2) {
     ? updateEvidence(v2base.prototypeEvidence ?? [], trimmed, v2state.turnCount)
     : null;
 
+  // Gate 23 — Probe / Provisional Understanding. Runs unconditionally
+  // alongside prototypeUpdateResult (same "compute both, toggle only
+  // decides what's used downstream" pattern as USE_PROTOTYPE_QUESTION_CORE
+  // itself), so USE_PROTOTYPE_QUESTION_CORE=false remains byte-identical
+  // old behavior with zero further change.
+  //
+  // "prior" here always means the state as it was BEFORE this turn's
+  // evidence was processed — i.e. what was already true when this
+  // turn's Probe (if any) was decided last turn. This is deliberate:
+  // whether the NEXT probe (decided further below) gets "link-first" or
+  // "link-continue" phrasing must reflect what the conversation already
+  // had *before* this turn's own answer was folded in, not after — see
+  // questionCorePrototype.ts's decideNextQuestion doc for why.
+  const priorProbes = v2base.prototypeProbes ?? [];
+  const priorUnderstanding = v2base.prototypeUnderstanding ?? [];
+
+  const probesAfterAddressing = prototypeUpdateResult
+    ? markMostRecentProbeAddressed(priorProbes)
+    : priorProbes;
+  // The Probe this turn's evidence just addressed, if any — undefined
+  // on the very first turn (no Probe exists yet) or when
+  // USE_PROTOTYPE_QUESTION_CORE is off. Passed to
+  // applyEvidenceToUnderstanding below, which is itself the only place
+  // that decides whether that's enough to create a provisional entry
+  // (never for a correction turn — see its doc).
+  const justAddressedProbe: Probe | undefined =
+    prototypeUpdateResult && priorProbes.length > 0 && priorProbes[priorProbes.length - 1].status === "asked"
+      ? probesAfterAddressing[probesAfterAddressing.length - 1]
+      : undefined;
+
+  const understandingAfterThisTurn = prototypeUpdateResult
+    ? applyEvidenceToUnderstanding({
+        priorUnderstanding,
+        addressedProbe: justAddressedProbe,
+        newEvidence: prototypeUpdateResult.newEvidence,
+        wasCorrection: prototypeUpdateResult.wasCorrection,
+        supersededEvidenceText: prototypeUpdateResult.supersededText,
+        turn: v2state.turnCount,
+      })
+    : priorUnderstanding;
+
   // 갱신된 이해/커버리지를 이후 모든 결정의 단일 출처로 삼는다.
   const hriState: SessionStateV2 = {
     ...v2state,
@@ -205,6 +303,8 @@ if (HRI_V2) {
     knowledge: understandingUpdate.knowledge,
     lastAnswer: trimmed,
     prototypeEvidence: prototypeUpdateResult ? prototypeUpdateResult.evidence : v2base.prototypeEvidence,
+    prototypeProbes: probesAfterAddressing,
+    prototypeUnderstanding: understandingAfterThisTurn,
   };
 
   const coverage = understandingUpdate.coverage;
@@ -361,7 +461,50 @@ if (HRI_V2) {
     coverageDetailScore(understandingUpdate.next) >= COVERAGE_THRESHOLD &&
     plannerDecision?.slot === "meaning";
 
-  if (canReflect && (coverageDone || convergence.converged || gateDecision.action === "reflect" || healthMeaningStopReady)) {
+  // Gate 7C — Evidence Guard. Old V2's reflect triggers above are
+  // unchanged; this only adds a veto using data already computed this
+  // turn (prototypeUpdateResult), no new classifier. Reproduced live in
+  // Gate 7B: a "관계" sentence fills old coverage in turn 1 and locks it,
+  // so gateDecision is reflect-ready from turn 2 on — whatever the user
+  // says on the first turn canReflect allows (turn 4) gets swallowed
+  // into Reflection with zero acknowledgment, including a correction or
+  // an uncertain answer. hardCap always overrides this veto (checked via
+  // convergence.reason, not a new hardCap implementation) so the guard
+  // can never create an unbounded conversation.
+  const unresolvedCorrection = prototypeUpdateResult?.wasCorrection === true;
+  const unresolvedUncertainty = prototypeUpdateResult?.newEvidence.certainty === "uncertain";
+  const hardCapReached = convergence.reason === "hard_cap";
+  const evidenceGuardBlocksReflect = !hardCapReached && (unresolvedCorrection || unresolvedUncertainty);
+
+  // Gate 15 — Evidence Alternative Entry. Old V2's own readiness signal
+  // (oldV2Ready below) is unchanged and untouched; this only adds a
+  // second, independent way to become ready, using facts already
+  // established above this turn — no new classifier, no score.
+  // prototypeUsedTriggers is logged for audit only (see devLog below)
+  // and is deliberately NOT part of this condition — Gate 15 explicitly
+  // forbids reading it as an "understood enough" semantic signal.
+  const oldV2Ready = coverageDone || convergence.converged || gateDecision.action === "reflect" || healthMeaningStopReady;
+  const hasActiveEvidence = (hriState.prototypeEvidence ?? []).some((item) => item.status === "active");
+  const evidenceAlternativeReady =
+    hasActiveEvidence && !unresolvedCorrection && !unresolvedUncertainty && canReflect;
+  devLog("EVIDENCE ALTERNATIVE ENTRY:", {
+    hasActiveEvidence,
+    unresolvedCorrection,
+    unresolvedUncertainty,
+    canReflect,
+    evidenceAlternativeReady,
+    prototypeUsedTriggersCount: (hriState.prototypeUsedTriggers ?? []).length,
+  });
+
+  // hardCap always overrides everything below it, including the
+  // Evidence Guard veto (evidenceGuardBlocksReflect already zeroes
+  // itself out at hardCap — see its own definition above) — this outer
+  // "hardCapReached ||" makes that priority explicit and unconditional
+  // at the top level, matching Gate 15's required entry structure.
+  const readyToReflect =
+    hardCapReached || (canReflect && !evidenceGuardBlocksReflect && (oldV2Ready || evidenceAlternativeReady));
+
+  if (readyToReflect) {
     const probe = selectProbe(hriState, new Set(hriState.usedQuestionIds));
 
     // Reflection reads Observation via ReflectionHint — conservatively
@@ -399,13 +542,79 @@ if (HRI_V2) {
 
    const observationText = obs?.text ?? "";
 
-const reflectionText = [
+const fallbackReflectionText = [
     reflectionResult.title,
     reflectionResult.body,
     reflectionResult.closing,
 ]
 .filter(s => s && s.trim().length > 0)
 .join("\n\n");
+
+    // Gate 13 — natural body wins whenever it has content; the 5-domain
+    // fallback (computed above, unmodified) is used only when natural
+    // output is empty. No selection, no old-Understanding read inside
+    // composeNaturalReflection — see reflectionComposer.ts.
+    const naturalResult = USE_NATURAL_REFLECTION
+      ? composeNaturalReflection(hriState.prototypeEvidence)
+      : null;
+    const preFinalExperienceText =
+      naturalResult && naturalResult.body.trim().length > 0
+        ? naturalResult.body
+        : fallbackReflectionText;
+
+    // Gate 29 §9 — keep intelligenceGraph complete even on a turn that
+    // ends in Reflection instead of a question. Root cause this fixes:
+    // before this Gate, advanceIntelligence (now updateGraph) was only
+    // ever called from the question branch below, so a turn's own
+    // evidence that happened to also trigger readyToReflect (e.g. CASE
+    // A/B's 4th turn — see Gate 29 report §1) never entered the
+    // ContextGraph at all. Moved above the Gate 31 Final Experience
+    // block (was below it) so Final Experience can read the SAME
+    // freshly-updated graph this turn produces, instead of last turn's
+    // stale one — no other behavior in this block changes.
+    let nextIntelligenceGraph = hriState.intelligenceGraph;
+    let nextIntelligenceProposalFeedback = hriState.intelligenceProposalFeedback;
+    if (USE_INTELLIGENCE_CORE && prototypeUpdateResult) {
+      const allTurnsForGraph: ConversationTurn[] = (hriState.prototypeEvidence ?? []).map((e) => ({ turn: e.turn, text: e.text }));
+      const { interpreter: reflectInterpreter } = createContextFirstSemanticAdapter();
+      const graphUpdate = await updateGraph({
+        priorGraph: hriState.intelligenceGraph ?? emptyContextGraph(),
+        priorProposalFeedback: hriState.intelligenceProposalFeedback,
+        allTurns: allTurnsForGraph,
+        newEvidence: prototypeUpdateResult.newEvidence,
+        wasCorrection: prototypeUpdateResult.wasCorrection,
+        supersededEvidenceText: prototypeUpdateResult.supersededText,
+        turn: hriState.turnCount,
+        interpreter: reflectInterpreter,
+      });
+      nextIntelligenceGraph = graphUpdate.graph;
+      nextIntelligenceProposalFeedback = graphUpdate.proposalFeedback;
+    }
+
+    // Gate 31 — AURINA Final Experience. Single rollback switch, same
+    // pattern as every other flag in this file: false restores
+    // byte-identical preFinalExperienceText as the whole reflection,
+    // zero other change. True replaces it with the two-layer Empathic
+    // Reflection / Human Sharing experience, built from a deterministic
+    // grounding selection (finalExperienceComposer.ts — verbatim
+    // Evidence + this turn's own freshly-updated ContextGraph, never
+    // from anything this function invents) and phrased by a narrow,
+    // isolated LLM call (finalExperiencePhraser.ts) that structurally
+    // cannot fabricate a quote or regress to the retired fixed ending —
+    // see that file's validateFinalExperience. Falls back to a plain,
+    // honest (deliberately unpoetic) template on any provider failure.
+    let reflectionText = preFinalExperienceText;
+    if (USE_FINAL_EXPERIENCE) {
+      const grounding = buildFinalExperienceGrounding(
+        hriState.prototypeEvidence,
+        nextIntelligenceGraph,
+        hriState.turnCount,
+      );
+      const phrased = await phraseFinalExperience(grounding);
+      const finalExperience = phrased.result ?? renderFinalExperienceTemplate(grounding);
+      devLog("FINAL EXPERIENCE:", { outcome: phrased.outcome, errorMessage: phrased.errorMessage });
+      reflectionText = joinFinalExperience(finalExperience.mirror, finalExperience.sharing);
+    }
 
     const reflection: ReflectionOutput = {
       text: reflectionText,
@@ -419,6 +628,8 @@ const reflectionText = [
       lastReflectionAtTurn: hriState.turnCount,
       pendingWhisper: false,
       observationSnapshot,
+      intelligenceGraph: nextIntelligenceGraph,
+      intelligenceProposalFeedback: nextIntelligenceProposalFeedback,
     };
 
     return {
@@ -439,15 +650,75 @@ const reflectionText = [
 
  const probe = selectProbe(hriState, usedSet);
 
+  // Gate 26 — Intelligence Core Prototype 1. Sole owner of question
+  // generation for this turn when on (see USE_INTELLIGENCE_CORE's own
+  // doc) — returns before any of USE_PROTOTYPE_QUESTION_CORE's or old
+  // V2's question logic below even runs. Evidence (prototypeUpdateResult/
+  // hriState.prototypeEvidence) and the readyToReflect branch above are
+  // shared/unaffected either way — only what happens in THIS branch
+  // changes.
+  if (USE_INTELLIGENCE_CORE && prototypeUpdateResult) {
+    const allTurns: ConversationTurn[] = (hriState.prototypeEvidence ?? []).map((e) => ({ turn: e.turn, text: e.text }));
+    const { interpreter } = createContextFirstSemanticAdapter();
+
+    const intelligenceResult = await advanceIntelligence({
+      priorGraph: hriState.intelligenceGraph ?? emptyContextGraph(),
+      priorProbedRefs: hriState.intelligenceProbedRefs ?? [],
+      priorProposalFeedback: hriState.intelligenceProposalFeedback,
+      allTurns,
+      newEvidence: prototypeUpdateResult.newEvidence,
+      wasCorrection: prototypeUpdateResult.wasCorrection,
+      supersededEvidenceText: prototypeUpdateResult.supersededText,
+      turn: hriState.turnCount,
+      interpreter,
+    });
+
+    const question: QuestionOutput = {
+      id: `iq-${hriState.turnCount}`,
+      text: intelligenceResult.renderedText,
+      category: hriState.lastQuestionCategory ?? "density",
+      aperture: "small",
+      weight: 1,
+    };
+    devLog("INTELLIGENCE QUESTION SOURCE:", question.id, question.text);
+
+    const nextState: SessionStateV2 = {
+      ...hriState,
+      phase: "probing",
+      pendingWhisper: false,
+      lastQuestionCategory: question.category,
+      usedQuestionIds: [...hriState.usedQuestionIds, question.text],
+      observationSnapshot,
+      intelligenceGraph: intelligenceResult.graph,
+      intelligenceProbedRefs: intelligenceResult.probedRefs,
+      intelligenceProposalFeedback: intelligenceResult.proposalFeedback,
+    };
+
+    return {
+      state: nextState,
+      events: [...withUserInput, createQuestionEvent(question)],
+    };
+  }
+
   // Question Core Prototype 1 — always anchored to the newest not-yet-
   // used evidence item (never a "next empty slot" walk). null means
   // "nothing new to ask about", same contract as the old
   // plannerDecision === null case, and falls back to the same
   // NEUTRAL_DEEPENING pool unchanged.
   const prototypeUsedTriggers = new Set<string>(hriState.prototypeUsedTriggers ?? []);
+  // Gate 23 — priorProbes.length/priorUnderstanding.length (captured
+  // above, BEFORE this turn's own evidence/addressing/derivation) drive
+  // the expand/link-first/link-continue split inside decideNextQuestion
+  // — see that function's doc for why "prior" and not "after this turn".
   const prototypeDecision =
     USE_PROTOTYPE_QUESTION_CORE && prototypeUpdateResult
-      ? decideNextQuestion(hriState.prototypeEvidence ?? [], prototypeUsedTriggers, prototypeUpdateResult.wasCorrection)
+      ? decideNextQuestion(
+          hriState.prototypeEvidence ?? [],
+          prototypeUsedTriggers,
+          prototypeUpdateResult.wasCorrection,
+          priorProbes.length,
+          priorUnderstanding.length,
+        )
       : null;
 
 const baselineText = USE_PROTOTYPE_QUESTION_CORE
@@ -494,10 +765,25 @@ const baselineText = USE_PROTOTYPE_QUESTION_CORE
     }
   }
 
+  // Gate 23 — record this turn's Probe (if one was actually decided;
+  // the NEUTRAL_DEEPENING fallback used when prototypeDecision is null
+  // is not evidence-anchored, so no Probe is recorded for it — nothing
+  // downstream can mistake generic filler for an evidence-linked probe).
+  let nextPrototypeProbes = hriState.prototypeProbes ?? [];
+
   if (USE_PROTOTYPE_QUESTION_CORE) {
     finalSlot = undefined;
     if (prototypeDecision?.triggerEvidence) {
       prototypeUsedTriggers.add(prototypeDecision.triggerEvidence);
+      const newProbe: Probe = {
+        id: `p${hriState.turnCount}`,
+        anchorEvidenceText: prototypeDecision.triggerEvidence,
+        renderedText: finalText,
+        intent: prototypeDecision.intent,
+        turn: hriState.turnCount,
+        status: "asked",
+      };
+      nextPrototypeProbes = [...nextPrototypeProbes, newProbe];
     }
   }
 
@@ -526,6 +812,7 @@ const baselineText = USE_PROTOTYPE_QUESTION_CORE
     recentSlots: nextRecentSlots,
     observationSnapshot,
     prototypeUsedTriggers: [...prototypeUsedTriggers],
+    prototypeProbes: nextPrototypeProbes,
   };
 
   return {

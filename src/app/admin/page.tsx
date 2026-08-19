@@ -175,6 +175,9 @@ export default async function OperationCenterPage({
             <a href={`/admin/observations?key=${currentKey}`}>Observation Console</a>
           </li>
           <li>
+            <a href={`/admin/notices?key=${currentKey}`}>공지사항 관리</a>
+          </li>
+          <li>
             <a href="/">Public Site</a>
           </li>
           <li>
