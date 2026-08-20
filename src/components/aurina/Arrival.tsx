@@ -1,3 +1,4 @@
+import { useState } from "react";
 import HriInput from "../HriInput";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
@@ -78,6 +79,7 @@ export default function Arrival({
   // sorted published_at/created_at DESC server-side (listPublishedNotices),
   // so [0] is the latest. No notice -> falls back to the original card.
   const latestNotice = notices[0] ?? null;
+  const [noticeDetailOpen, setNoticeDetailOpen] = useState(false);
   const handleMirrorCard = () => {
     if (hasHistory) onViewHistory();
     else focusArrivalInput();
@@ -206,7 +208,7 @@ export default function Arrival({
                 ? t.arrival.cards.mirrorLineHistory
                 : t.arrival.cards.mirrorLineDefault
           }
-          onClick={latestNotice ? undefined : handleMirrorCard}
+          onClick={latestNotice ? () => setNoticeDetailOpen(true) : handleMirrorCard}
         />
         <ServiceCard
           icon={<WaveIcon />}
@@ -221,7 +223,91 @@ export default function Arrival({
           onClick={handleNextCard}
         />
       </div>
+
+      {latestNotice && noticeDetailOpen && (
+        <NoticeDetailModal notice={latestNotice} onClose={() => setNoticeDetailOpen(false)} />
+      )}
     </section>
+  );
+}
+
+// Notice Detail Gate — inline styles only (no aurina.css changes), so
+// this stays a single-file, additive change. title/body are rendered
+// verbatim from latestNotice, never hardcoded.
+function NoticeDetailModal({ notice, onClose }: { notice: Notice; onClose: () => void }) {
+  return (
+    <div
+      role="presentation"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(20, 16, 10, 0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+        padding: "24px",
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={notice.title}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: "16px",
+          padding: "28px 26px",
+          maxWidth: "480px",
+          width: "100%",
+          maxHeight: "80vh",
+          overflowY: "auto",
+          boxShadow: "0 20px 48px rgba(0, 0, 0, 0.25)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#1a1a1a" }}>{notice.title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            style={{
+              flex: "none",
+              border: "none",
+              background: "none",
+              fontSize: "20px",
+              lineHeight: 1,
+              cursor: "pointer",
+              color: "#666",
+              padding: "2px 4px",
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <p style={{ marginTop: "16px", marginBottom: "20px", fontSize: "14px", lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap" }}>
+          {notice.body}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            display: "block",
+            marginLeft: "auto",
+            padding: "8px 20px",
+            fontSize: "13px",
+            border: "1px solid #333",
+            borderRadius: "8px",
+            background: "#333",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          닫기
+        </button>
+      </div>
+    </div>
   );
 }
 
