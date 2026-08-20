@@ -40,6 +40,7 @@ import {
 import { validateInterpretation, type InterpretationValidationResult } from "../context/validator";
 import { mergeInterpreterOutput, filterAcceptedProposals } from "../context/evaluationHarness";
 import { devLog } from "../../devLog";
+import type { Locale } from "../locale";
 import { phraseQuestion } from "./questionPhraser";
 import { phraseResponse, type ResponseCallStat } from "./responsePhraser";
 import {
@@ -69,6 +70,11 @@ export type AdvanceIntelligenceInput = {
   supersededEvidenceText?: string;
   turn: number;
   interpreter: SemanticContextInterpreter;
+  /** Multilingual Gate — drives decideResponse's marker detection and
+   *  phraseResponse's prompt/validator. Never read by the interpreter
+   *  itself (contextFirstSemanticAdapter.ts is already language-agnostic
+   *  by its own Rule 0: "same language as the source turns"). */
+  locale: Locale;
 };
 
 export type AdvanceIntelligenceResult = {
@@ -419,16 +425,59 @@ export function renderProbeTemplate(decision: QuestionDecision): string {
  * confirm/explain it" pattern this Gate reaffirms banning (see
  * responsePhraser.ts's MODE_RULES.ask and its now-shared validation).
  */
-const HEDGE_MARKERS = ["아마", "것 같다", "것같다", "것 같아", "것같아", "인가보다", "인가 보다", "일지도", "듯하다", "듯 하다", "듯싶다"];
-const CONFIRMATION_ONLY_MARKERS = ["그렇다", "그렇습니다", "맞다", "맞습니다", "그래", "그래요", "그런 것 같다", "그런 것 같아요", "응", "네", "맞아", "맞아요", "그렇지", "그러네", "그러네요"];
+const HEDGE_MARKERS: Record<Locale, string[]> = {
+  ko: ["아마", "것 같다", "것같다", "것 같아", "것같아", "인가보다", "인가 보다", "일지도", "듯하다", "듯 하다", "듯싶다"],
+  // Multilingual Gate — Japanese hedge candidates named directly in the
+  // Beta Handoff (§6/§14 CASE J1/J2): たぶん/おそらく (maybe/probably),
+  // かもしれない (might be), 〜ような気がする/気がする (feels like/have a
+  // feeling that), 〜と思う (I think), 〜だろう/でしょう (probably/I
+  // suppose) — same "guess without stated basis" concept as the Korean
+  // set, not a word-for-word translation of it.
+  ja: ["たぶん", "おそらく", "かもしれない", "ような気がする", "な気がする", "気がする", "と思う", "だろう", "でしょう"],
+  // Multilingual Gate — English, matched case-insensitively (see
+  // hasHedge below). Directly from the Beta Handoff's own English
+  // hedge candidate list (§6).
+  en: ["maybe", "perhaps", "probably", "i think", "i guess", "it seems", "i feel like", "might", "could be"],
+};
+/**
+ * Exact-match-only after trailing punctuation is stripped (see
+ * isConfirmationOnly below) — this is what keeps detection conservative:
+ * a marker only fires when the user's ENTIRE turn is bare agreement, not
+ * when it appears inside a longer sentence. This matters especially for
+ * Japanese per the Handoff's explicit warning (§6): "そうですね" is not
+ * always equivalent to Korean "그렇다" — the exact-match gate (unchanged
+ * from before this Gate) is exactly what prevents "そうですね、〜" turns
+ * with real new content from being misread as bare confirmation.
+ */
+const CONFIRMATION_ONLY_MARKERS: Record<Locale, string[]> = {
+  ko: ["그렇다", "그렇습니다", "맞다", "맞습니다", "그래", "그래요", "그런 것 같다", "그런 것 같아요", "응", "네", "맞아", "맞아요", "그렇지", "그러네", "그러네요"],
+  ja: ["そうです", "そうですね", "その通りです", "その通りだね", "はい", "うん", "そうだね", "そうだよ", "そう", "そうそう", "そうか", "そうかも", "そうかもしれません", "確かに", "本当にそうですね"],
+  // English candidates named in the Beta Handoff (§6), stored lowercase
+  // for case-insensitive matching (see isConfirmationOnly below).
+  // Compound forms ("yes, that's right") added after real evidence
+  // (E4): the Handoff's own literal test phrase "Yes, that's right."
+  // didn't match because "yes" and "that's right" were only stored as
+  // separate entries — exact-match-whole-turn (below) requires the
+  // combined phrase itself, the way a person actually types it.
+  en: [
+    "yes", "that's right", "right", "exactly", "i think so", "that's what i mean",
+    "yeah", "yep", "correct", "that's it", "yup", "sure", "definitely", "absolutely", "that's correct",
+    "yes, that's right", "yeah, that's right", "yes, exactly", "that's exactly right", "yes, that's it",
+  ],
+};
 
-function hasHedge(text: string): boolean {
-  return HEDGE_MARKERS.some((m) => text.includes(m));
+/** English is matched case-insensitively — Latin script varies case
+ *  naturally in a way Korean/Japanese do not; ko/ja stay exactly as
+ *  before this Gate (raw, case-sensitive substring match). */
+function hasHedge(text: string, locale: Locale): boolean {
+  const cmp = locale === "en" ? text.toLowerCase() : text;
+  return HEDGE_MARKERS[locale].some((m) => cmp.includes(m));
 }
 
-function isConfirmationOnly(text: string): boolean {
-  const trimmed = text.trim().replace(/[.!?~…\s]+$/g, "");
-  return CONFIRMATION_ONLY_MARKERS.includes(trimmed);
+function isConfirmationOnly(text: string, locale: Locale): boolean {
+  const trimmed = text.trim().replace(/[.!?~…\s。、]+$/g, "");
+  const cmp = locale === "en" ? trimmed.toLowerCase() : trimmed;
+  return CONFIRMATION_ONLY_MARKERS[locale].includes(cmp);
 }
 
 /** Most recently touched active element — same "fresh first" ordering
@@ -496,8 +545,9 @@ function decideResponse(args: {
   providerStatus: ProviderStatus;
   acceptedUpdatesThisTurn: ProposedUpdate[];
   graph: ContextGraph;
+  locale: Locale;
 }): ResponseDecision {
-  const { newEvidence, wasCorrection, turn, providerStatus, acceptedUpdatesThisTurn, graph } = args;
+  const { newEvidence, wasCorrection, turn, providerStatus, acceptedUpdatesThisTurn, graph, locale } = args;
 
   if (newEvidence.certainty === "uncertain") {
     return {
@@ -517,7 +567,7 @@ function decideResponse(args: {
     };
   }
 
-  if (hasHedge(newEvidence.text)) {
+  if (hasHedge(newEvidence.text, locale)) {
     return {
       id: `ir${turn}`, turn, mode: "ask",
       evidenceRefs: [newEvidence.text],
@@ -526,7 +576,7 @@ function decideResponse(args: {
     };
   }
 
-  if (isConfirmationOnly(newEvidence.text)) {
+  if (isConfirmationOnly(newEvidence.text, locale)) {
     const target = mostRecentActiveElement(graph);
     if (target) {
       return {
@@ -570,8 +620,54 @@ function decideResponse(args: {
  * available when responsePhraser.ts is unavailable or its output fails
  * validation.
  */
-function renderResponseTemplate(decision: ResponseDecision): string {
+function renderResponseTemplate(decision: ResponseDecision, locale: Locale): string {
   const first = decision.evidenceRefs[0] ?? "";
+  // Multilingual Gate — English. Deliberately plain/template-like, same
+  // "always-available safety net, not the live voice" philosophy as
+  // the ko/ja branches — avoids the specific echo phrases Beta Handoff
+  // §7 bans for the LIVE prompt voice ("So you're saying...", "It
+  // sounds like...", etc.), since this fallback is the degraded path,
+  // not AURINA's real voice.
+  if (locale === "en") {
+    // `first`/`priorEvidenceRef` are raw user text and often already
+    // end in their own punctuation — found via real conversation (E2):
+    // a trailing template period after the closing quote produced
+    // '..."​.' (double punctuation). No trailing period after a quoted
+    // value avoids this regardless of what the quoted text ends with.
+    const quote = (s: string) => `"${s.replace(/[.!?]+$/, "")}"`;
+    switch (decision.mode) {
+      case "acknowledge-uncertainty":
+        return `You mentioned ${quote(first)} — it's fine to leave it there for now.`;
+      case "acknowledge-correction":
+        return `You corrected that to ${quote(first)} — noted.`;
+      case "acknowledge-continuity":
+        return decision.priorEvidenceRef
+          ? `Following ${quote(decision.priorEvidenceRef)}, you added ${quote(first)}.`
+          : `You mentioned ${quote(first)}.`;
+      case "ask":
+        return decision.questionFallback ? renderProbeTemplate(decision.questionFallback) : `Is there anything more that comes to mind about ${quote(first)}?`;
+      case "acknowledge":
+      default:
+        return `You mentioned ${quote(first)}.`;
+    }
+  }
+  if (locale === "ja") {
+    switch (decision.mode) {
+      case "acknowledge-uncertainty":
+        return `「${first}」とおっしゃいましたね。今はそのままにしておいて大丈夫です。`;
+      case "acknowledge-correction":
+        return `「${first}」と直していただきましたね。そのように受け止めます。`;
+      case "acknowledge-continuity":
+        return decision.priorEvidenceRef
+          ? `「${decision.priorEvidenceRef}」に続けて「${first}」とおっしゃいましたね。`
+          : `「${first}」とおっしゃいましたね。`;
+      case "ask":
+        return decision.questionFallback ? renderProbeTemplate(decision.questionFallback) : `「${first}」について、もう少し思い浮かぶことはありますか？`;
+      case "acknowledge":
+      default:
+        return `「${first}」とおっしゃいましたね。`;
+    }
+  }
   switch (decision.mode) {
     case "acknowledge-uncertainty":
       return `'${first}'라고 말씀해 주셨어요. 지금은 그 정도로 남겨두셔도 괜찮습니다.`;
@@ -688,7 +784,7 @@ export async function advanceIntelligence(
 
   const decision = decideResponse({
     graph, newEvidence: input.newEvidence, wasCorrection: input.wasCorrection,
-    turn: input.turn, providerStatus, acceptedUpdatesThisTurn,
+    turn: input.turn, providerStatus, acceptedUpdatesThisTurn, locale: input.locale,
   });
 
   // Response wording layer, separate from the decision layer above.
@@ -698,8 +794,8 @@ export async function advanceIntelligence(
   // unreachable in practice.
   const phrased = decision.mode === "ask" && decision.questionFallback
     ? await phraseQuestion(decision.questionFallback)
-    : await phraseResponse(decision, phraseStats);
-  const renderedText = phrased.text ?? renderResponseTemplate(decision);
+    : await phraseResponse(decision, input.locale, phraseStats);
+  const renderedText = phrased.text ?? renderResponseTemplate(decision, input.locale);
   const wordingSource: "provider" | "template" = phrased.text ? "provider" : "template";
 
   // NEXT GATE — decideResponse() no longer targets a specific

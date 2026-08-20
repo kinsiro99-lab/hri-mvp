@@ -27,6 +27,8 @@ import type {
   TimelineEntry,
 } from "./hri/v3/types"
 import type { Notice } from "@/lib/notice/types"
+import type { Locale } from "@/lib/hri/locale"
+import { CONTENT } from "@/lib/i18n/content"
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -73,6 +75,12 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
   const [inputValue, setInputValue] = useState("")
   const [history, setHistory] = useState<Exchange[]>([])
   const [allInputs, setAllInputs] = useState<string[]>([])
+  // Multilingual Gate — Beta Handoff §2: locale is session-locked. Free
+  // to change only while allInputs is still empty (no session data has
+  // been built under a specific locale yet); handleLocaleChange below
+  // guards this explicitly, and the switcher itself is only rendered
+  // pre-session (Arrival, hasHistory === false) as the primary guard.
+  const [locale, setLocale] = useState<Locale>("ko")
   const [activeQ, setActiveQ] = useState<string | null>(null)
   const [reflection, setReflection] = useState<string | null>(null)
   const [mainQuestion, setMainQuestion] = useState<string | null>(null)
@@ -106,7 +114,7 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
     setPhase("thinking")
 
     try {
-      const result = await callEngine({ turn: nextTurn, inputs: nextInputs })
+      const result = await callEngine({ turn: nextTurn, inputs: nextInputs, locale })
 
       if (result.reflection) {
         const nextMainQuestion = typeof result.mainQuestion === "string"
@@ -143,10 +151,10 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
       setPhase("idle")
 
     } catch {
-      setError("잠시 연결이 원활하지 않아요. 다시 시도해 주세요.")
+      setError(CONTENT[locale].session.networkError)
       setPhase(turn === 0 ? "idle" : "question")
     }
-  }, [inputValue, allInputs, phase, turn])
+  }, [inputValue, allInputs, phase, turn, locale])
 
   // ── Restart ────────────────────────────────────────────────────
   const handleRestart = () => {
@@ -161,6 +169,14 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
     setQuestionKey(0)
     sessionIdRef.current = createSessionId()
   }
+
+  // ── Locale (Multilingual Gate) ────────────────────────────────
+  // Guarded here too, not just by the switcher's own visibility in
+  // Arrival — Beta Handoff §2: language must never change mid-session.
+  const handleLocaleChange = useCallback((next: Locale) => {
+    if (allInputs.length > 0) return
+    setLocale(next)
+  }, [allInputs.length])
 
   // ── Non-destructive navigation ────────────────────────────────
   // Unlike handleRestart above, none of these clear allInputs/history/
@@ -289,6 +305,8 @@ if (!BETA_OPEN) {
         onGoHome={handleGoHome}
         onViewHistory={handleViewHistory}
         onViewFinal={handleViewFinal}
+        locale={locale}
+        onLocaleChange={allInputs.length === 0 ? handleLocaleChange : undefined}
       />
 
       {phase === "thinking" && <ThinkingDots />}

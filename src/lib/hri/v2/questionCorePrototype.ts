@@ -15,6 +15,7 @@
  * deleting it). Every other turn is preserved verbatim, unconditionally.
  */
 import { devLog } from "../../devLog";
+import type { Locale } from "../locale";
 
 export type Certainty = "stated" | "uncertain";
 export type EvidenceStatus = "active" | "superseded";
@@ -211,15 +212,44 @@ export function applyEvidenceToUnderstanding(args: {
   return next;
 }
 
-const UNCERTAIN_MARKERS = ["모르겠다", "모르겠어", "설명하기 어렵다", "잘 모르", "뭐라고 설명"];
-const CORRECTION_MARKERS = ["아니다", "아니야", "사실은", "사실 아직", "아직 결정된 것은 아니다", "그게 아니라"];
+const UNCERTAIN_MARKERS: Record<Locale, string[]> = {
+  ko: ["모르겠다", "모르겠어", "설명하기 어렵다", "잘 모르", "뭐라고 설명"],
+  // Multilingual Gate — Japanese equivalents, not mechanical translation:
+  // "わからない/分からない" (don't know), "説明が難しい"/"うまく説明できない"
+  // (hard to explain / can't put it into words), "何と言えばいいか" (not
+  // sure how to put it) parallels Korean's "뭐라고 설명" (lit. "what to
+  // explain").
+  ja: ["わからない", "分からない", "説明が難しい", "うまく説明できない", "何と言えばいいか"],
+  // Multilingual Gate — English. Matched case-insensitively (see
+  // isUncertain below) since Latin script varies case naturally at
+  // sentence-start unlike Korean/Japanese — markers stored lowercase.
+  en: ["i don't know", "i do not know", "not sure how to explain", "hard to explain", "i'm not sure"],
+};
+const CORRECTION_MARKERS: Record<Locale, string[]> = {
+  ko: ["아니다", "아니야", "사실은", "사실 아직", "아직 결정된 것은 아니다", "그게 아니라"],
+  // "違う/違います" (that's not it), "実は" (actually), "そうじゃなくて"/
+  // "そうではなくて" (that's not what I mean), "まだ決まっていない"
+  // parallels Korean's "아직 결정된 것은 아니다" (not decided yet).
+  ja: ["違う", "違います", "実は", "そうじゃなくて", "そうではなくて", "まだ決まっていない"],
+  // English "actually"/"no" alone are too common (would over-trigger —
+  // conservative matching per Beta Handoff §6) — these are the fuller
+  // phrases that actually signal a correction, same conservatism as
+  // ja's full-phrase choices above.
+  en: ["actually, no", "no, that's not it", "that's not right", "wait, actually", "on second thought", "i take that back"],
+};
 
-function isUncertain(text: string): boolean {
-  return UNCERTAIN_MARKERS.some((m) => text.includes(m));
+/** English is matched case-insensitively (markers stored lowercase) —
+ *  Latin script varies case naturally (e.g. sentence-initial "I don't
+ *  know") in a way Korean/Japanese do not. ko/ja stay exactly as
+ *  before this Gate: raw, case-sensitive substring match. */
+function isUncertain(text: string, locale: Locale): boolean {
+  const cmp = locale === "en" ? text.toLowerCase() : text;
+  return UNCERTAIN_MARKERS[locale].some((m) => cmp.includes(m));
 }
 
-function isCorrection(text: string): boolean {
-  return CORRECTION_MARKERS.some((m) => text.includes(m));
+function isCorrection(text: string, locale: Locale): boolean {
+  const cmp = locale === "en" ? text.toLowerCase() : text;
+  return CORRECTION_MARKERS[locale].some((m) => cmp.includes(m));
 }
 
 function lastActiveIndex(evidence: EvidenceItem[]): number {
@@ -241,6 +271,7 @@ export function updateEvidence(
   priorEvidence: EvidenceItem[],
   text: string,
   turn: number,
+  locale: Locale = "ko",
 ): {
   evidence: EvidenceItem[];
   newEvidence: EvidenceItem;
@@ -255,8 +286,8 @@ export function updateEvidence(
   supersededText?: string;
 } {
   const trimmed = text.trim();
-  const certainty: Certainty = isUncertain(trimmed) ? "uncertain" : "stated";
-  const correction = isCorrection(trimmed);
+  const certainty: Certainty = isUncertain(trimmed, locale) ? "uncertain" : "stated";
+  const correction = isCorrection(trimmed, locale);
   const newEvidence: EvidenceItem = { text: trimmed, turn, certainty, status: "active" };
 
   let nextEvidence: EvidenceItem[];

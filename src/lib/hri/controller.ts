@@ -65,6 +65,7 @@ import { emptyContextGraph, type ConversationTurn } from "./context/types";
 import { buildFinalExperienceGrounding } from "./intelligence/finalExperienceComposer";
 import { phraseFinalExperience, renderFinalExperienceTemplate } from "./intelligence/finalExperiencePhraser";
 import { joinFinalExperience } from "./intelligence/finalExperienceTypes";
+import type { Locale } from "./locale";
 
 const HRI_V2 = true;
 
@@ -130,6 +131,10 @@ export type AdvanceSessionInput = {
   inputText: string;
   state: SessionState;
   events: HriEvent[];
+  /** Multilingual Gate — resolved by the caller (sessionAdapter.ts),
+   *  defaults to "ko" upstream. Session-locked: the same value must be
+   *  passed on every turn of one session (see hriRuntime.ts). */
+  locale: Locale;
 };
 
 export type AdvanceSessionResult = {
@@ -137,7 +142,7 @@ export type AdvanceSessionResult = {
   events: HriEvent[];
 };
 
-export async function advanceSession({ inputText, state, events }: AdvanceSessionInput): Promise<AdvanceSessionResult> {
+export async function advanceSession({ inputText, state, events, locale }: AdvanceSessionInput): Promise<AdvanceSessionResult> {
   const trimmed = inputText.trim();
   if (!trimmed) return { state, events };
 
@@ -149,7 +154,7 @@ export async function advanceSession({ inputText, state, events }: AdvanceSessio
   // doc). Never includes the current turn's own text (events here is
   // pre-this-turn); never affects self-contained crisis markers.
   const recentUserTexts = getUserInputTexts(events).slice(-3);
-  const safety = checkSafetyBoundary(trimmed, recentUserTexts);
+  const safety = checkSafetyBoundary(trimmed, recentUserTexts, locale);
   if (!safety.safe) {
     // Policy: build a fresh current-turn fallback snapshot rather than
     // preserving whatever snapshot the previous turn left behind — this
@@ -244,7 +249,7 @@ if (HRI_V2) {
   // with zero other change. wasCorrection/understandingChange are
   // devLog'd inside updateEvidence itself for the causal trace.
   const prototypeUpdateResult = USE_PROTOTYPE_QUESTION_CORE
-    ? updateEvidence(v2base.prototypeEvidence ?? [], trimmed, v2state.turnCount)
+    ? updateEvidence(v2base.prototypeEvidence ?? [], trimmed, v2state.turnCount, locale)
     : null;
 
   // Gate 23 — Probe / Provisional Understanding. Runs unconditionally
@@ -586,6 +591,7 @@ const fallbackReflectionText = [
         supersededEvidenceText: prototypeUpdateResult.supersededText,
         turn: hriState.turnCount,
         interpreter: reflectInterpreter,
+        locale,
       });
       nextIntelligenceGraph = graphUpdate.graph;
       nextIntelligenceProposalFeedback = graphUpdate.proposalFeedback;
@@ -609,9 +615,10 @@ const fallbackReflectionText = [
         hriState.prototypeEvidence,
         nextIntelligenceGraph,
         hriState.turnCount,
+        locale,
       );
-      const phrased = await phraseFinalExperience(grounding);
-      const finalExperience = phrased.result ?? renderFinalExperienceTemplate(grounding);
+      const phrased = await phraseFinalExperience(grounding, locale);
+      const finalExperience = phrased.result ?? renderFinalExperienceTemplate(grounding, locale);
       devLog("FINAL EXPERIENCE:", { outcome: phrased.outcome, errorMessage: phrased.errorMessage });
       reflectionText = joinFinalExperience(finalExperience.mirror, finalExperience.sharing);
     }
@@ -671,6 +678,7 @@ const fallbackReflectionText = [
       supersededEvidenceText: prototypeUpdateResult.supersededText,
       turn: hriState.turnCount,
       interpreter,
+      locale,
     });
 
     const question: QuestionOutput = {

@@ -13,21 +13,32 @@
 import type { EvidenceItem } from "../v2/questionCorePrototype";
 import type { ContextGraph } from "../context/types";
 import type { FinalExperienceGrounding } from "./finalExperienceTypes";
+import type { Locale } from "../locale";
 
 /** Local copy of reflectionComposer.ts's CONTRAST_MARKERS — same
  *  precedent as responsePhraser.ts's PRESUMPTION_MARKERS ("reused
  *  verbatim" as an intentional small local copy, not a cross-file
- *  import, to keep this Gate's blast radius inside intelligence/). */
-const CONTRAST_MARKERS = ["하지만", "그렇지만", "그러나", "반면", "그래도"];
+ *  import, to keep this Gate's blast radius inside intelligence/).
+ *  Multilingual Gate — Japanese contrast markers added separately,
+ *  Korean list byte-preserved. Soft tension-detection signal only
+ *  (hasTension also has other, structural sources — see below), so a
+ *  first-pass Japanese list is safe even without empirical tuning yet. */
+const CONTRAST_MARKERS: Record<Locale, string[]> = {
+  ko: ["하지만", "그렇지만", "그러나", "반면", "그래도"],
+  ja: ["しかし", "でも", "だが", "一方で", "それでも", "けれど", "けれども"],
+  en: ["but", "however", "although", "even though", "still", "yet"],
+};
 
-function hasLexicalContrast(texts: string[]): boolean {
-  return texts.some((t) => CONTRAST_MARKERS.some((m) => t.includes(m)));
+function hasLexicalContrast(texts: string[], locale: Locale): boolean {
+  const cmp = locale === "en" ? texts.map((t) => t.toLowerCase()) : texts;
+  return cmp.some((t) => CONTRAST_MARKERS[locale].some((m) => t.includes(m)));
 }
 
 export function buildFinalExperienceGrounding(
   evidence: EvidenceItem[] | undefined,
   graph: ContextGraph | undefined,
   turnCount: number,
+  locale: Locale,
 ): FinalExperienceGrounding {
   const activeEvidence = (evidence ?? []).filter((e) => e.status === "active");
   const verbatimEvidence = [...new Set(activeEvidence.map((e) => e.text.trim()).filter(Boolean))];
@@ -57,7 +68,7 @@ export function buildFinalExperienceGrounding(
   const hasTension =
     relations.some((r) => r.type === "conflictsWith" || r.type === "limits") ||
     activeElements.some((e) => e.status === "conflicted") ||
-    hasLexicalContrast(verbatimEvidence);
+    hasLexicalContrast(verbatimEvidence, locale);
 
   return { verbatimEvidence, elements, relations, unresolvedReasons, hasTension, turnCount };
 }

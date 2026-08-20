@@ -343,6 +343,42 @@
   cursor: pointer;
 }
 
+/* Multilingual Gate — the header now holds the menu button plus,
+   pre-session only, the locale switcher; both stay in one row. */
+.arrival-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.arrival-locale-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.arrival-locale-btn {
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.arrival-locale-btn--active {
+  color: var(--ink-1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.arrival-locale-sep {
+  color: var(--ink-4);
+  font-size: 11px;
+}
+
 /* Landing/First Page Refinement — single-column is the universal
    default now, not a "mobile" special case. Root cause: .aurina-page
    (globals.css) caps every screen at max-width:620px regardless of
@@ -460,8 +496,16 @@
   margin: 0;
 }
 
+/* Checkpoint Gate — tightened from 28px so the headline and this line
+   read as one paired message ("mirror" -> "now, look at your
+   heart/mind"); the gap that used to sit here is moved to
+   .arrival-core-question below instead, so the SECOND pair (question
+   -> input) reads as a clearly separate invitation, not a continuation
+   of the first. Total headline-to-question height is nearly unchanged
+   (28+10=38px before, 14+34=48px now) — no new vertical space added,
+   just redistributed. */
 .arrival-description {
-  margin: 28px 0 0;
+  margin: 14px 0 0;
   font-size: clamp(15px, 1.6vw, 17px);
   line-height: 1.6;
   color: var(--ink-3);
@@ -471,9 +515,12 @@
 /* The Landing's core question — the single most important line
    between the headline and the input, so it sits clearly above the
    supporting description in both size and weight (see Landing UI
-   Sprint §2/§3: this is the hierarchy the whole page is built around). */
+   Sprint §2/§3: this is the hierarchy the whole page is built around).
+   Checkpoint Gate — margin-top widened from 10px (see
+   .arrival-description's own note above) so this line and the input
+   below it read as their own second, separate set. */
 .arrival-core-question {
-  margin: 10px 0 0;
+  margin: 34px 0 0;
   font-size: clamp(21px, 2.6vw, 27px);
   font-weight: 700;
   line-height: 1.4;
@@ -853,8 +900,11 @@ button.arrival-chip.arrival-chip--action:hover {
     font-size: 28px;
     line-height: 1.18;
   }
+  /* Checkpoint Gate — tightened to match the desktop rule's own
+     re-grouping (see .arrival-description's main rule above): the
+     headline+description pair should read the same way on mobile. */
   .arrival-description {
-    margin-top: 20px;
+    margin-top: 10px;
   }
 
   /* Mobile-only tidy-up of the disclaimer footer block — copy

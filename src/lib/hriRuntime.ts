@@ -1,11 +1,18 @@
 import { runHriSession } from "./hri/sessionAdapter";
 import { devLog } from "./devLog";
+import type { Locale } from "./hri/locale";
 
 export type EngineRequest = {
   turn: number;
   inputs: string[];
   /** Development-only. When true, returns internal lane/compass diagnostics. */
   debug?: boolean;
+  /** Multilingual Gate — the client sends the same value on every
+   *  request for one session (locale is session-locked, chosen only
+   *  before the first turn). Missing/unrecognized defaults to "ko"
+   *  downstream in sessionAdapter.ts's resolveLocale — every caller
+   *  that predates this Gate keeps identical Korean-only behavior. */
+  locale?: Locale;
 };
 
 export type EngineResponse = {
@@ -31,6 +38,7 @@ export async function getNextOutput(request: EngineRequest): Promise<EngineRespo
     // Diagnostic fields are development-only regardless of what a
     // client requests — never exposed once NODE_ENV is "production".
     debug: request.debug === true && process.env.NODE_ENV !== "production",
+    locale: request.locale,
   });
 
  return {

@@ -1,5 +1,7 @@
 import { AURINA_ASSETS } from "./assets";
 import { splitFinalExperience } from "../../lib/hri/intelligence/finalExperienceTypes";
+import type { Locale } from "@/lib/hri/locale";
+import { CONTENT } from "@/lib/i18n/content";
 import "./aurina.css";
 
 type Props = {
@@ -8,6 +10,7 @@ type Props = {
   hasHistory: boolean;
   onViewHistory: () => void;
   onGoHome: () => void;
+  locale: Locale;
 };
 
 /**
@@ -26,7 +29,8 @@ type Props = {
  * `<<<AURINA_HUMAN_SHARING>>>`-delimited `reflection` string — nothing
  * here generates, edits, or reorders that content.
  */
-export default function Reflection({ reflection, onRestart, hasHistory, onViewHistory, onGoHome }: Props) {
+export default function Reflection({ reflection, onRestart, hasHistory, onViewHistory, onGoHome, locale }: Props) {
+  const t = CONTENT[locale].reflection;
   const { mirror, sharing } = splitFinalExperience(reflection);
   const mirrorParagraphs = splitParagraphs(mirror);
   const sharingParagraphs = splitParagraphs(sharing);
@@ -38,9 +42,9 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
           <img src={AURINA_ASSETS.finalHostImage} alt="AURINA" />
         </div>
         <div className="reflection-wordmark">AURINA</div>
-        <h1 className="reflection-title">당신의 마음에 나타난 흐름</h1>
+        <h1 className="reflection-title">{t.title}</h1>
         <p className="reflection-subtitle">
-          지금까지의 이야기를 바탕으로 당신의 마음에 나타난 흐름을 살펴보겠습니다.
+          {t.subtitle}
         </p>
       </header>
 
@@ -50,14 +54,14 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
         aria-labelledby="reflection-layer-1"
       >
         <h2 id="reflection-layer-1" className="reflection-section-title">
-          마음의 거울
+          {t.mirrorLabel}
         </h2>
         <div className="reflection-mirror-frame">
           <div className="reflection-mirror">
             {mirrorParagraphs.length > 0 ? (
               mirrorParagraphs.map((p, i) => <p key={i}>{p}</p>)
             ) : (
-              <p>아직 드러나지 않았습니다.</p>
+              <p>{t.mirrorEmpty}</p>
             )}
           </div>
         </div>
@@ -69,7 +73,7 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
         aria-labelledby="reflection-layer-2"
       >
         <h2 id="reflection-layer-2" className="reflection-section-title">
-          마음이 머무는 곳
+          {t.giftLabel}
         </h2>
         <div className="reflection-giftcard">
           <div className="reflection-giftcard-inner">
@@ -80,7 +84,7 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
               {sharingParagraphs.length > 0 ? (
                 sharingParagraphs.map((p, i) => <p key={i}>{p}</p>)
               ) : (
-                <p>지금 이 흐름은 아직 완전히 정리된 형태는 아니지만, 있는 그대로도 충분히 의미가 있습니다.</p>
+                <p>{t.giftEmpty}</p>
               )}
             </div>
             <div className="reflection-giftcard-sign">AURINA</div>
@@ -98,15 +102,15 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
       <section className="reflection-actions reflection-fade" style={{ animationDelay: "420ms" }}>
         {hasHistory && (
           <button type="button" className="reflection-history-btn" onClick={onViewHistory}>
-            대화 다시 보기
+            {t.viewHistory}
           </button>
         )}
         <div className="reflection-utility-row">
           <button type="button" className="aurina-utility-link" onClick={onGoHome}>
-            홈
+            {t.home}
           </button>
           <button type="button" className="aurina-utility-link aurina-utility-link--muted" onClick={onRestart}>
-            다시 대화하기
+            {t.restartTalk}
           </button>
         </div>
       </section>

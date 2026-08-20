@@ -1,6 +1,8 @@
 import HriInput from "../HriInput";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
+import type { Locale } from "@/lib/hri/locale";
+import { CONTENT, formatNoticeDate } from "@/lib/i18n/content";
 import "./aurina.css";
 
 type Props = {
@@ -13,14 +15,15 @@ type Props = {
   onViewHistory: () => void;
   onViewFinal: () => void;
   onRestart: () => void;
+  locale: Locale;
+  /** Multilingual Gate — undefined when a session already exists
+   *  (locale is session-locked, Beta Handoff §2): the switcher renders
+   *  only when this is provided, i.e. only pre-session (hasHistory
+   *  false). See HriSession.tsx's handleLocaleChange for the guard. */
+  onLocaleChange?: (locale: Locale) => void;
 };
 
 const NOTICE_PREVIEW_LIMIT = 60;
-
-function formatNoticeDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
-}
 
 function noticePreview(body: string): string {
   const oneLine = body.replace(/\s+/g, " ").trim();
@@ -60,7 +63,10 @@ export default function Arrival({
   onViewHistory,
   onViewFinal,
   onRestart,
+  locale,
+  onLocaleChange,
 }: Props) {
+  const t = CONTENT[locale];
   const handleMirrorCard = () => {
     if (hasHistory) onViewHistory();
     else focusArrivalInput();
@@ -85,26 +91,50 @@ export default function Arrival({
           </div>
         </div>
 
-        {/* Visual only — no implementation this phase */}
-        <button type="button" className="arrival-menu" aria-label="메뉴">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <path d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
-        </button>
+        <div className="arrival-header-actions">
+          {/* Multilingual Gate — Beta Handoff §2/§12 (Japanese), §4
+              (English): only rendered pre-session (onLocaleChange is
+              undefined once hasHistory is true, see HriSession.tsx),
+              minimal toggle, secondary to the main experience. Extended
+              from two options to three (ko/ja/en) without redesigning
+              the switcher itself. */}
+          {onLocaleChange && (
+            <div className="arrival-locale-switcher" role="group" aria-label="Language">
+              {(["ko", "ja", "en"] as const).map((loc, i) => (
+                <span key={loc} className="arrival-locale-item">
+                  {i > 0 && <span className="arrival-locale-sep">|</span>}
+                  <button
+                    type="button"
+                    className={`arrival-locale-btn${locale === loc ? " arrival-locale-btn--active" : ""}`}
+                    onClick={() => onLocaleChange(loc)}
+                  >
+                    {t.localeSwitcher[loc]}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Visual only — no implementation this phase */}
+          <button type="button" className="arrival-menu" aria-label={t.arrival.menuAria}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <div className="arrival-hero">
         <div className="arrival-hero-content">
           <h1 className="arrival-headline">
-            마음의 거울
+            {t.arrival.headline}
           </h1>
 
           <p className="arrival-description">
-            당신의 지금을 함께 바라봅니다.
+            {t.arrival.description}
           </p>
 
           <p className="arrival-core-question">
-            마음에 가장 먼저 떠오르는 것은 무엇인가요?
+            {t.arrival.coreQuestion}
           </p>
 
           <div className="arrival-pill-zone">
@@ -112,19 +142,20 @@ export default function Arrival({
               value={inputValue}
               onChange={onInputChange}
               onSubmit={onSubmit}
-              placeholder="지금 떠오르는 것을 적어보세요"
+              placeholder={t.arrival.inputPlaceholder}
               autoFocus
+              locale={locale}
             />
           </div>
 
           <div className="arrival-chips">
-            <span className="arrival-chip">Enter로 계속하기</span>
+            <span className="arrival-chip">{t.arrival.enterHint}</span>
             {/* Visual only — no implementation this phase */}
             <button type="button" className="arrival-chip arrival-chip--action">
-              음성으로 이야기하기
+              {t.arrival.voiceChip}
             </button>
             <button type="button" className="arrival-chip arrival-chip--action">
-              익명으로 시작하기
+              {t.arrival.anonymousChip}
             </button>
           </div>
 
@@ -133,9 +164,12 @@ export default function Arrival({
               <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
             </svg>
             <p>
-              HRI는 평가나 진단을 위한 도구가 아닙니다.
-              <br />
-              현재 삶에 나타나는 생각과 흐름을 통해 당신의 리듬을 관찰할 수 있도록 돕습니다.
+              {t.arrival.noticeText.split("\n").map((line, i, arr) => (
+                <span key={i}>
+                  {line}
+                  {i < arr.length - 1 && <br />}
+                </span>
+              ))}
             </p>
           </div>
 
@@ -143,13 +177,18 @@ export default function Arrival({
               legal notice, deliberately quieter than the question/
               input above it. No notices -> no DOM at all (no empty
               box). Capped to 3, most-recently-published first
-              (already enforced server-side by listPublishedNotices). */}
+              (already enforced server-side by listPublishedNotices).
+              Multilingual Gate — the wrapper label is localized; the
+              notice title/body themselves are admin-authored content
+              (Notice architecture is explicitly untouched this Gate,
+              Beta Handoff §9/§12) and are shown verbatim regardless of
+              locale. */}
           {notices.length > 0 && (
             <div className="arrival-notices">
               {notices.map((n) => (
                 <div key={n.id} className="arrival-notice-item">
                   <div className="arrival-notice-kicker">
-                    공지 · {formatNoticeDate(n.publishedAt ?? n.createdAt)}
+                    {t.arrival.noticeKicker(formatNoticeDate(n.publishedAt ?? n.createdAt, locale))}
                   </div>
                   <div className="arrival-notice-title">{n.title}</div>
                   <p className="arrival-notice-preview">{noticePreview(n.body)}</p>
@@ -167,20 +206,20 @@ export default function Arrival({
       <div className="arrival-cards">
         <ServiceCard
           icon={<OrbIcon />}
-          title="마음의 거울"
-          line={hasHistory ? "지금까지의 대화를 다시 봅니다." : "지금의 나를 비추어 봅니다."}
+          title={t.arrival.cards.mirrorTitle}
+          line={hasHistory ? t.arrival.cards.mirrorLineHistory : t.arrival.cards.mirrorLineDefault}
           onClick={handleMirrorCard}
         />
         <ServiceCard
           icon={<WaveIcon />}
-          title="리듬의 이해"
-          line={hasFinal ? "완성된 Final을 다시 봅니다." : "마음의 흐름을 발견합니다."}
+          title={t.arrival.cards.rhythmTitle}
+          line={hasFinal ? t.arrival.cards.rhythmLineFinal : t.arrival.cards.rhythmLineDefault}
           onClick={handleRhythmCard}
         />
         <ServiceCard
           icon={<SproutIcon />}
-          title="다음 리듬"
-          line={hasHistory || hasFinal ? "새로운 대화를 시작합니다." : "새로운 방향을 함께 찾습니다."}
+          title={t.arrival.cards.nextTitle}
+          line={hasHistory || hasFinal ? t.arrival.cards.nextLineRestart : t.arrival.cards.nextLineDefault}
           onClick={handleNextCard}
         />
       </div>

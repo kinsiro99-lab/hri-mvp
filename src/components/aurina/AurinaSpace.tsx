@@ -4,6 +4,8 @@ import Arrival from "./Arrival";
 import Reflection from "./Reflection";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
+import type { Locale } from "@/lib/hri/locale";
+import { CONTENT } from "@/lib/i18n/content";
 import "./aurina.css";
 
 type Exchange = {
@@ -27,6 +29,8 @@ type Props = {
   onGoHome: () => void;
   onViewHistory: () => void;
   onViewFinal: () => void;
+  locale: Locale;
+  onLocaleChange?: (locale: Locale) => void;
 };
 
 const TRAIL_VISIBLE_COUNT = 3;
@@ -141,7 +145,10 @@ export default function AurinaSpace({
   onGoHome,
   onViewHistory,
   onViewFinal,
+  locale,
+  onLocaleChange,
 }: Props) {
+  const t = CONTENT[locale];
   const [trailExpanded, setTrailExpanded] = useState(false);
   const display = useDisplayState(phase, mainQuestion, reflection);
   const displayPhase = display.phase;
@@ -189,6 +196,8 @@ export default function AurinaSpace({
             onViewHistory={onViewHistory}
             onViewFinal={onViewFinal}
             onRestart={onRestart}
+            locale={locale}
+            onLocaleChange={onLocaleChange}
           />
         )}
 
@@ -196,27 +205,27 @@ export default function AurinaSpace({
           <>
             <div className="aurina-utility-row">
               <button type="button" className="aurina-utility-link" onClick={onGoHome}>
-                홈
+                {t.conversation.home}
               </button>
               {hasFinal && (
                 <button type="button" className="aurina-utility-link" onClick={onViewFinal}>
-                  Final 결과 보기
+                  {t.conversation.viewFinal}
                 </button>
               )}
               <button type="button" className="aurina-utility-link aurina-utility-link--muted" onClick={onRestart}>
-                새로 시작
+                {t.conversation.restart}
               </button>
             </div>
 
             {history.length > 0 && (
-              <div className="aurina-trail" aria-label="이전 대화">
+              <div className="aurina-trail" aria-label={t.conversation.prevConversationAria}>
                 {hiddenCount > 0 && !trailExpanded && (
                   <button
                     type="button"
                     className="aurina-trail-toggle"
                     onClick={() => setTrailExpanded(true)}
                   >
-                    이전 대화 더보기 ({hiddenCount})
+                    {t.conversation.showMore(hiddenCount)}
                   </button>
                 )}
 
@@ -235,7 +244,7 @@ export default function AurinaSpace({
                     className="aurina-trail-toggle"
                     onClick={() => setTrailExpanded(false)}
                   >
-                    접기
+                    {t.conversation.collapse}
                   </button>
                 )}
               </div>
@@ -245,7 +254,7 @@ export default function AurinaSpace({
               <div className="aurina-conversation-zone" aria-live="polite">
                 {history.length > 0 && (
                   <div className="aurina-mine-block">
-                    <div className="aurina-mine-label">나의 이야기</div>
+                    <div className="aurina-mine-label">{t.conversation.myStory}</div>
                     <p className="aurina-mine-text">{history[history.length - 1]?.userText}</p>
                   </div>
                 )}
@@ -255,15 +264,16 @@ export default function AurinaSpace({
             )}
 
             {displayPhase === "thinking" ? (
-              <p className="aurina-thinking">AURINA가 지금까지의 이야기를 천천히 바라보고 있습니다…</p>
+              <p className="aurina-thinking">{t.conversation.thinking}</p>
             ) : (
               <div className="aurina-input-zone">
                 <HriInput
                   value={inputValue}
                   onChange={onInputChange}
                   onSubmit={onSubmit}
-                  placeholder="지금 떠오르는 것을 적어보세요."
+                  placeholder={t.conversation.inputPlaceholder}
                   autoFocus
+                  locale={locale}
                 />
               </div>
             )}
@@ -278,6 +288,7 @@ export default function AurinaSpace({
               hasHistory={hasHistory}
               onViewHistory={onViewHistory}
               onGoHome={onGoHome}
+              locale={locale}
             />
             {/* Gate 18 — Reflection is a Mirror Snapshot, not
                 Conversation End: the input stays available underneath
@@ -292,13 +303,14 @@ export default function AurinaSpace({
                 restart button above it; placeholder shortened since
                 the caption above it already carries that context. */}
             <div className="aurina-continuation">
-              <h2 className="aurina-continuation-title">더 떠오르는 것이 있다면</h2>
+              <h2 className="aurina-continuation-title">{t.conversation.continuationTitle}</h2>
               <div className="aurina-input-zone aurina-input-zone--continuation">
                 <HriInput
                   value={inputValue}
                   onChange={onInputChange}
                   onSubmit={onSubmit}
-                  placeholder="이어서 적어보세요."
+                  placeholder={t.conversation.continuationPlaceholder}
+                  locale={locale}
                 />
               </div>
             </div>

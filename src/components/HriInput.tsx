@@ -11,6 +11,8 @@ import {
   KeyboardEvent,
   ChangeEvent,
 } from "react"
+import type { Locale } from "@/lib/hri/locale"
+import { CONTENT } from "@/lib/i18n/content"
 
 interface HriInputProps {
   value:       string
@@ -19,6 +21,7 @@ interface HriInputProps {
   placeholder?: string
   disabled?:   boolean
   autoFocus?:  boolean
+  locale?:     Locale
 }
 
 export default function HriInput({
@@ -28,6 +31,7 @@ export default function HriInput({
   placeholder,
   disabled = false,
   autoFocus = true,
+  locale = "ko",
 }: HriInputProps) {
   const ref = useRef<HTMLTextAreaElement>(null)
 
@@ -75,7 +79,7 @@ export default function HriInput({
         placeholder={placeholder}
         disabled={disabled}
         rows={1}
-        aria-label="입력창"
+        aria-label={CONTENT[locale].input.textareaAria}
         aria-multiline="true"
       />
       <button
@@ -83,7 +87,7 @@ export default function HriInput({
         className="hri-pill-submit"
         onClick={handleSubmitClick}
         disabled={disabled || !value.trim()}
-        aria-label="계속하기"
+        aria-label={CONTENT[locale].input.submitAria}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
           <path d="M12 5v14M5 12h14" />

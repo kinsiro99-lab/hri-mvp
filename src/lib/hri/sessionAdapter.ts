@@ -3,6 +3,7 @@ import { selectMainQuestionSeed, type MainQuestionLane } from "./mainQuestionEng
 import { initialSessionState } from "./state";
 import type { HriEvent, SessionState } from "./types";
 import type { StateCompass } from "./stateCompass";
+import { resolveLocale, type Locale } from "./locale";
 
 export type RuntimeTurn = 1 | 2 | 3;
 
@@ -11,6 +12,11 @@ export type RuntimeRequest = {
   inputs: string[];
   /** Development-only. Exposes internal routing information for local tests. */
   debug?: boolean;
+  /** Multilingual Gate — resolved once here (defaults to "ko" if
+   *  missing/unrecognized) and passed unchanged into every advanceSession
+   *  call in the replay loop below, so one session never mixes locales
+   *  turn-to-turn (Beta Handoff §2: locale is session-locked). */
+  locale?: Locale;
 };
 
 export type RuntimeResponse = {
@@ -56,12 +62,13 @@ export async function runHriSession(request: RuntimeRequest): Promise<RuntimeRes
         .filter(Boolean)
         .slice(0, MAX_SESSION_INPUTS)
     : [];
+  const locale = resolveLocale(request.locale);
 
   let state = cloneInitialState();
   let events: HriEvent[] = [];
 
   for (const inputText of inputs) {
-    const next = await advanceSession({ inputText, state, events });
+    const next = await advanceSession({ inputText, state, events, locale });
     state = next.state;
     events = next.events;
   }
@@ -70,7 +77,7 @@ export async function runHriSession(request: RuntimeRequest): Promise<RuntimeRes
 
   if (!output) {
     return {
-      question: "지금 가장 먼저 마음에 걸리는 지점은 무엇인가요?",
+      question: locale === "ja" ? "今、一番心に引っかかっていることは何ですか？" : "지금 가장 먼저 마음에 걸리는 지점은 무엇인가요?",
       source: "hri-runtime",
     };
   }
