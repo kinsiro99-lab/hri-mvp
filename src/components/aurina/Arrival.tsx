@@ -2,7 +2,7 @@ import HriInput from "../HriInput";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
 import type { Locale } from "@/lib/hri/locale";
-import { CONTENT, formatNoticeDate } from "@/lib/i18n/content";
+import { CONTENT } from "@/lib/i18n/content";
 import "./aurina.css";
 
 type Props = {
@@ -24,10 +24,16 @@ type Props = {
 };
 
 const NOTICE_PREVIEW_LIMIT = 60;
+const NOTICE_CARD_TITLE_LIMIT = 24;
 
 function noticePreview(body: string): string {
   const oneLine = body.replace(/\s+/g, " ").trim();
   return oneLine.length > NOTICE_PREVIEW_LIMIT ? `${oneLine.slice(0, NOTICE_PREVIEW_LIMIT)}…` : oneLine;
+}
+
+function noticeCardTitle(title: string): string {
+  const oneLine = title.replace(/\s+/g, " ").trim();
+  return oneLine.length > NOTICE_CARD_TITLE_LIMIT ? `${oneLine.slice(0, NOTICE_CARD_TITLE_LIMIT)}…` : oneLine;
 }
 
 /**
@@ -67,6 +73,11 @@ export default function Arrival({
   onLocaleChange,
 }: Props) {
   const t = CONTENT[locale];
+  // Notice Card Gate — first bottom card shows the latest published
+  // Notice in place of the static Mirror card. notices is already
+  // sorted published_at/created_at DESC server-side (listPublishedNotices),
+  // so [0] is the latest. No notice -> falls back to the original card.
+  const latestNotice = notices[0] ?? null;
   const handleMirrorCard = () => {
     if (hasHistory) onViewHistory();
     else focusArrivalInput();
@@ -173,29 +184,10 @@ export default function Arrival({
             </p>
           </div>
 
-          {/* Notice System Gate §4 — sits right after the required
-              legal notice, deliberately quieter than the question/
-              input above it. No notices -> no DOM at all (no empty
-              box). Capped to 3, most-recently-published first
-              (already enforced server-side by listPublishedNotices).
-              Multilingual Gate — the wrapper label is localized; the
-              notice title/body themselves are admin-authored content
-              (Notice architecture is explicitly untouched this Gate,
-              Beta Handoff §9/§12) and are shown verbatim regardless of
-              locale. */}
-          {notices.length > 0 && (
-            <div className="arrival-notices">
-              {notices.map((n) => (
-                <div key={n.id} className="arrival-notice-item">
-                  <div className="arrival-notice-kicker">
-                    {t.arrival.noticeKicker(formatNoticeDate(n.publishedAt ?? n.createdAt, locale))}
-                  </div>
-                  <div className="arrival-notice-title">{n.title}</div>
-                  <p className="arrival-notice-preview">{noticePreview(n.body)}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Notice Card Gate — the separate Notice banner that used to
+              render here was removed: the latest Notice now shows in
+              the first bottom card instead (see latestNotice above),
+              so the same Notice is never shown twice on Arrival. */}
         </div>
 
         <div className="arrival-portrait">
@@ -206,9 +198,15 @@ export default function Arrival({
       <div className="arrival-cards">
         <ServiceCard
           icon={<OrbIcon />}
-          title={t.arrival.cards.mirrorTitle}
-          line={hasHistory ? t.arrival.cards.mirrorLineHistory : t.arrival.cards.mirrorLineDefault}
-          onClick={handleMirrorCard}
+          title={latestNotice ? noticeCardTitle(latestNotice.title) : t.arrival.cards.mirrorTitle}
+          line={
+            latestNotice
+              ? noticePreview(latestNotice.body)
+              : hasHistory
+                ? t.arrival.cards.mirrorLineHistory
+                : t.arrival.cards.mirrorLineDefault
+          }
+          onClick={latestNotice ? undefined : handleMirrorCard}
         />
         <ServiceCard
           icon={<WaveIcon />}
@@ -236,7 +234,7 @@ function ServiceCard({
   icon: React.ReactNode;
   title: string;
   line: string;
-  onClick: () => void;
+  onClick?: () => void;
 }) {
   return (
     <button type="button" className="arrival-card" onClick={onClick}>
