@@ -781,11 +781,14 @@ button.arrival-chip.arrival-chip--action:hover {
   opacity: 0.7;
 }
 
+/* 2+1 Layout Gate — 2 children now (RC ad card + Notice card), left
+   about 2/3, right about 1/3. The <860px stack rule below is
+   unchanged and applies the same way to 2 children as it did to 3. */
 .arrival-cards {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 2fr 1fr;
   gap: 20px;
   padding: 32px 48px;
   background: rgba(255, 255, 255, 0.32);
@@ -868,6 +871,97 @@ button.arrival-chip.arrival-chip--action:hover {
   font-size: 15px;
 }
 
+/* RC Promo Gate — image exposed directly (no click needed), plain
+   div not a button: no click target of its own while the RC
+   Production URL is unset. Mirrors .arrival-card's rounding/surface
+   so the pair still reads as one card row. */
+.arrival-ad-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* Provenance label — deliberately quieter than the image below it
+   (small, muted gray, no gold/emphasis) so it reads as a small print
+   credit, not a competing headline. */
+.arrival-ad-label {
+  padding: 12px 24px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-4);
+}
+
+.arrival-ad-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1200 / 675;
+  object-fit: cover;
+}
+
+.arrival-ad-body {
+  padding: 20px 24px 24px;
+}
+
+.arrival-ad-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+.arrival-ad-description {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-3);
+}
+
+/* Deliberately muted, not gold like a real CTA, plus an explicit
+   badge — the URL isn't final yet (§7/§8), so this must read as
+   pending, not as a working link. */
+.arrival-ad-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-4);
+  cursor: default;
+}
+
+.arrival-ad-cta-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-4);
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+/* Fine-print separation notice — smallest text on the card, sits
+   below the CTA, never competing with the image/title above it. */
+.arrival-ad-disclaimer {
+  margin: 10px 0 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-4);
+}
+
+/* 2+1 Layout Gate — utility row reuses .aurina-utility-row/-link as-is
+   (Conversation/Reflection's shared secondary-nav style); only spacing
+   to sit under the card row is added here. */
+.arrival-utility-row {
+  padding: 0 48px 32px;
+  margin-top: -8px;
+  justify-content: center;
+}
+
 /* .arrival-hero/.arrival-portrait's single-column composition is now
    the base rule above (Landing/First Page Refinement) — only
    .arrival-cards still needs a breakpoint, protected unchanged. */
@@ -893,6 +987,9 @@ button.arrival-chip.arrival-chip--action:hover {
   }
   .arrival-cards {
     padding: 24px;
+  }
+  .arrival-utility-row {
+    padding: 0 24px 24px;
   }
   .arrival-quote {
     display: none;

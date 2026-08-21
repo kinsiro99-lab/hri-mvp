@@ -28,4 +28,10 @@ export const AURINA_ASSETS = {
    *  (public/assets/aurina_portrait.png) so code never references a
    *  path with a space. The original is untouched. */
   finalHostImage: "/assets/aurina_portrait.png",
+
+  /** RC Reality Check promo card image on Arrival (.arrival-ad-card) —
+   *  byte-identical copy of C:\consulting-engine\viewer\public\ads\
+   *  rc-hri-ad-1200x675.png. HRI reads only its own public/ copy;
+   *  the consulting-engine source is never referenced at runtime. */
+  rcAdImage: "/assets/ads/rc-hri-ad-1200x675.png",
 } as const;

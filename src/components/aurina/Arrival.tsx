@@ -46,6 +46,18 @@ function renderLines(text: string) {
   ));
 }
 
+// RC Promo Gate — RC Production URL is not yet finalized (2+1 Layout
+// Investigation §7/§8): copy only, no href/onClick anywhere on this
+// card. Not localized on purpose — placeholder marketing copy pending
+// a real URL and translated copy from RC, not Arrival's per-locale
+// service content (see CONTENT in content.ts).
+const RC_AD = {
+  title: "사업의 문제, 먼저 스스로 점검해보세요",
+  description:
+    "막연한 고민을 몇 줄 입력하면 RC가 사업 현실의 구조를 보여주고,\n무엇을 더 확인해야 할지 짚어드립니다.",
+  cta: "RC Reality Check 시작하기 →",
+};
+
 /**
  * Arrival — the landing experience, built to the approved AURINA target
  * image. Static brand copy only; no engine data is read here. The
@@ -91,14 +103,6 @@ export default function Arrival({
   const [noticeDetailOpen, setNoticeDetailOpen] = useState(false);
   const handleMirrorCard = () => {
     if (hasHistory) onViewHistory();
-    else focusArrivalInput();
-  };
-  const handleRhythmCard = () => {
-    if (hasFinal) onViewFinal();
-    else focusArrivalInput();
-  };
-  const handleNextCard = () => {
-    if (hasHistory || hasFinal) onRestart();
     else focusArrivalInput();
   };
 
@@ -203,6 +207,7 @@ export default function Arrival({
       </div>
 
       <div className="arrival-cards">
+        <RcAdCard label={t.arrival.adLabel} disclaimer={t.arrival.adDisclaimer} />
         <ServiceCard
           icon={<OrbIcon />}
           title={latestNotice ? noticeCardTitle(latestNotice.title) : t.arrival.cards.mirrorTitle}
@@ -215,19 +220,30 @@ export default function Arrival({
           }
           onClick={latestNotice ? () => setNoticeDetailOpen(true) : handleMirrorCard}
         />
-        <ServiceCard
-          icon={<WaveIcon />}
-          title={t.arrival.cards.rhythmTitle}
-          line={hasFinal ? t.arrival.cards.rhythmLineFinal : t.arrival.cards.rhythmLineDefault}
-          onClick={handleRhythmCard}
-        />
-        <ServiceCard
-          icon={<SproutIcon />}
-          title={t.arrival.cards.nextTitle}
-          line={hasHistory || hasFinal ? t.arrival.cards.nextLineRestart : t.arrival.cards.nextLineDefault}
-          onClick={handleNextCard}
-        />
       </div>
+
+      {/* 2+1 Layout Gate — the 3 static cards this replaced (Mirror /
+          Rhythm / Next) each branched on hasHistory/hasFinal to reach
+          onViewHistory/onViewFinal/onRestart; that reach-back is kept
+          here, unchanged, as a small utility row instead of a card.
+          Same conditions as before, same handlers, nothing new. */}
+      {(hasHistory || hasFinal) && (
+        <div className="aurina-utility-row arrival-utility-row">
+          {hasHistory && (
+            <button type="button" className="aurina-utility-link" onClick={onViewHistory}>
+              {t.arrival.historyLink}
+            </button>
+          )}
+          {hasFinal && (
+            <button type="button" className="aurina-utility-link" onClick={onViewFinal}>
+              {t.arrival.finalLink}
+            </button>
+          )}
+          <button type="button" className="aurina-utility-link aurina-utility-link--muted" onClick={onRestart}>
+            {t.arrival.restartLink}
+          </button>
+        </div>
+      )}
 
       {latestNotice && noticeDetailOpen && (
         <NoticeDetailModal notice={latestNotice} onClose={() => setNoticeDetailOpen(false)} />
@@ -316,6 +332,32 @@ function NoticeDetailModal({ notice, onClose }: { notice: Notice; onClose: () =>
   );
 }
 
+// RC Promo Gate — plain markup, no <button>: this card has no click
+// target of its own while the URL is unset (§7/§8). Image is exposed
+// directly (no click needed to see it), matching the requirement that
+// the ad be visible without interaction.
+// RC Provenance Gate — label + disclaimer make clear RC is a separate
+// service from HRI, not shared data/identity; both localized (unlike
+// RC_AD's own copy, which is placeholder pending real URL/translation)
+// since the label/disclaimer wording was given in all 3 languages.
+function RcAdCard({ label, disclaimer }: { label: string; disclaimer: string }) {
+  return (
+    <div className="arrival-ad-card">
+      <div className="arrival-ad-label">{label}</div>
+      <img src={AURINA_ASSETS.rcAdImage} alt="" className="arrival-ad-image" />
+      <div className="arrival-ad-body">
+        <h3 className="arrival-ad-title">{RC_AD.title}</h3>
+        <p className="arrival-ad-description">{renderLines(RC_AD.description)}</p>
+        <span className="arrival-ad-cta" aria-disabled="true">
+          {RC_AD.cta}
+          <span className="arrival-ad-cta-badge">준비 중</span>
+        </span>
+        <p className="arrival-ad-disclaimer">{disclaimer}</p>
+      </div>
+    </div>
+  );
+}
+
 function ServiceCard({
   icon,
   title,
@@ -351,21 +393,3 @@ function OrbIcon() {
   );
 }
 
-function WaveIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 40 40" aria-hidden="true">
-      <path d="M4 24 Q10 14 16 24 T28 24 T40 24" stroke="#8fa8c9" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-      <path d="M4 19 Q10 9 16 19 T28 19 T40 19" stroke="#c9a877" strokeWidth="2" fill="none" strokeLinecap="round" opacity="0.6" />
-    </svg>
-  );
-}
-
-function SproutIcon() {
-  return (
-    <svg width="36" height="36" viewBox="0 0 40 40" aria-hidden="true">
-      <path d="M20 34 V18" stroke="#8a9a6b" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M20 20 C20 12 12 10 10 10 C10 18 16 20 20 20 Z" fill="#a8bb85" />
-      <path d="M20 24 C20 17 27 15 29 15 C29 22 24 24 20 24 Z" fill="#c9a877" />
-    </svg>
-  );
-}

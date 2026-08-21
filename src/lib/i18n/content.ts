@@ -31,6 +31,11 @@ export type Content = {
     trustText: string;
     noticeText: string;
     noticeKicker: (date: string) => string;
+    historyLink: string;
+    finalLink: string;
+    restartLink: string;
+    adLabel: string;
+    adDisclaimer: string;
     cards: {
       mirrorTitle: string;
       mirrorLineHistory: string;
@@ -91,6 +96,11 @@ export const CONTENT: Record<Locale, Content> = {
       trustText: "마음의 거울은 채팅방이 아닙니다.\n다른 사람에게 보여주기 위한 대화가 아니라, 지금의 내 마음을 스스로 바라보는 공간입니다.\n당신만이 바라볼 수 있는 마음의 창입니다.",
       noticeText: "HRI는 평가나 진단을 위한 도구가 아니며, 현재의 생각과 흐름을 통해 당신의 리듬을 함께 바라봅니다.",
       noticeKicker: (date) => `공지 · ${date}`,
+      historyLink: "이전 대화 이어보기",
+      finalLink: "Reflection 다시 보기",
+      restartLink: "새로 시작하기",
+      adLabel: "HRI 안내 · 관련 서비스",
+      adDisclaimer: "RC는 HRI와 독립적으로 운영되는 Business Reality 서비스입니다.",
       cards: {
         mirrorTitle: "마음의 거울",
         mirrorLineHistory: "지금까지의 대화를 다시 봅니다.",
@@ -159,6 +169,11 @@ export const CONTENT: Record<Locale, Content> = {
       trustText: "心の鏡はチャットルームではありません。\n誰かに見せるための対話ではなく、今のあなたの心を自分自身で見つめるための場所です。\nあなただけが見ることができる、心の窓です。",
       noticeText: "HRIは評価や診断のためのツールではなく、今の考えや流れを通して心のリズムを共に見つめます。",
       noticeKicker: (date) => `お知らせ · ${date}`,
+      historyLink: "前の対話を続ける",
+      finalLink: "Reflectionをもう一度見る",
+      restartLink: "新しく始める",
+      adLabel: "HRIからのご案内 · 関連サービス",
+      adDisclaimer: "RCはHRIとは独立して運営されるBusiness Realityサービスです。",
       cards: {
         mirrorTitle: "心の鏡",
         mirrorLineHistory: "これまでの対話を見返します。",
@@ -222,6 +237,11 @@ export const CONTENT: Record<Locale, Content> = {
       trustText: "Inner Mirror is not a chat room.\nThis isn't a conversation for anyone else to see — it's a space for looking at your own mind, right now.\nA window only you can look through.",
       noticeText: "HRI is not a tool for evaluation or diagnosis — it looks at the rhythm behind your current thoughts and flow, together with you.",
       noticeKicker: (date) => `Notice · ${date}`,
+      historyLink: "Continue previous conversation",
+      finalLink: "View Reflection again",
+      restartLink: "Start over",
+      adLabel: "HRI · Related Service",
+      adDisclaimer: "RC is a Business Reality service operated independently of HRI.",
       cards: {
         mirrorTitle: "Inner Mirror",
         mirrorLineHistory: "Look back at the conversation so far.",
