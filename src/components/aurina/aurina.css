@@ -666,6 +666,11 @@ button.arrival-chip.arrival-chip--action:hover {
   line-height: 1.6;
 }
 
+.arrival-notice p.arrival-notice-trust {
+  margin-bottom: 6px;
+  color: var(--ink-2);
+}
+
 /* Notice System Gate §4 — sits right below the required legal notice,
    quieter than the question/input above (smaller type, no gold input-
    style border) but a touch more present than the 12px disclaimer

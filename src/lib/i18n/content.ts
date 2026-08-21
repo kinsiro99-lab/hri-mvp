@@ -28,6 +28,7 @@ export type Content = {
     enterHint: string;
     voiceChip: string;
     anonymousChip: string;
+    trustText: string;
     noticeText: string;
     noticeKicker: (date: string) => string;
     cards: {
@@ -87,7 +88,8 @@ export const CONTENT: Record<Locale, Content> = {
       enterHint: "Enter로 계속하기",
       voiceChip: "음성으로 이야기하기",
       anonymousChip: "익명으로 시작하기",
-      noticeText: "HRI는 평가나 진단을 위한 도구가 아닙니다.\n현재 삶에 나타나는 생각과 흐름을 통해 당신의 리듬을 관찰할 수 있도록 돕습니다.",
+      trustText: "마음의 거울은 채팅방이 아닙니다.\n다른 사람에게 보여주기 위한 대화가 아니라, 지금의 내 마음을 스스로 바라보는 공간입니다.\n당신만이 바라볼 수 있는 마음의 창입니다.",
+      noticeText: "HRI는 평가나 진단을 위한 도구가 아니며, 현재의 생각과 흐름을 통해 당신의 리듬을 함께 바라봅니다.",
       noticeKicker: (date) => `공지 · ${date}`,
       cards: {
         mirrorTitle: "마음의 거울",
@@ -154,7 +156,8 @@ export const CONTENT: Record<Locale, Content> = {
       enterHint: "Enterで続ける",
       voiceChip: "音声で話す",
       anonymousChip: "匿名で始める",
-      noticeText: "HRIは評価や診断のためのツールではありません。\n今の暮らしに現れる考えや流れを通して、心のリズムをそっと見つめる手助けをします。",
+      trustText: "心の鏡はチャットルームではありません。\n誰かに見せるための対話ではなく、今のあなたの心を自分自身で見つめるための場所です。\nあなただけが見ることができる、心の窓です。",
+      noticeText: "HRIは評価や診断のためのツールではなく、今の考えや流れを通して心のリズムを共に見つめます。",
       noticeKicker: (date) => `お知らせ · ${date}`,
       cards: {
         mirrorTitle: "心の鏡",
@@ -216,7 +219,8 @@ export const CONTENT: Record<Locale, Content> = {
       enterHint: "Press Enter to continue",
       voiceChip: "Speak instead",
       anonymousChip: "Start anonymously",
-      noticeText: "HRI is not a tool for evaluation or diagnosis.\nIt helps you quietly notice the rhythm behind what's showing up in your life right now.",
+      trustText: "Inner Mirror is not a chat room.\nThis isn't a conversation for anyone else to see — it's a space for looking at your own mind, right now.\nA window only you can look through.",
+      noticeText: "HRI is not a tool for evaluation or diagnosis — it looks at the rhythm behind your current thoughts and flow, together with you.",
       noticeKicker: (date) => `Notice · ${date}`,
       cards: {
         mirrorTitle: "Inner Mirror",

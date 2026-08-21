@@ -37,6 +37,15 @@ function noticeCardTitle(title: string): string {
   return oneLine.length > NOTICE_CARD_TITLE_LIMIT ? `${oneLine.slice(0, NOTICE_CARD_TITLE_LIMIT)}…` : oneLine;
 }
 
+function renderLines(text: string) {
+  return text.split("\n").map((line, i, arr) => (
+    <span key={i}>
+      {line}
+      {i < arr.length - 1 && <br />}
+    </span>
+  ));
+}
+
 /**
  * Arrival — the landing experience, built to the approved AURINA target
  * image. Static brand copy only; no engine data is read here. The
@@ -176,14 +185,10 @@ export default function Arrival({
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
             </svg>
-            <p>
-              {t.arrival.noticeText.split("\n").map((line, i, arr) => (
-                <span key={i}>
-                  {line}
-                  {i < arr.length - 1 && <br />}
-                </span>
-              ))}
-            </p>
+            <div>
+              <p className="arrival-notice-trust">{renderLines(t.arrival.trustText)}</p>
+              <p>{renderLines(t.arrival.noticeText)}</p>
+            </div>
           </div>
 
           {/* Notice Card Gate — the separate Notice banner that used to
