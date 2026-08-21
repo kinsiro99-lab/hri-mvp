@@ -36,6 +36,8 @@ export type Content = {
     restartLink: string;
     adLabel: string;
     adDisclaimer: string;
+    adImageLine1: string;
+    adOpeningBadge: string;
     cards: {
       mirrorTitle: string;
       mirrorLineHistory: string;
@@ -101,6 +103,8 @@ export const CONTENT: Record<Locale, Content> = {
       restartLink: "새로 시작하기",
       adLabel: "HRI 안내 · 관련 서비스",
       adDisclaimer: "RC는 HRI와 독립적으로 운영되는 Business Reality 서비스입니다.",
+      adImageLine1: "자가진단부터 시작하는",
+      adOpeningBadge: "8월 28일 오픈 예정",
       cards: {
         mirrorTitle: "마음의 거울",
         mirrorLineHistory: "지금까지의 대화를 다시 봅니다.",
@@ -174,6 +178,8 @@ export const CONTENT: Record<Locale, Content> = {
       restartLink: "新しく始める",
       adLabel: "HRIからのご案内 · 関連サービス",
       adDisclaimer: "RCはHRIとは独立して運営されるBusiness Realityサービスです。",
+      adImageLine1: "セルフ診断から始める",
+      adOpeningBadge: "8月28日オープン予定",
       cards: {
         mirrorTitle: "心の鏡",
         mirrorLineHistory: "これまでの対話を見返します。",
@@ -242,6 +248,8 @@ export const CONTENT: Record<Locale, Content> = {
       restartLink: "Start over",
       adLabel: "HRI · Related Service",
       adDisclaimer: "RC is a Business Reality service operated independently of HRI.",
+      adImageLine1: "Start with Self-Assessment",
+      adOpeningBadge: "Opening August 28",
       cards: {
         mirrorTitle: "Inner Mirror",
         mirrorLineHistory: "Look back at the conversation so far.",

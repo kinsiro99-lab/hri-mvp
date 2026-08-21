@@ -874,7 +874,13 @@ button.arrival-chip.arrival-chip--action:hover {
 /* RC Promo Gate — image exposed directly (no click needed), plain
    div not a button: no click target of its own while the RC
    Production URL is unset. Mirrors .arrival-card's rounding/surface
-   so the pair still reads as one card row. */
+   so the pair still reads as one card row.
+   RC Card Internal Layout Gate — the card is no longer a full-width
+   image stacked over copy: .arrival-ad-row below splits it into an
+   image column (~43%) and a copy column (~57%), which is what keeps
+   the ad from reading larger/stronger than the HRI cards next to it.
+   The 2fr/1fr grid this card sits in, and HOME's width, are untouched
+   — only this card's own internal layout changed. */
 .arrival-ad-card {
   display: flex;
   flex-direction: column;
@@ -887,36 +893,100 @@ button.arrival-chip.arrival-chip--action:hover {
    (small, muted gray, no gold/emphasis) so it reads as a small print
    credit, not a competing headline. */
 .arrival-ad-label {
-  padding: 12px 24px 0;
+  padding: 14px 24px 0;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--ink-4);
 }
 
+.arrival-ad-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 14px 24px 0;
+}
+
+.arrival-ad-media {
+  position: relative;
+  flex: 0 0 43%;
+  aspect-ratio: 1200 / 675;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .arrival-ad-image {
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: 1200 / 675;
+  height: 100%;
   object-fit: cover;
 }
 
+/* Approved image-caption standard §3/§6 — white text over the image's
+   own dark wave background. Only ~54px separates the source's RC
+   logo (ends y 382/675) from its baked-in teal caption (y 436-464),
+   not enough to fit a legible 2-line caption by cropping alone, so
+   this covers the bottom ~40% of the image with a scrim instead:
+   transparent near the logo, fully opaque by the time it reaches the
+   old caption's y-position, so the two never visibly double up. */
+.arrival-ad-image-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 50%;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.97) 20%,
+    rgba(0, 0, 0, 0.98) 100%
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 0 10px 10px;
+  text-align: center;
+}
+
+.arrival-ad-caption-line1 {
+  font-size: 10px;
+  font-weight: 500;
+  color: #fff;
+  opacity: 0.92;
+  line-height: 1.25;
+}
+
+.arrival-ad-caption-line2 {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
 .arrival-ad-body {
-  padding: 20px 24px 24px;
+  flex: 1 1 57%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: 14px;
 }
 
 .arrival-ad-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
+  line-height: 1.3;
   color: var(--ink-1);
 }
 
 .arrival-ad-description {
   margin: 8px 0 0;
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--ink-3);
 }
 
@@ -925,10 +995,11 @@ button.arrival-chip.arrival-chip--action:hover {
    pending, not as a working link. */
 .arrival-ad-cta {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
-  font-size: 14px;
+  margin-top: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--ink-4);
   cursor: default;
@@ -944,10 +1015,12 @@ button.arrival-chip.arrival-chip--action:hover {
   padding: 2px 8px;
 }
 
-/* Fine-print separation notice — smallest text on the card, sits
-   below the CTA, never competing with the image/title above it. */
+/* Fine-print separation notice — smallest text on the card, spans
+   the full card width below the image/copy row, never competing with
+   either column above it. */
 .arrival-ad-disclaimer {
-  margin: 10px 0 0;
+  margin: 0;
+  padding: 10px 24px 20px;
   font-size: 10.5px;
   line-height: 1.5;
   color: var(--ink-4);
@@ -968,6 +1041,30 @@ button.arrival-chip.arrival-chip--action:hover {
 @media (max-width: 860px) {
   .arrival-cards {
     grid-template-columns: 1fr;
+  }
+
+  /* RC Card Internal Layout Gate §9 — image/copy stack instead of
+     sitting side by side once the outer 2-card row itself stacks:
+     image, then copy, then CTA+badge (already inside .arrival-ad-body,
+     no reordering needed), then the disclaimer (already a separate
+     full-width element below the row). */
+  .arrival-ad-row {
+    flex-direction: column;
+  }
+
+  .arrival-ad-media {
+    flex-basis: auto;
+    width: 100%;
+  }
+
+  /* Caption text was sized for the narrow ~43% desktop column;
+     restored to a more legible size now the image is full-width. */
+  .arrival-ad-caption-line1 {
+    font-size: 12px;
+  }
+
+  .arrival-ad-caption-line2 {
+    font-size: 16px;
   }
 }
 

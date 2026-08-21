@@ -52,11 +52,25 @@ function renderLines(text: string) {
 // a real URL and translated copy from RC, not Arrival's per-locale
 // service content (see CONTENT in content.ts).
 const RC_AD = {
-  title: "사업의 문제, 먼저 스스로 점검해보세요",
+  title: "사업의 문제,\n먼저 스스로 점검해보세요",
   description:
-    "막연한 고민을 몇 줄 입력하면 RC가 사업 현실의 구조를 보여주고,\n무엇을 더 확인해야 할지 짚어드립니다.",
+    "막연한 고민을 몇 줄 입력하면\nRC가 사업 현실의 구조를 보여주고,\n무엇을 더 점검해야 할지 짚어드립니다.",
   cta: "RC Reality Check 시작하기 →",
+  // Approved image-caption standard §3 — "Business Reality Check" is
+  // the brand phrase, kept literal/English across ko/ja/en (only the
+  // line above it, adImageLine1, is translated in content.ts).
+  imageLine2: "Business Reality Check",
 };
+
+// RC Ad Size Gate — the source image's own baked-in RC logo sits at
+// y 246-382 and its baked-in (untranslatable) teal caption at y
+// 436-464 out of 675 total (measured by pixel scan, not guessed). Only
+// ~54px of clear space separates them — not enough room to fit a
+// legible 2-line caption in between by cropping alone, so the new
+// caption instead sits in a bottom scrim dark enough to fully cover
+// the old caption's position (never cropped, image shown in full,
+// so aspect ratio is untouched). The ~20% smaller footprint ask is
+// handled separately, by .arrival-ad-card itself (see aurina.css).
 
 /**
  * Arrival — the landing experience, built to the approved AURINA target
@@ -207,7 +221,12 @@ export default function Arrival({
       </div>
 
       <div className="arrival-cards">
-        <RcAdCard label={t.arrival.adLabel} disclaimer={t.arrival.adDisclaimer} />
+        <RcAdCard
+          label={t.arrival.adLabel}
+          disclaimer={t.arrival.adDisclaimer}
+          imageLine1={t.arrival.adImageLine1}
+          openingBadge={t.arrival.adOpeningBadge}
+        />
         <ServiceCard
           icon={<OrbIcon />}
           title={latestNotice ? noticeCardTitle(latestNotice.title) : t.arrival.cards.mirrorTitle}
@@ -340,20 +359,52 @@ function NoticeDetailModal({ notice, onClose }: { notice: Notice; onClose: () =>
 // service from HRI, not shared data/identity; both localized (unlike
 // RC_AD's own copy, which is placeholder pending real URL/translation)
 // since the label/disclaimer wording was given in all 3 languages.
-function RcAdCard({ label, disclaimer }: { label: string; disclaimer: string }) {
+function RcAdCard({
+  label,
+  disclaimer,
+  imageLine1,
+  openingBadge,
+}: {
+  label: string;
+  disclaimer: string;
+  imageLine1: string;
+  openingBadge: string;
+}) {
   return (
     <div className="arrival-ad-card">
       <div className="arrival-ad-label">{label}</div>
-      <img src={AURINA_ASSETS.rcAdImage} alt="" className="arrival-ad-image" />
-      <div className="arrival-ad-body">
-        <h3 className="arrival-ad-title">{RC_AD.title}</h3>
-        <p className="arrival-ad-description">{renderLines(RC_AD.description)}</p>
-        <span className="arrival-ad-cta" aria-disabled="true">
-          {RC_AD.cta}
-          <span className="arrival-ad-cta-badge">준비 중</span>
-        </span>
-        <p className="arrival-ad-disclaimer">{disclaimer}</p>
+      {/* RC Card Internal Layout Gate — image left (~43%) / copy right
+          (~57%), not the old full-width-image-then-copy-below stack.
+          Only .arrival-ad-row's own flex-direction flips (row -> column)
+          at the existing <=860px breakpoint; grid 2:1 / HOME width are
+          untouched. */}
+      <div className="arrival-ad-row">
+        <div className="arrival-ad-media">
+          {/* Image shown in full, uncropped, native 1200:675 ratio —
+              aspect-ratio + object-fit:cover here only guards against
+              any container rounding, they don't crop anything away. */}
+          <img src={AURINA_ASSETS.rcAdImage} alt="" className="arrival-ad-image" />
+          {/* Approved image-caption standard §3/§6 — the localized
+              replacement caption. The scrim beneath it is opaque enough
+              by the time it reaches the source PNG's own baked-in
+              teal caption (y 436-464/675) to cover it, so the two
+              never visibly double up. Switches with `locale` via
+              existing CONTENT, never all 3 languages at once. */}
+          <div className="arrival-ad-image-caption">
+            <span className="arrival-ad-caption-line1">{imageLine1}</span>
+            <span className="arrival-ad-caption-line2">{RC_AD.imageLine2}</span>
+          </div>
+        </div>
+        <div className="arrival-ad-body">
+          <h3 className="arrival-ad-title">{renderLines(RC_AD.title)}</h3>
+          <p className="arrival-ad-description">{renderLines(RC_AD.description)}</p>
+          <span className="arrival-ad-cta" aria-disabled="true">
+            {RC_AD.cta}
+            <span className="arrival-ad-cta-badge">{openingBadge}</span>
+          </span>
+        </div>
       </div>
+      <p className="arrival-ad-disclaimer">{disclaimer}</p>
     </div>
   );
 }
