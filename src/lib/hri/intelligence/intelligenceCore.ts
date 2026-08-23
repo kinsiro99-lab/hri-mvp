@@ -528,11 +528,23 @@ function mostRecentActiveElement(graph: ContextGraph): ContextElement | undefine
  *      phraser is never given identityRelation/updateKind at all — see
  *      responsePhraser.ts's buildUserPrompt, which only reads
  *      evidenceRefs/priorEvidenceRef).
+ *      Turn 2-3 Parroting Removal Gate — but only ONCE per element:
+ *      once the target has already been continuity-merged twice
+ *      (evidenceRefs.length >= 3, i.e. this would be the second
+ *      consecutive continuity turn on the same thread), this falls
+ *      through to mode:"ask" instead — see the code below for why a
+ *      plain length check on existing data is enough, no new field.
  *   6. plain acknowledge — the default. Deliberately does NOT consult
  *      graph.relations/unresolved/other elements to pick a probe
  *      target; it always speaks to the newest evidence.
+ *      Turn 2-3 Parroting Removal Gate — except turn 1 (the very first
+ *      evidence of the conversation), which has no continuity to draw
+ *      on either and would otherwise be a pure echo; that one case
+ *      also falls through to mode:"ask" (fires at most once per
+ *      conversation, so this is not "every turn becomes a question").
  *
- * mode:"ask" is now reachable (branches 3/4 above) — still never via
+ * mode:"ask" is now reachable (branches 3/4, and the two Turn 2-3
+ * Parroting Removal Gate cases nested in 5/6 above) — still never via
  * `questionFallback`/decideQuestion(); phrased directly by
  * responsePhraser.ts's own ASK mode rule, grounded only in evidenceRefs
  * set here (never the graph.relations/unresolved machinery decideQuestion
@@ -595,12 +607,57 @@ function decideResponse(args: {
     const u = [...acceptedUpdatesThisTurn].sort((a, b) => b.confidence - a.confidence)[0];
     const target = elementById(graph, u.targetElementId);
     const priorText = target?.evidenceRefs[0]?.sourceText;
+
+    // Turn 2-3 Parroting Removal Gate — evidenceRefs.length already
+    // counts how many times THIS element has been merged into (1 at
+    // creation, +1 per accepted continuity update — see
+    // evaluationHarness.ts's mergeInterpreterOutput, which appends,
+    // never replaces). >=3 means this would be the SECOND consecutive
+    // continuity turn on the same element (CASE B/C's T3): the first
+    // continuity (len=2) still adds a genuine new dimension (e.g. Fact
+    // -> Feeling) and is left as acknowledge-continuity below; only the
+    // second one onward — re-merging what's already been said twice —
+    // is redirected to the existing "ask" mode instead, so the Response
+    // moves to the NEXT dimension (Change/Meaning) rather than
+    // restating the whole thread again. No new field, no ContextGraph
+    // change — reuses data the graph already carries.
+    if (target && target.evidenceRefs.length >= 3) {
+      return {
+        id: `ir${turn}`, turn, mode: "ask",
+        evidenceRefs: [u.groundingText],
+        priorEvidenceRef: priorText,
+        reason: `evidence has already been added to "${target.id}" ${target.evidenceRefs.length - 1} times with no new dimension surfaced — ask for what's next (what changed, what stood out) instead of re-merging the same thread again`,
+        providerStatus,
+      };
+    }
+
     return {
       id: `ir${turn}`, turn, mode: "acknowledge-continuity",
       evidenceRefs: [u.groundingText],
       priorEvidenceRef: priorText,
       internalNote: `Understanding (internal only, never asserted in Response text): this turn ${u.identityRelation} (${u.kind}) prior evidence "${target?.id}" — provider's own note: "${u.note}"`,
       reason: `this turn's evidence continues/specifies prior evidence "${target?.id}" (${u.identityRelation}) — Response names both without asserting how they relate`,
+      providerStatus,
+    };
+  }
+
+  // Turn 2-3 Parroting Removal Gate — the very first evidence in the
+  // whole conversation (turn === 1: reducer.ts starts turnCount at 0
+  // and increments before this runs, so this is exactly the opening
+  // turn) has nothing to add continuity to and no hedge/confirmation
+  // signal either — a plain acknowledge here is definitionally just an
+  // echo (Information Gain ~= 0, see CASE A). Redirected to the
+  // existing "ask" mode so the opening turn pairs a short
+  // understanding with one genuine question, the same shape HRI
+  // already uses for hedge/confirmation-only. Every later
+  // plain-acknowledge turn (turn > 1) is untouched by this — it fires
+  // at most once per conversation, so this does not turn every turn
+  // into a question.
+  if (turn === 1) {
+    return {
+      id: `ir${turn}`, turn, mode: "ask",
+      evidenceRefs: [newEvidence.text],
+      reason: "this is the first thing the user has shared this conversation — a plain acknowledgment would just echo it back with no new content, so pair a short understanding with one genuine opening question instead",
       providerStatus,
     };
   }
