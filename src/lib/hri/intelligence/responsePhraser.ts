@@ -197,6 +197,31 @@ function tokenSet(text: string): Set<string> {
   return new Set(text.split(/[\s,.!?"'—()]+/).filter((w) => w.length >= 2));
 }
 
+// KO Response Validation Fix — Korean particles/endings attach directly
+// onto the word ("여행이라도" vs "여행을", "가고싶다" vs "가고 싶으시다",
+// "답답하다" vs "답답함", "쉬고 싶다" vs "쉬고 싶으시군요"), so tokenSet's
+// exact whole-token matching (correct for ja/en, which don't inflect
+// this way) rejects almost every natural LLM paraphrase as "shares no
+// content" — the confirmed root cause of KO responses falling back to
+// the quote-echo template. Two tokens are treated as the same content
+// if they share a leading KO_STEM_LEN-char run: long enough to require
+// a real shared word root (Hangul syllable blocks are information-
+// dense, so a coincidental match between unrelated words is rare)
+// while tolerating any suffix/ending variation after that root. ja/en
+// never call this — their exact-match behavior is unchanged.
+const KO_STEM_LEN = 2;
+
+function hasKoreanStemOverlap(responseTokens: Set<string>, groundingTokens: Set<string>): boolean {
+  for (const rt of responseTokens) {
+    if (rt.length < KO_STEM_LEN) continue;
+    const rPrefix = rt.slice(0, KO_STEM_LEN);
+    for (const gt of groundingTokens) {
+      if (gt.length >= KO_STEM_LEN && gt.slice(0, KO_STEM_LEN) === rPrefix) return true;
+    }
+  }
+  return false;
+}
+
 function groundingText(decision: ResponseDecision): string {
   const parts = [...decision.evidenceRefs];
   if (decision.priorEvidenceRef) parts.push(decision.priorEvidenceRef);
@@ -269,7 +294,24 @@ function findUngroundedPresumption(text: string, ground: string, locale: Locale)
   const cmpText = locale === "en" ? text.toLowerCase() : text;
   const cmpGround = locale === "en" ? ground.toLowerCase() : ground;
   for (const { marker, stem } of PRESUMPTION_MARKERS[locale]) {
-    if (cmpText.includes(marker) && !cmpGround.includes(stem)) return marker;
+    const idx = cmpText.indexOf(marker);
+    if (idx === -1) continue;
+    if (cmpGround.includes(stem)) continue;
+    // KO Validation Reliability Gate — this stem:"싶"(want) marker list
+    // was written for the POSITIVE case only (asserting a new desire
+    // the user never stated, e.g. "해야 한다"(must) -> "싶다"(want) — the
+    // real amplification §1.B bans). It never accounted for the marker
+    // also matching its own NEGATION ("~하고 싶지 않다" = "don't want
+    // to"), which is a different polarity meaning the same thing as
+    // "싫다"(dislike/don't want to) — the word grounding commonly uses
+    // for that exact state (e.g. "하기싫다"). Scoped narrowly to
+    // stem === "싶" and only when the marker is immediately followed by
+    // a negation in the response, so the original positive-desire
+    // restraint check is completely unchanged otherwise.
+    if (locale === "ko" && stem === "싶" && /^지\s*(가|는)?\s*(않|없)/.test(cmpText.slice(idx + marker.length))) {
+      if (cmpGround.includes("싫")) continue;
+    }
+    return marker;
   }
   return null;
 }
@@ -355,7 +397,14 @@ export function validatePhrasedResponse(text: string, decision: ResponseDecision
   for (const t of tokenSet(locale === "en" ? ground.toLowerCase() : ground)) groundingTokens.add(t);
   const responseTokens = tokenSet(locale === "en" ? trimmed.toLowerCase() : trimmed);
   const overlap = [...responseTokens].filter((t) => groundingTokens.has(t)).length;
-  if (responseTokens.size >= 3 && overlap === 0) {
+  // KO Response Validation Fix — ja/en keep the exact-match-only check
+  // (overlap > 0) unchanged; ko additionally accepts a stem-level match
+  // so a natural Korean paraphrase isn't rejected as "invented" just
+  // because its particles/endings differ from the grounding's.
+  const hasOverlap = locale === "ko"
+    ? overlap > 0 || hasKoreanStemOverlap(responseTokens, groundingTokens)
+    : overlap > 0;
+  if (responseTokens.size >= 3 && !hasOverlap) {
     return { ok: false, reason: "shares no content with its own grounding — possible invented content" };
   }
 
