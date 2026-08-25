@@ -544,6 +544,17 @@
     max-width: 100%;
     white-space: nowrap;
   }
+  /* First Entry Example Single-Line Fix — same reasoning as
+     .arrival-core-question above: the ch-based max-width below is a
+     mobile-only wrap guide, not a Desktop layout constraint. Above
+     560px the hero column has room, so the line goes back to its
+     natural (unwrapped) width instead of breaking early for no reason.
+     Text/size/weight/color untouched — only where it's allowed to
+     wrap changes. */
+  .arrival-example {
+    max-width: 100%;
+    white-space: nowrap;
+  }
 }
 
 /* First Entry Gate — Permission sits directly under the core question,
