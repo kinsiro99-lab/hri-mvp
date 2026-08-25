@@ -555,6 +555,15 @@
     max-width: 100%;
     white-space: nowrap;
   }
+  /* First Entry Permission Single-Line Fix — same reasoning as
+     .arrival-core-question/.arrival-example above: the ch-based
+     max-width below is a mobile-only wrap guide, not a Desktop layout
+     constraint. Text/size/weight/color untouched — only where it's
+     allowed to wrap changes. */
+  .arrival-permission {
+    max-width: 100%;
+    white-space: nowrap;
+  }
 }
 
 /* First Entry Gate — Permission sits directly under the core question,
