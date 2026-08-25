@@ -28,6 +28,7 @@ import type {
 } from "./hri/v3/types"
 import type { Notice } from "@/lib/notice/types"
 import type { Locale } from "@/lib/hri/locale"
+import type { HriEvent, SessionState } from "@/lib/hri/types"
 import { CONTENT } from "@/lib/i18n/content"
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -75,6 +76,18 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
   const [inputValue, setInputValue] = useState("")
   const [history, setHistory] = useState<Exchange[]>([])
   const [allInputs, setAllInputs] = useState<string[]>([])
+  // State Continuation Gate — the SessionState/HriEvent[] the engine
+  // returned for the most recently confirmed turn. Held in ordinary
+  // React state only (no localStorage/sessionStorage, per this Gate's
+  // constraints) so it lives exactly as long as allInputs/history do —
+  // lost on refresh today, same as every other piece of session state
+  // in this component. Sent back as priorState/priorEvents so the next
+  // call can advance one new turn instead of replaying the whole
+  // conversation (see sessionAdapter.ts). undefined on turn 1 (and
+  // after handleRestart), which is exactly the signal sessionAdapter.ts
+  // reads to fall back to its original full-replay path.
+  const [engineState, setEngineState] = useState<SessionState | undefined>(undefined)
+  const [engineEvents, setEngineEvents] = useState<HriEvent[] | undefined>(undefined)
   // Multilingual Gate — Beta Handoff §2: locale is session-locked. Free
   // to change only while allInputs is still empty (no session data has
   // been built under a specific locale yet); handleLocaleChange below
@@ -114,7 +127,15 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
     setPhase("thinking")
 
     try {
-      const result = await callEngine({ turn: nextTurn, inputs: nextInputs, locale })
+      const result = await callEngine({
+        turn: nextTurn,
+        inputs: nextInputs,
+        locale,
+        priorState: engineState,
+        priorEvents: engineEvents,
+      })
+      setEngineState(result.nextState)
+      setEngineEvents(result.nextEvents)
 
       if (result.reflection) {
         const nextMainQuestion = typeof result.mainQuestion === "string"
@@ -154,7 +175,7 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
       setError(CONTENT[locale].session.networkError)
       setPhase(turn === 0 ? "idle" : "question")
     }
-  }, [inputValue, allInputs, phase, turn, locale])
+  }, [inputValue, allInputs, phase, turn, locale, engineState, engineEvents])
 
   // ── Restart ────────────────────────────────────────────────────
   const handleRestart = () => {
@@ -162,6 +183,8 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
     setInputValue("")
     setHistory([])
     setAllInputs([])
+    setEngineState(undefined)
+    setEngineEvents(undefined)
     setActiveQ(null)
     setReflection(null)
     setMainQuestion(null)

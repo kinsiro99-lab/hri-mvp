@@ -17,6 +17,20 @@ export type RuntimeRequest = {
    *  call in the replay loop below, so one session never mixes locales
    *  turn-to-turn (Beta Handoff §2: locale is session-locked). */
   locale?: Locale;
+  /**
+   * State Continuation Gate — when the caller already holds the
+   * SessionState/HriEvent[] this same session produced last turn (see
+   * nextState/nextEvents on RuntimeResponse below), pass them back here
+   * so this call advances exactly one new turn instead of replaying
+   * the whole conversation from scratch (see the branch in
+   * runHriSession below). `inputs` is still read in this mode — only
+   * its LAST element (the newest turn's text) is used; earlier
+   * elements are ignored since priorState/priorEvents already carry
+   * their effect. Omit both (or on turn 1) to use the original
+   * full-replay path, preserved below unchanged.
+   */
+  priorState?: SessionState;
+  priorEvents?: HriEvent[];
 };
 
 export type RuntimeResponse = {
@@ -27,6 +41,13 @@ export type RuntimeResponse = {
   mainQuestionConfidence?: number;
   stateCompass?: StateCompass;
   source: "hri-runtime";
+  /**
+   * State Continuation Gate — the SessionState/HriEvent[] this turn
+   * actually produced. The caller stores these (session memory only)
+   * and sends them back as priorState/priorEvents on the next turn.
+   */
+  nextState?: SessionState;
+  nextEvents?: HriEvent[];
 };
 
 function cloneInitialState(): SessionState {
@@ -64,13 +85,35 @@ export async function runHriSession(request: RuntimeRequest): Promise<RuntimeRes
     : [];
   const locale = resolveLocale(request.locale);
 
-  let state = cloneInitialState();
-  let events: HriEvent[] = [];
+  let state: SessionState;
+  let events: HriEvent[];
 
-  for (const inputText of inputs) {
-    const next = await advanceSession({ inputText, state, events, locale });
+  // State Continuation Gate — advance exactly the one new turn on top
+  // of the caller's already-confirmed state, instead of replaying
+  // every prior turn's advanceSession (and therefore every prior
+  // turn's LLM calls) again on every single request. advanceSession
+  // itself never changes — it already only ever took one
+  // {inputText, state, events} at a time; only this adapter's own loop
+  // was forcing a from-scratch replay. Falls back to the untouched
+  // full-replay path below whenever priorState/priorEvents is missing
+  // (turn 1, or any caller that predates this Gate).
+  if (request.priorState && request.priorEvents && inputs.length > 0) {
+    const newInputText = inputs[inputs.length - 1];
+    const next = await advanceSession({ inputText: newInputText, state: request.priorState, events: request.priorEvents, locale });
     state = next.state;
     events = next.events;
+  } else {
+    // Full-history replay path — preserved unchanged as the fallback
+    // for turn 1 (no prior state exists yet) and for any caller that
+    // does not send priorState/priorEvents.
+    state = cloneInitialState();
+    events = [];
+
+    for (const inputText of inputs) {
+      const next = await advanceSession({ inputText, state, events, locale });
+      state = next.state;
+      events = next.events;
+    }
   }
 
   const output = latestOutput(events);
@@ -79,6 +122,8 @@ export async function runHriSession(request: RuntimeRequest): Promise<RuntimeRes
     return {
       question: locale === "ja" ? "今、一番心に引っかかっていることは何ですか？" : "지금 가장 먼저 마음에 걸리는 지점은 무엇인가요?",
       source: "hri-runtime",
+      nextState: state,
+      nextEvents: events,
     };
   }
 
@@ -96,6 +141,8 @@ export async function runHriSession(request: RuntimeRequest): Promise<RuntimeRes
           }
         : {}),
       source: "hri-runtime",
+      nextState: state,
+      nextEvents: events,
     };
   }
 
@@ -103,11 +150,15 @@ export async function runHriSession(request: RuntimeRequest): Promise<RuntimeRes
     return {
       reflection: output.text,
       source: "hri-runtime",
+      nextState: state,
+      nextEvents: events,
     };
   }
 
   return {
     question: output.text,
     source: "hri-runtime",
+    nextState: state,
+    nextEvents: events,
   };
 }

@@ -1,6 +1,7 @@
 import { runHriSession } from "./hri/sessionAdapter";
 import { devLog } from "./devLog";
 import type { Locale } from "./hri/locale";
+import type { HriEvent, SessionState } from "./hri/types";
 
 export type EngineRequest = {
   turn: number;
@@ -13,6 +14,10 @@ export type EngineRequest = {
    *  downstream in sessionAdapter.ts's resolveLocale — every caller
    *  that predates this Gate keeps identical Korean-only behavior. */
   locale?: Locale;
+  /** State Continuation Gate — see sessionAdapter.ts's RuntimeRequest
+   *  for the full contract. Optional and passed straight through. */
+  priorState?: SessionState;
+  priorEvents?: HriEvent[];
 };
 
 export type EngineResponse = {
@@ -26,6 +31,9 @@ export type EngineResponse = {
   stateCompass?: unknown;
   finished?: boolean;
   source?: string;
+  /** State Continuation Gate — see sessionAdapter.ts's RuntimeResponse. */
+  nextState?: SessionState;
+  nextEvents?: HriEvent[];
 };
 
 export async function getNextOutput(request: EngineRequest): Promise<EngineResponse> {
@@ -39,6 +47,8 @@ export async function getNextOutput(request: EngineRequest): Promise<EngineRespo
     // client requests — never exposed once NODE_ENV is "production".
     debug: request.debug === true && process.env.NODE_ENV !== "production",
     locale: request.locale,
+    priorState: request.priorState,
+    priorEvents: request.priorEvents,
   });
 
  return {
