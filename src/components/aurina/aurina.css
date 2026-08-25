@@ -1101,6 +1101,104 @@ button.arrival-chip.arrival-chip--action:hover {
   justify-content: center;
 }
 
+/* First View Benefit Position Correction — the old viewport-margin
+   fixed placement is gone (that required a second, off-DOM-position
+   mount just to dodge .aurina-moment's transform; see prior gate).
+   Benefit Message now lives inside the page, as the right column of
+   the row below the input, rendered exactly once. Mobile-first: a
+   plain stacked column by default (chips+trust primary, Benefit
+   below it — .arrival-below-input-primary and .arrival-benefit are
+   plain block children here, same as before this Gate), becoming a
+   real two-column row once there's enough width (see the breakpoint
+   below) to give Benefit a genuinely wide column instead of a narrow
+   sliver. No card background/border/shadow on Benefit itself (design
+   principle: no new card chrome) — plain text, same page background. */
+.arrival-below-input {
+  margin-top: 24px;
+}
+
+.arrival-benefit {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.arrival-benefit-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+/* The single clearest sentence in the block — largest weight/size of
+   the four lines, per the design principle that this line must read
+   as the headline message, not the title above it. Given a wide
+   enough column (see the two-column breakpoint below), this reads as
+   one line instead of being torn character-by-character. */
+.arrival-benefit-core {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+
+/* ink-2, not ink-3/ink-4 — explicitly not the gray fine print the
+   design principle rules out. */
+.arrival-benefit-body {
+  margin: 0 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.arrival-benefit-cta {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-1);
+}
+
+/* Two-column row, chips+trust (primary) beside Benefit (secondary) —
+   reclaims the whitespace that used to sit to the right of the chip
+   row, which is exactly the "area below the input" the correction
+   asked for. 861px reuses the same threshold .arrival-cards already
+   switches on (see its own max-width:860px rule further below) rather
+   than inventing a new one; by then .arrival-hero-content is wide
+   enough that Benefit's own column stays wide — no narrow, forced-
+   vertical wrapping. Chips/trust keep their existing markup/order/
+   styling untouched inside .arrival-below-input-primary; only their
+   shared ancestor changed. */
+@media (min-width: 861px) {
+  .arrival-below-input {
+    display: flex;
+    align-items: flex-start;
+    gap: 40px;
+  }
+
+  .arrival-below-input-primary {
+    flex: 1 1 55%;
+    min-width: 0;
+  }
+
+  .arrival-benefit {
+    flex: 1 1 45%;
+    min-width: 0;
+    margin-top: 0;
+    /* Vertical Alignment Gate — measured, not guessed: at 1440px this
+       is the exact gap between the row's top (chips) and where the
+       left column's first real line ("마음의 거울은 채팅방이
+       아닙니다.") starts, so arrival-benefit-title's top lands on
+       that same line. Horizontal position/width (flex-basis, padding-
+       left, border-left) untouched. */
+    padding-top: 96px;
+    padding-left: 32px;
+    border-top: none;
+    border-left: 1px solid var(--border-soft);
+  }
+}
+
 /* .arrival-hero/.arrival-portrait's single-column composition is now
    the base rule above (Landing/First Page Refinement) — only
    .arrival-cards still needs a breakpoint, protected unchanged. */

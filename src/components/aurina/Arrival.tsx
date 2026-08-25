@@ -46,6 +46,17 @@ function renderLines(text: string) {
   ));
 }
 
+// First View Benefit Message Gate — same pattern as RC_AD below: copy
+// only, not localized on purpose (only Korean text was provided), not
+// part of Arrival's per-locale CONTENT. Line breaks are kept verbatim
+// as given, not reflowed.
+const BENEFIT_MESSAGE = {
+  title: "당신에게 도움이 되는 이유 3가지",
+  core: "나를 이해 → 다른 사람을 이해 → 함께하는 일을 이해",
+  body: "를 위해 활용하세요. 다음 단계의 조직편과 자매 서비스인\n사업·프로젝트·사회활동 등의 자가진단 시스템을 활용하실 수 있게 됩니다.",
+  cta: "ID 신청은 그때 가능합니다!",
+};
+
 // RC Promo Gate — RC Production URL is not yet finalized (2+1 Layout
 // Investigation §7/§8): copy only, no href/onClick anywhere on this
 // card. Not localized on purpose — placeholder marketing copy pending
@@ -93,6 +104,22 @@ function focusArrivalInput() {
   zone?.scrollIntoView({ behavior: "smooth", block: "center" });
   const field = zone?.querySelector<HTMLTextAreaElement>(".hri-pill-input");
   field?.focus();
+}
+
+// First View Benefit Position Correction — rendered once, in normal
+// document flow (Position Correction Gate: no position:fixed, no
+// viewport-margin placement). Sits inside .arrival-below-input as the
+// right column alongside chips+trust (left column); on narrow/mobile
+// widths that row stacks to a single column instead (see aurina.css).
+function ArrivalBenefit() {
+  return (
+    <aside className="arrival-benefit">
+      <p className="arrival-benefit-title">{BENEFIT_MESSAGE.title}</p>
+      <p className="arrival-benefit-core">{renderLines(BENEFIT_MESSAGE.core)}</p>
+      <p className="arrival-benefit-body">{renderLines(BENEFIT_MESSAGE.body)}</p>
+      <p className="arrival-benefit-cta">{BENEFIT_MESSAGE.cta}</p>
+    </aside>
+  );
 }
 
 export default function Arrival({
@@ -198,35 +225,48 @@ export default function Arrival({
             />
           </div>
 
-          <div className="arrival-chips">
-            <span className="arrival-chip">{t.arrival.enterHint}</span>
-            {/* Visual only — no implementation this phase */}
-            <button type="button" className="arrival-chip arrival-chip--action">
-              {t.arrival.voiceChip}
-            </button>
-            <button type="button" className="arrival-chip arrival-chip--action">
-              {t.arrival.anonymousChip}
-            </button>
-          </div>
+          {/* First View Benefit Position Correction — the area below
+              the input becomes a two-column row on wide-enough screens:
+              chips+trust (unchanged, same markup/order as before) stay
+              the left/primary column, Benefit Message fills the right
+              column that used to be empty whitespace next to the chip
+              row. Below the breakpoint (see aurina.css) this stacks
+              back into a single natural column, Benefit last. */}
+          <div className="arrival-below-input">
+            <div className="arrival-below-input-primary">
+              <div className="arrival-chips">
+                <span className="arrival-chip">{t.arrival.enterHint}</span>
+                {/* Visual only — no implementation this phase */}
+                <button type="button" className="arrival-chip arrival-chip--action">
+                  {t.arrival.voiceChip}
+                </button>
+                <button type="button" className="arrival-chip arrival-chip--action">
+                  {t.arrival.anonymousChip}
+                </button>
+              </div>
 
-          <div className="arrival-notice">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
-            </svg>
-            <div>
-              <p className="arrival-notice-trust">{renderLines(t.arrival.trustText)}</p>
-              {/* Trust Layout Gate — a plain factual data-handling line,
-                  kept visually distinct (bolder/higher-contrast) from
-                  the trustText above it since it states something
-                  concrete about how conversations are actually handled
-                  rather than describing the feeling of the space. Wording
-                  is deliberately narrower than "never stored"/"no one
-                  can see it"/"fully anonymous" — those aren't backed by
-                  the current implementation (see observation_events +
-                  the admin observation viewer); "not made public" is. */}
-              <p className="arrival-notice-privacy">{t.arrival.privacyText}</p>
-              <p>{renderLines(t.arrival.noticeText)}</p>
+              <div className="arrival-notice">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
+                </svg>
+                <div>
+                  <p className="arrival-notice-trust">{renderLines(t.arrival.trustText)}</p>
+                  {/* Trust Layout Gate — a plain factual data-handling line,
+                      kept visually distinct (bolder/higher-contrast) from
+                      the trustText above it since it states something
+                      concrete about how conversations are actually handled
+                      rather than describing the feeling of the space. Wording
+                      is deliberately narrower than "never stored"/"no one
+                      can see it"/"fully anonymous" — those aren't backed by
+                      the current implementation (see observation_events +
+                      the admin observation viewer); "not made public" is. */}
+                  <p className="arrival-notice-privacy">{t.arrival.privacyText}</p>
+                  <p>{renderLines(t.arrival.noticeText)}</p>
+                </div>
+              </div>
             </div>
+
+            <ArrivalBenefit />
           </div>
 
           {/* Notice Card Gate — the separate Notice banner that used to

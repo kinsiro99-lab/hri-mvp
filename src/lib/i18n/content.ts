@@ -102,7 +102,7 @@ export const CONTENT: Record<Locale, Content> = {
       anonymousChip: "익명으로 시작하기",
       trustText: "마음의 거울은 채팅방이 아닙니다.\n당신 자신을 바라보기 위한 마음의 창입니다.",
       privacyText: "HRI에서 나눈 이야기는 외부에 공개되지 않습니다.",
-      noticeText: "HRI는 평가나 진단을 위한 도구가 아니며, 현재의 생각과 흐름을 통해 당신의 리듬을 함께 바라봅니다.",
+      noticeText: "HRI는 평가나 진단을 위한 도구가 아니며, 현재의 생각과 흐름을 통해\n당신의 리듬을 함께 바라봅니다.",
       noticeKicker: (date) => `공지 · ${date}`,
       historyLink: "이전 대화 이어보기",
       finalLink: "Reflection 다시 보기",
