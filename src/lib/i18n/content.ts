@@ -24,11 +24,14 @@ export type Content = {
     headline: string;
     description: string;
     coreQuestion: string;
+    permissionText: string;
+    exampleText: string;
     inputPlaceholder: string;
     enterHint: string;
     voiceChip: string;
     anonymousChip: string;
     trustText: string;
+    privacyText: string;
     noticeText: string;
     noticeKicker: (date: string) => string;
     historyLink: string;
@@ -90,12 +93,15 @@ export const CONTENT: Record<Locale, Content> = {
       menuAria: "메뉴",
       headline: "마음의 거울",
       description: "당신의 지금을 함께 바라봅니다.",
-      coreQuestion: "마음에 가장 먼저 떠오르는 것은 무엇인가요?",
+      coreQuestion: "지금 어떤 이야기가 떠오르나요?",
+      permissionText: "작은 일이나 오늘 있었던 일부터 시작해도 됩니다.",
+      exampleText: "예: 오늘 일이 잘 안 풀렸다 · 누군가 생각난다 · 그냥 조금 답답하다",
       inputPlaceholder: "지금 떠오르는 것을 적어보세요",
       enterHint: "Enter로 계속하기",
       voiceChip: "음성으로 이야기하기",
       anonymousChip: "익명으로 시작하기",
-      trustText: "마음의 거울은 채팅방이 아닙니다.\n다른 사람에게 보여주기 위한 대화가 아니라, 지금의 내 마음을 스스로 바라보는 공간입니다.\n당신만이 바라볼 수 있는 마음의 창입니다.",
+      trustText: "마음의 거울은 채팅방이 아닙니다.\n지금의 내 마음을 스스로 바라보는 공간입니다.\n당신 자신을 바라보기 위한 마음의 창입니다.",
+      privacyText: "HRI에서 나눈 이야기는 외부에 공개되지 않습니다.",
       noticeText: "HRI는 평가나 진단을 위한 도구가 아니며, 현재의 생각과 흐름을 통해 당신의 리듬을 함께 바라봅니다.",
       noticeKicker: (date) => `공지 · ${date}`,
       historyLink: "이전 대화 이어보기",
@@ -165,12 +171,15 @@ export const CONTENT: Record<Locale, Content> = {
       // removed from coreQuestion per this Gate's explicit instruction
       // — the question is now exactly "最初に浮かぶことは何ですか？".
       description: "今、あなたの心を見てください。",
-      coreQuestion: "最初に浮かぶことは何ですか？",
+      coreQuestion: "今、どんなことが浮かびますか？",
+      permissionText: "些細なことや、今日あった出来事から始めても大丈夫です。",
+      exampleText: "例：今日はうまくいかなかった・誰かのことを思い出す・なんとなく気が重い",
       inputPlaceholder: "今、浮かんでいることを書いてみてください",
       enterHint: "Enterで続ける",
       voiceChip: "音声で話す",
       anonymousChip: "匿名で始める",
-      trustText: "心の鏡はチャットルームではありません。\n誰かに見せるための対話ではなく、今のあなたの心を自分自身で見つめるための場所です。\nあなただけが見ることができる、心の窓です。",
+      trustText: "心の鏡はチャットルームではありません。\n今のあなたの心を自分自身で見つめるための場所です。\n自分自身を見つめるための、心の窓です。",
+      privacyText: "HRIで話した内容は、外部には公開されません。",
       noticeText: "HRIは評価や診断のためのツールではなく、今の考えや流れを通して心のリズムを共に見つめます。",
       noticeKicker: (date) => `お知らせ · ${date}`,
       historyLink: "前の対話を続ける",
@@ -235,12 +244,15 @@ export const CONTENT: Record<Locale, Content> = {
       menuAria: "Menu",
       headline: "Inner Mirror",
       description: "A quiet look at where things stand right now.",
-      coreQuestion: "What's the first thing on your mind?",
+      coreQuestion: "What's on your mind right now?",
+      permissionText: "It's fine to start small — even just how today went.",
+      exampleText: "e.g. today didn't go so well · someone's on my mind · just feeling a bit heavy",
       inputPlaceholder: "Write down what's coming up right now",
       enterHint: "Press Enter to continue",
       voiceChip: "Speak instead",
       anonymousChip: "Start anonymously",
-      trustText: "Inner Mirror is not a chat room.\nThis isn't a conversation for anyone else to see — it's a space for looking at your own mind, right now.\nA window only you can look through.",
+      trustText: "Inner Mirror is not a chat room.\nIt's a space for looking at your own mind, right now.\nA window for looking at yourself.",
+      privacyText: "What you share with HRI is not made public.",
       noticeText: "HRI is not a tool for evaluation or diagnosis — it looks at the rhythm behind your current thoughts and flow, together with you.",
       noticeKicker: (date) => `Notice · ${date}`,
       historyLink: "Continue previous conversation",

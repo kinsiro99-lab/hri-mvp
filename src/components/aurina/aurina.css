@@ -546,13 +546,40 @@
   }
 }
 
+/* First Entry Gate — Permission sits directly under the core question,
+   clearly lighter/smaller than it (visual hierarchy: core question >
+   permission > example) but still readable as a real sentence, not a
+   footnote. */
+.arrival-permission {
+  margin: 14px 0 0;
+  font-size: clamp(14px, 1.5vw, 16px);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 34ch;
+}
+
+/* Trust Layout Gate — Example stays the quietest of the three (Main
+   Question > Permission > Example), but "quietest" no longer means
+   fine print: still a full, easily-read size, one step lighter than
+   Permission via color/weight rather than by shrinking the type. */
+.arrival-example {
+  margin: 8px 0 0;
+  font-size: clamp(14px, 1.4vw, 15px);
+  line-height: 1.55;
+  color: var(--ink-3);
+  max-width: 38ch;
+}
+
 /* A quiet closing line, deliberately placed after the input/chips/
    notice so it never competes with .arrival-core-question above —
    center-aligned and narrower than the surrounding left-aligned
    column so it reads as a distinct, quieter voice, not a continuation
-   of the hero copy. */
+   of the hero copy. First Entry Gate — reduced from 40px since
+   .arrival-permission/.arrival-example now occupy the space directly
+   above this zone; the pill no longer needs as large a gap to read as
+   a separate block. */
 .arrival-pill-zone {
-  margin-top: 40px;
+  margin-top: 24px;
 }
 
 /* Landing-only input legibility pass (Landing UI Sprint §5) — scoped to
@@ -662,13 +689,32 @@ button.arrival-chip.arrival-chip--action:hover {
 
 .arrival-notice p {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
+/* Trust Layout Gate — the trust statement is one of the two "important
+   trust sentences" this Gate requires to read clearly at a glance, not
+   as fine print: sized and weighted well above the disclaimer text
+   below it (noticeText, left at the smaller size above). */
 .arrival-notice p.arrival-notice-trust {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  font-size: clamp(14.5px, 1.5vw, 16px);
+  line-height: 1.6;
+  font-weight: 500;
   color: var(--ink-2);
+}
+
+/* Trust Layout Gate — the one concrete, verified data-handling
+   statement (see Arrival.tsx's comment above this line's usage): given
+   the highest contrast/weight of anything in this block since it is
+   the actual factual guarantee, not a mood-setting line. */
+.arrival-notice p.arrival-notice-privacy {
+  margin-bottom: 10px;
+  font-size: clamp(14.5px, 1.5vw, 16px);
+  line-height: 1.6;
+  font-weight: 700;
+  color: var(--ink-1);
 }
 
 /* Notice System Gate §4 — sits right below the required legal notice,
@@ -1115,7 +1161,12 @@ button.arrival-chip.arrival-chip--action:hover {
     padding-top: 16px;
   }
   .arrival-notice p {
-    font-size: 12.5px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .arrival-notice p.arrival-notice-trust,
+  .arrival-notice p.arrival-notice-privacy {
+    font-size: 14.5px;
     line-height: 1.55;
   }
 

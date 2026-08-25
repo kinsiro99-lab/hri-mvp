@@ -177,6 +177,16 @@ export default function Arrival({
             {t.arrival.coreQuestion}
           </p>
 
+          {/* First Entry Gate — Permission/Example sit between the core
+              question and the input, so the "what am I allowed to say"
+              barrier is resolved before the user reaches the textarea,
+              not after (Arrival.tsx's chips/trustText, further below,
+              are too late in the visual flow to serve this purpose).
+              Example is plain text, not clickable — it shows the
+              allowed range, not a survey/suggestion to pick from. */}
+          <p className="arrival-permission">{t.arrival.permissionText}</p>
+          <p className="arrival-example">{t.arrival.exampleText}</p>
+
           <div className="arrival-pill-zone">
             <HriInput
               value={inputValue}
@@ -205,6 +215,16 @@ export default function Arrival({
             </svg>
             <div>
               <p className="arrival-notice-trust">{renderLines(t.arrival.trustText)}</p>
+              {/* Trust Layout Gate — a plain factual data-handling line,
+                  kept visually distinct (bolder/higher-contrast) from
+                  the trustText above it since it states something
+                  concrete about how conversations are actually handled
+                  rather than describing the feeling of the space. Wording
+                  is deliberately narrower than "never stored"/"no one
+                  can see it"/"fully anonymous" — those aren't backed by
+                  the current implementation (see observation_events +
+                  the admin observation viewer); "not made public" is. */}
+              <p className="arrival-notice-privacy">{t.arrival.privacyText}</p>
               <p>{renderLines(t.arrival.noticeText)}</p>
             </div>
           </div>
