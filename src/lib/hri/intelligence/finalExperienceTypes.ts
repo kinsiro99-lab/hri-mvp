@@ -57,6 +57,26 @@ export type FinalExperienceRelation = {
   toDescription: string;
 };
 
+/**
+ * HRI REFLECTION DISCOVERY Gate — the four ways this session's already-
+ * computed material can legitimately point beyond plain Explicit
+ * content, per the approved REFLECTION BOUNDARY design (Explicit/
+ * Emergent allowed, Invented never). Each is read off a signal this
+ * file already computes for another reason — no new marker list, no
+ * new LLM call:
+ *   "relation"  — relations.length > 0 (a real validated ContextRelation).
+ *   "change"    — some active element was reinforced by more than one
+ *                 turn's evidence (the same thing recurring/shifting).
+ *   "structure" — hasTension (conflictsWith/limits or lexical contrast)
+ *                 — a friction in the situation itself, not necessarily
+ *                 a feeling.
+ *   "open"      — unresolvedReasons is non-empty.
+ * Empty means explicit-only: nothing recurring, contrasting, related,
+ * or left open this session — staying with what was literally said is
+ * the correct, complete outcome, not a shortfall.
+ */
+export type DiscoverySignal = "relation" | "change" | "structure" | "open";
+
 export type FinalExperienceGrounding = {
   /** Every active Evidence item's literal text, oldest first, deduped. */
   verbatimEvidence: string[];
@@ -73,6 +93,10 @@ export type FinalExperienceGrounding = {
    *  allowed to justify Human Sharing naming a tension (Gate 31 §6). */
   hasTension: boolean;
   turnCount: number;
+  /** HRI REFLECTION DISCOVERY Gate — see DiscoverySignal's own doc.
+   *  Permission for a direction, never an obligation — the phraser
+   *  prompt (finalExperiencePhraser.ts) must frame it that way. */
+  discoverySignals: DiscoverySignal[];
 };
 
 export type FinalExperienceResult = {

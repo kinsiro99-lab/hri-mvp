@@ -354,6 +354,8 @@
 .arrival-locale-switcher {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  row-gap: 4px;
   gap: 6px;
   font-size: 12px;
 }
@@ -377,6 +379,94 @@
 .arrival-locale-sep {
   color: var(--ink-4);
   font-size: 11px;
+}
+
+/* Mobile Language Icon Gate — a dedicated globe/language control,
+   independent of .arrival-menu (the hamburger, unchanged/decorative):
+   own element, own wrapper, own dropdown, no shared state or handler.
+   Hidden by default (desktop keeps the horizontal switcher above
+   instead); the max-width:560px block below is the only place that
+   reveals this icon and hides that switcher, so exactly one of the
+   two is ever visible for a given viewport, never both, never
+   neither. Same visual language as .arrival-menu (same size/border/
+   background) so it reads as a sibling control, not a mismatched
+   addition. */
+.arrival-locale-icon-wrap {
+  display: none;
+  position: relative;
+}
+
+@media (max-width: 560px) {
+  .arrival-locale-icon-wrap {
+    display: flex;
+    align-items: center;
+  }
+}
+
+.arrival-locale-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+/* No separate display:none/flex toggle needed here — this is only
+   ever rendered in the DOM at all (see Arrival.tsx) when mobileLocaleOpen
+   is true, and its wrapper (.arrival-locale-icon-wrap) is itself
+   display:none outside the mobile breakpoint, which removes this
+   whole subtree from rendering regardless of its own display value. */
+.arrival-locale-menu {
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 200px;
+  max-width: calc(100vw - 48px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(27, 24, 32, 0.14);
+  padding: 8px;
+  gap: 2px;
+  z-index: 20;
+}
+
+.arrival-locale-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.arrival-locale-menu-item:hover {
+  background: rgba(27, 24, 32, 0.04);
+}
+
+.arrival-locale-menu-item--active {
+  color: var(--ink-1);
+  background: rgba(201, 168, 119, 0.14);
+}
+
+.arrival-locale-menu-item--active svg {
+  flex: none;
+  color: var(--gold);
 }
 
 /* Landing/First Page Refinement — single-column is the universal
@@ -551,7 +641,8 @@
      natural (unwrapped) width instead of breaking early for no reason.
      Text/size/weight/color untouched — only where it's allowed to
      wrap changes. */
-  .arrival-example {
+  .arrival-example,
+  .arrival-example-readable {
     max-width: 100%;
     white-space: nowrap;
   }
@@ -581,12 +672,31 @@
 /* Trust Layout Gate — Example stays the quietest of the three (Main
    Question > Permission > Example), but "quietest" no longer means
    fine print: still a full, easily-read size, one step lighter than
-   Permission via color/weight rather than by shrinking the type. */
+   Permission via color/weight rather than by shrinking the type.
+   ja/en only — ko now renders arrival-example-readable instead
+   (Readability Gate, below), this class's own size/color stay exactly
+   as before. */
 .arrival-example {
   margin: 8px 0 0;
   font-size: clamp(14px, 1.4vw, 15px);
   line-height: 1.55;
   color: var(--ink-3);
+  max-width: 38ch;
+}
+
+/* Readability Gate — ko-only: matches Permission's font-size/color
+   exactly (was clamp(14px,1.4vw,15px) + ink-3 via arrival-example
+   above, a smaller/grayer "fine print" step this Gate rules out) —
+   same real body size and black-family color, never a weaker read
+   than the line above it. Dedicated class (not a change to
+   .arrival-example itself) so ja/en's own example line, still
+   rendered through that class, is untouched. Margin/line-height/
+   max-width unchanged. */
+.arrival-example-readable {
+  margin: 8px 0 0;
+  font-size: clamp(14px, 1.5vw, 16px);
+  line-height: 1.55;
+  color: var(--ink-2);
   max-width: 38ch;
 }
 
@@ -730,10 +840,28 @@ button.arrival-chip.arrival-chip--action:hover {
    the highest contrast/weight of anything in this block since it is
    the actual factual guarantee, not a mood-setting line. */
 .arrival-notice p.arrival-notice-privacy {
-  margin-bottom: 10px;
+  /* Left-guidance Paragraph Flow Gate — was 10px, which combined with
+     noticeText's smaller size read as a detached line below the two
+     trust sentences instead of the same paragraph's closing thought.
+     Pulled up close to the trust/privacy gap (8px) so noticeText reads
+     as a continuation, not a separate block. Text unchanged. */
+  margin-bottom: 2px;
   font-size: clamp(14.5px, 1.5vw, 16px);
   line-height: 1.6;
   font-weight: 700;
+  color: var(--ink-1);
+}
+
+/* Readability Gate — ko-only closing line ("HRI는 평가나 진단을 위한
+   도구가 아니며..."). Same readable body size as the trust/privacy
+   lines above it, not the small/gray fine-print treatment the bare
+   .arrival-notice p rule still gives ja/en's own noticeText below.
+   Regular weight — this is guidance copy meant to be read, not a
+   second emphasis line, so no bold. */
+.arrival-notice p.arrival-notice-readable {
+  font-size: clamp(14.5px, 1.5vw, 16px);
+  line-height: 1.6;
+  font-weight: 400;
   color: var(--ink-1);
 }
 
@@ -1092,6 +1220,90 @@ button.arrival-chip.arrival-chip--action:hover {
   color: var(--ink-4);
 }
 
+/* Visible Advertising Spaces Gate — independent ad information area,
+   below the HRI card row (HRI Experience -> HRI Information ->
+   Advertising priority), never inside Conversation/Processing/
+   Reflection or near the input. Arrival.tsx only mounts this wrapper
+   when at least one of Banner/Full-page Entry has active content, so
+   it never appears as an empty box. */
+.arrival-ad-spaces {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 48px 24px;
+}
+
+/* Banner — deliberately the smallest, least prominent ad shape: a
+   single-line strip, never a large box, and visually quieter than
+   .arrival-ad-card (the Card ad) or any HRI CTA. */
+.arrival-banner-ad {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.4);
+  text-decoration: none;
+}
+
+a.arrival-banner-ad:hover {
+  border-color: var(--border-strong);
+}
+
+.arrival-banner-ad-label,
+.arrival-fullpage-entry-label {
+  flex: none;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-4);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.arrival-banner-ad-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arrival-banner-ad-cta {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+/* Full-page Entry — the only in-screen link into /ad/[id]. Text-only,
+   quieter than the Banner strip above it. */
+.arrival-fullpage-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+  text-decoration: none;
+}
+
+.arrival-fullpage-entry:hover {
+  color: var(--ink-1);
+}
+
+.arrival-fullpage-entry-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 2+1 Layout Gate — utility row reuses .aurina-utility-row/-link as-is
    (Conversation/Reflection's shared secondary-nav style); only spacing
    to sit under the card row is added here. */
@@ -1146,7 +1358,12 @@ button.arrival-chip.arrival-chip--action:hover {
 /* ink-2, not ink-3/ink-4 — explicitly not the gray fine print the
    design principle rules out. */
 .arrival-benefit-body {
-  margin: 0 0 14px;
+  /* Bottom Balance Gate — was 14px, which left arrival-benefit-cta
+     sitting noticeably lower than the left column's own last line.
+     Tightened so cta moves up close to a line's worth without moving
+     .arrival-benefit's own top (padding-top untouched, so the 0px
+     top-alignment with the left column is unaffected). */
+  margin: 0 0 4px;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.55;
@@ -1240,6 +1457,12 @@ button.arrival-chip.arrival-chip--action:hover {
   .arrival-header {
     padding: 24px 24px 0;
   }
+  /* Mobile Language Icon Gate — the horizontal switcher row has no
+     room on a 360-390px header once .arrival-locale-icon-wrap becomes
+     visible (this same breakpoint); the icon replaces it entirely. */
+  .arrival-locale-switcher {
+    display: none;
+  }
   .arrival-hero {
     padding: 28px 24px 32px;
   }
@@ -1248,6 +1471,9 @@ button.arrival-chip.arrival-chip--action:hover {
   }
   .arrival-cards {
     padding: 24px;
+  }
+  .arrival-ad-spaces {
+    padding: 0 24px 20px;
   }
   .arrival-utility-row {
     padding: 0 24px 24px;

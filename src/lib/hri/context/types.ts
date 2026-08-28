@@ -62,16 +62,28 @@ export type RelationType =
 
 export type RelationStatus = "open" | "acknowledged" | "resolved";
 
+/**
+ * User-Stated Relation Gate — "inferred" (HRI itself judged that a
+ * connection exists between two Reality Points, from evidence that
+ * doesn't include the user directly asserting it) vs "user-stated"
+ * (the user's own turn directly presented the connection between two
+ * Reality Points, in their own words — e.g. "그래서"/"때문에" used to
+ * genuinely assert a link, not merely present nearby). Neither value is
+ * a claim about objective/world causality — "user-stated" means only
+ * "the user connected these two things in their own Reality," never
+ * "A objectively causes B." See finalExperiencePhraser.ts's Grounded
+ * Discovery Boundary for how this distinction is meant to bound wording
+ * strength downstream.
+ */
+export type RelationProvenance = "inferred" | "user-stated";
+
 export type ContextRelation = {
   id: string;
   type: RelationType;
   from: string;
   to: string;
   evidenceRefs: EvidenceRef[];
-  /** Always "inferred": the relation between two elements is never
-   *  itself something the user stated in one literal sentence, even
-   *  when both endpoints are individually explicit. */
-  provenance: "inferred";
+  provenance: RelationProvenance;
   confidence: number;
   status: RelationStatus;
 };
@@ -239,6 +251,8 @@ export type ProposedRelation = {
   groundingTurn: number;
   groundingText: string;
   confidence: number;
+  /** User-Stated Relation Gate — see RelationProvenance's own doc. */
+  provenance: RelationProvenance;
 };
 
 export type ProposedUnresolved = {
@@ -272,6 +286,43 @@ export type InterpreterOutput = {
   /** Human-audit trail only. Never read by any conditional logic —
    *  see Gate report section A. */
   uncertaintyNotes: string[];
+  /**
+   * Cross-Element Continuity Signal Gate — turn-local only, NEVER a
+   * permanent ContextGraph relation and never merged into ContextElement
+   * or ContextRelation. Exists solely so decideResponse() can name a
+   * same-turn NEW_ELEMENT's connection to prior evidence in this turn's
+   * Response, at a much lower bar than a permanent relation (RelationType,
+   * V1-V10 grounding) requires. Deliberately minimal (no kind/causal
+   * type) — see CrossElementContinuity's own doc.
+   */
+  crossElementContinuity?: CrossElementContinuity;
+};
+
+/** See InterpreterOutput.crossElementContinuity's own doc — ephemeral,
+ *  turn-local signal only. `priorElementId` is a real, pre-existing
+ *  ContextElement id; `newElementLocalRef` is the localRef of one of
+ *  THIS turn's own NEW_ELEMENT placements (in the interpreter's raw
+ *  adapter output) or, once merged, the same string as that element's
+ *  real ContextElement.id (mergeInterpreterOutput uses localRef as id
+ *  verbatim). Never stored on any ContextGraph member. */
+export type CrossElementContinuity = {
+  priorElementId: string;
+  newElementLocalRef: string;
+  confidence: number;
+  /**
+   * Shadow Validation Prototype: a literal substring of the CURRENT
+   * turn's text, same "'none' sentinel is never emitted here — the
+   * whole object is omitted instead" contract as priorElementId/
+   * newElementLocalRef. Exists so this signal can be checked with the
+   * same V1 (validateGrounding) / V8 (validateCurrentTurnGrounding)
+   * rules already applied to relations[]/placements[], instead of
+   * resting on confidence alone. Shadow-only as of this Gate: nothing
+   * reads this field yet outside the shadow validator (see
+   * intelligenceCore.ts's shadowValidateCrossElementContinuity) —
+   * decideResponse() still consumes the raw, unvalidated signal,
+   * unchanged.
+   */
+  groundingQuote: string;
 };
 
 export interface SemanticContextInterpreter {

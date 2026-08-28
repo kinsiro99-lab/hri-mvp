@@ -63,6 +63,7 @@ import { advanceIntelligence, updateGraph } from "./intelligence/intelligenceCor
 import { createContextFirstSemanticAdapter } from "./context/providers/contextFirstSemanticAdapter";
 import { emptyContextGraph, type ConversationTurn } from "./context/types";
 import { buildFinalExperienceGrounding } from "./intelligence/finalExperienceComposer";
+import { buildReflectionPlan } from "./intelligence/finalReflectionPlan";
 import { phraseFinalExperience, renderFinalExperienceTemplate } from "./intelligence/finalExperiencePhraser";
 import { joinFinalExperience } from "./intelligence/finalExperienceTypes";
 import type { Locale } from "./locale";
@@ -617,8 +618,9 @@ const fallbackReflectionText = [
         hriState.turnCount,
         locale,
       );
-      const phrased = await phraseFinalExperience(grounding, locale);
-      const finalExperience = phrased.result ?? renderFinalExperienceTemplate(grounding, locale);
+      const plan = buildReflectionPlan(grounding, hriState.prototypeEvidence, nextIntelligenceGraph);
+      const phrased = await phraseFinalExperience(plan, locale);
+      const finalExperience = phrased.result ?? renderFinalExperienceTemplate(plan, locale);
       devLog("FINAL EXPERIENCE:", { outcome: phrased.outcome, errorMessage: phrased.errorMessage });
       reflectionText = joinFinalExperience(finalExperience.mirror, finalExperience.sharing);
     }

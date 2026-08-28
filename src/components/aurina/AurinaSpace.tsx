@@ -4,7 +4,7 @@ import Arrival from "./Arrival";
 import Reflection from "./Reflection";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
-import type { Locale } from "@/lib/hri/locale";
+import type { UiLocale } from "@/lib/hri/locale";
 import { CONTENT } from "@/lib/i18n/content";
 import "./aurina.css";
 
@@ -29,8 +29,8 @@ type Props = {
   onGoHome: () => void;
   onViewHistory: () => void;
   onViewFinal: () => void;
-  locale: Locale;
-  onLocaleChange?: (locale: Locale) => void;
+  locale: UiLocale;
+  onLocaleChange?: (locale: UiLocale) => void;
 };
 
 const TRAIL_VISIBLE_COUNT = 3;

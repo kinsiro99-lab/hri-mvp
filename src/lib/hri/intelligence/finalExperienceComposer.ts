@@ -12,7 +12,7 @@
  */
 import type { EvidenceItem } from "../v2/questionCorePrototype";
 import type { ContextGraph } from "../context/types";
-import type { FinalExperienceGrounding } from "./finalExperienceTypes";
+import type { DiscoverySignal, FinalExperienceGrounding } from "./finalExperienceTypes";
 import type { Locale } from "../locale";
 
 /** Local copy of reflectionComposer.ts's CONTRAST_MARKERS — same
@@ -41,7 +41,13 @@ export function buildFinalExperienceGrounding(
   locale: Locale,
 ): FinalExperienceGrounding {
   const activeEvidence = (evidence ?? []).filter((e) => e.status === "active");
-  const verbatimEvidence = [...new Set(activeEvidence.map((e) => e.text.trim()).filter(Boolean))];
+  // HRI Architecture Fix Gate — a bare confirmation ("그래"/"응"/"네" and
+  // equivalents, tagged act:"confirmation" at Evidence-creation time in
+  // questionCorePrototype.ts) is stored (raw turns are never dropped) but
+  // is not semantic content of its own — it must not appear as if it
+  // were a fresh disclosure the Final Experience can ground new material
+  // in. Structural exclusion here, not a marker re-check.
+  const verbatimEvidence = [...new Set(activeEvidence.filter((e) => e.act !== "confirmation").map((e) => e.text.trim()).filter(Boolean))];
 
   const g = graph ?? { elements: [], relations: [], unresolved: [], updateLog: [] };
   const activeElements = g.elements.filter((e) => e.active);
@@ -70,5 +76,18 @@ export function buildFinalExperienceGrounding(
     activeElements.some((e) => e.status === "conflicted") ||
     hasLexicalContrast(verbatimEvidence, locale);
 
-  return { verbatimEvidence, elements, relations, unresolvedReasons, hasTension, turnCount };
+  // HRI REFLECTION DISCOVERY Gate — each condition reuses a value
+  // already computed above for another reason (see DiscoverySignal's
+  // own doc in finalExperienceTypes.ts for what each one means and
+  // why). "change" is the one genuinely new read: activeElements here
+  // (unlike the `elements` projection above) still carries the raw
+  // ContextElement.evidenceRefs, so ">= 2" is just reading data the
+  // graph already tracked, not a new classifier.
+  const discoverySignals: DiscoverySignal[] = [];
+  if (relations.length > 0) discoverySignals.push("relation");
+  if (activeElements.some((e) => e.evidenceRefs.length >= 2)) discoverySignals.push("change");
+  if (hasTension) discoverySignals.push("structure");
+  if (unresolvedReasons.length > 0) discoverySignals.push("open");
+
+  return { verbatimEvidence, elements, relations, unresolvedReasons, hasTension, turnCount, discoverySignals };
 }

@@ -152,6 +152,11 @@ function toPromotionRelation(u: ProposedUpdate, promotedLocalRef: string, target
     groundingText: u.groundingText,
     // V5 requires relation.confidence <= min(endpoint confidences).
     confidence: Math.min(u.confidence, targetConfidence),
+    // User-Stated Relation Gate — this Legacy adapter has no concept of
+    // the user directly asserting a connection; a promoted relation is
+    // always HRI's own inference, same as every relation this file has
+    // ever produced.
+    provenance: "inferred",
   };
 }
 

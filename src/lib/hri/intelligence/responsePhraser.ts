@@ -26,7 +26,7 @@
  *   - "둘 사이에 어떤 연결이 있을까요?" (asks the user to analyze a
  *     relationship instead of just saying what's on their mind)
  */
-import type { ResponseDecision, ResponseMode } from "./types";
+import type { ResponseDecision, ResponseMode, UpdateContext } from "./types";
 import type { Locale } from "../locale";
 
 const MODEL = "gpt-4o-mini";
@@ -142,9 +142,51 @@ Other rules:
 7. Avoid repetitive stock openers turn after turn — specifically "So you're saying...", "It sounds like...", "I understand that...", "That must be difficult...". These read as a form letter, not a person listening. Vary the phrasing the way a real attentive listener's wording naturally varies.`,
 };
 
+/**
+ * Reality Selection Gate — the ONLY place decision.updateContext is
+ * read. Supplements (never replaces) MODE_RULES.acknowledge-continuity:
+ * that base rule's bans stay in force verbatim (never say/imply WHY,
+ * never ask the user to explain the connection) — this only tells the
+ * model it MAY name the update's own already-validated SHAPE (it got
+ * more specific / it recurred / it changed / it's in tension), because
+ * that shape is Understanding the interpreter already accepted, not a
+ * new relation, cause, or emotion being invented here. Absent for the
+ * crossElementContinuity path (that signal carries no updateContext),
+ * so that path's rendering is unchanged from before this Gate.
+ */
+const UPDATE_KIND_GUIDANCE: Record<Locale, Record<UpdateContext["updateKind"], string>> = {
+  ko: {
+    specify: "이번 내용은 앞서 말씀하신 것을 더 구체적으로 만든 것입니다 — 앞의 내용이 이번 내용으로 더 뚜렷해지거나 구체화됐다는 것을 자연스럽게 표현해도 좋습니다. 다만 새로운 이유나 감정을 지어내지 마세요.",
+    reinforce: "이번 내용은 앞서 말씀하신 것과 같은 요지가 다시 나타난 것입니다 — 같은 이야기가 다시 나왔다는 것을 자연스럽게 표현해도 좋습니다. 새로운 정보인 것처럼 다루지 마세요.",
+    revise: "이번 내용은 앞서 말씀하신 상태에서 지금 상태로 바뀐 것입니다 — 이전 상태에서 지금 상태로 바뀌었다는 것을 자연스럽게 표현해도 좋습니다. 왜 바뀌었는지 이유는 지어내지 마세요.",
+    conflict: "이번 내용은 앞서 말씀하신 것과 서로 긴장 관계에 있습니다 — 두 가지가 함께 있다는 것만 자연스럽게 표현하고, 어느 쪽이 맞는지 판단하거나 원인을 지어내지 마세요.",
+    deprioritize: "이번 내용은 앞서 말씀하신 것의 비중이 낮아졌음을 보여줍니다 — 그 사실만 자연스럽게 표현하세요.",
+    resolve: "이번 내용은 앞서 말씀하신 것이 해소되었음을 보여줍니다 — 그 사실만 자연스럽게 표현하세요.",
+  },
+  ja: {
+    specify: "今回の内容は、先ほどの内容をより具体的にしたものです — 先の内容が今回の内容でより明確・具体的になったことを自然に表現しても構いません。ただし新しい理由や感情を作り出さないでください。",
+    reinforce: "今回の内容は、先ほどと同じ趣旨が再び現れたものです — 同じ話が再び出てきたことを自然に表現しても構いません。新しい情報であるかのように扱わないでください。",
+    revise: "今回の内容は、先ほどの状態から今の状態へ変わったものです — 以前の状態から今の状態へ変わったことを自然に表現しても構いません。なぜ変わったのか理由は作り出さないでください。",
+    conflict: "今回の内容は、先ほどの内容と緊張関係にあります — 二つが同時にあるということだけ自然に表現し、どちらが正しいか判断したり原因を作り出したりしないでください。",
+    deprioritize: "今回の内容は、先ほどの内容の比重が下がったことを示しています — その事実だけ自然に表現してください。",
+    resolve: "今回の内容は、先ほどの内容が解消されたことを示しています — その事実だけ自然に表現してください。",
+  },
+  en: {
+    specify: "This turn makes the earlier point more specific — you may naturally say that the earlier point became clearer or more specific here. Do not invent a new reason or feeling for it.",
+    reinforce: "This turn is the same point coming up again — you may naturally note that this came up again. Do not treat it as new information.",
+    revise: "This turn is a change from the earlier state to the current one — you may naturally say it shifted from the earlier state to now. Do not invent a reason for the change.",
+    conflict: "This turn sits in tension with the earlier point — you may naturally note that both are present together, without judging which is true or inventing a cause.",
+    deprioritize: "This turn shows the earlier point mattering less now — state only that fact, naturally.",
+    resolve: "This turn shows the earlier point being resolved — state only that fact, naturally.",
+  },
+};
+
 function buildUserPrompt(decision: ResponseDecision, locale: Locale): string {
   const parts: string[] = [];
   parts.push(MODE_RULES[locale][decision.mode]);
+  if (decision.mode === "acknowledge-continuity" && decision.updateContext) {
+    parts.push(UPDATE_KIND_GUIDANCE[locale][decision.updateContext.updateKind]);
+  }
   parts.push(`purpose: ${decision.reason}`);
   parts.push(`grounding (the ONLY source of content you may reference): ${decision.evidenceRefs.map((e) => `"${e}"`).join(" / ")}`);
   if (decision.priorEvidenceRef) {

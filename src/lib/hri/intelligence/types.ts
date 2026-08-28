@@ -307,16 +307,53 @@ export type ResponseDecision = {
    *  claim about why/how it connects to the latest evidence. */
   priorEvidenceRef?: string;
   /**
+   * Reality Selection Gate — acknowledge-continuity only, populated
+   * directly from this turn's own acceptedUpdatesThisTurn entry (same
+   * shape QuestionDecision.updateContext already used). Unlike
+   * internalNote below, THIS field is real, usable data:
+   * responsePhraser.ts reads updateKind/identityRelation to let the
+   * Response name the ALREADY-VALIDATED shape of the update (it became
+   * more specific / it changed from an earlier state / it recurred /
+   * it's in tension with the earlier point) — never a NEW causal claim,
+   * emotion, or relation the interpreter didn't already accept.
+   */
+  updateContext?: UpdateContext;
+  /**
+   * Reality Selection Gate — a plain count of currently-active
+   * ContextElements in this session's graph at decision time.
+   * Observation metadata ONLY: it says "other Reality Points exist",
+   * never which ones, never how they relate, never that they connect to
+   * THIS turn's evidence. Not a relation, not a Link. responsePhraser.ts
+   * does not read this field this Gate — it exists so the fact is
+   * available for audit/future use without discarding it outright.
+   */
+  otherActiveRealityCount?: number;
+  /**
    * §9's internal/external asymmetry, made an explicit field: whatever
-   * deeper Understanding (a Hypothesis, an update's identityRelation,
-   * an unused ContextRelation) informed picking THIS evidence is
-   * recorded here for audit/devLog only. responsePhraser.ts never
-   * receives this field and the rendered Response text must never
-   * assert its content — see intelligenceCore.ts's decideResponse().
+   * deeper Understanding (a Hypothesis, an unused ContextRelation)
+   * informed picking THIS evidence is recorded here for audit/devLog
+   * only. responsePhraser.ts never receives this field and the rendered
+   * Response text must never assert its content — see intelligenceCore.
+   * ts's decideResponse(). Reality Selection Gate: the update's own
+   * kind/identityRelation moved OUT of this field and into
+   * updateContext above, which IS passed to the phraser — internalNote
+   * still carries the free-text note for humans reading devLog.
    */
   internalNote?: string;
   reason: string;
   providerStatus: ProviderStatus;
   /** Populated only when mode === "ask" (see that mode's own doc). */
   questionFallback?: QuestionDecision;
+  /**
+   * First Conversation Survival Gate 1 — set only for the two narrow,
+   * deterministic KO-only meta cases (the user doesn't know what to
+   * write; the user is giving Reality Feedback about HRI's own
+   * response latency) where the exact wording is fixed and MUST NOT
+   * risk drifting into a question via an LLM call. When present,
+   * advanceIntelligence() (intelligenceCore.ts) uses this text
+   * verbatim as renderedText and skips phraseResponse/phraseQuestion
+   * entirely — mode still describes the decision's shape (always
+   * "acknowledge" for these) for devLog/audit purposes only.
+   */
+  directText?: string;
 };

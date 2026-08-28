@@ -108,9 +108,17 @@ export function mergeInterpreterOutput(graph: ContextGraph, output: InterpreterO
     const from = resolveRef(r.from);
     const to = resolveRef(r.to);
     if (!from || !to) continue;
+    // User-Stated Relation Gate — the evidence kind for a relation's own
+    // EvidenceRef now follows the proposal's own provenance (previously
+    // hardcoded "inferred" regardless): "user-stated" means the user's
+    // turn itself directly presented the connection, so the quote
+    // grounding it is "explicit" the same way an EvidenceRef.kind is
+    // "explicit" anywhere else in this codebase; "inferred" (HRI's own
+    // reading, no direct user assertion) keeps the prior "inferred" kind.
+    const evidenceKind = r.provenance === "user-stated" ? "explicit" : "inferred";
     const duplicate = relations.find((existing) => existing.type === r.type && existing.from === from && existing.to === to);
     if (duplicate) {
-      duplicate.evidenceRefs.push({ turn: r.groundingTurn, sourceText: r.groundingText, kind: "inferred" });
+      duplicate.evidenceRefs.push({ turn: r.groundingTurn, sourceText: r.groundingText, kind: evidenceKind });
       continue;
     }
     relations.push({
@@ -118,8 +126,8 @@ export function mergeInterpreterOutput(graph: ContextGraph, output: InterpreterO
       type: r.type,
       from,
       to,
-      evidenceRefs: [{ turn: r.groundingTurn, sourceText: r.groundingText, kind: "inferred" }],
-      provenance: "inferred",
+      evidenceRefs: [{ turn: r.groundingTurn, sourceText: r.groundingText, kind: evidenceKind }],
+      provenance: r.provenance,
       confidence: r.confidence,
       status: "open",
     });

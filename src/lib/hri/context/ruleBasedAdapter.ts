@@ -92,6 +92,11 @@ export function createRuleBasedAdapter(): SemanticContextInterpreter {
               groundingTurn: last.turn,
               groundingText: last.text,
               confidence: FLAT_CONFIDENCE,
+              // User-Stated Relation Gate — this rule-based adapter has
+              // no provenance judgment of its own; every relation it
+              // produces is a deterministic tension detection, i.e. HRI's
+              // own inference, same as before this field existed.
+              provenance: "inferred",
             });
           }
           // reinforce-on-tension: no separate proposal type exists for

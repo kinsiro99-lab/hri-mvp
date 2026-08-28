@@ -1,6 +1,6 @@
 import { AURINA_ASSETS } from "./assets";
 import { splitFinalExperience } from "../../lib/hri/intelligence/finalExperienceTypes";
-import type { Locale } from "@/lib/hri/locale";
+import type { UiLocale } from "@/lib/hri/locale";
 import { CONTENT } from "@/lib/i18n/content";
 import "./aurina.css";
 
@@ -10,7 +10,7 @@ type Props = {
   hasHistory: boolean;
   onViewHistory: () => void;
   onGoHome: () => void;
-  locale: Locale;
+  locale: UiLocale;
 };
 
 /**

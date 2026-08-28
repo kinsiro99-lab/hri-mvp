@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import HriInput from "../HriInput";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
-import type { Locale } from "@/lib/hri/locale";
-import { CONTENT } from "@/lib/i18n/content";
+import type { UiLocale } from "@/lib/hri/locale";
+import { UI_LOCALES } from "@/lib/hri/locale";
+import { CONTENT, type Content } from "@/lib/i18n/content";
+import { getAd, getActiveAdsByType } from "@/lib/ads/data";
+import { resolveAdContent, type AdContent } from "@/lib/ads/types";
 import "./aurina.css";
 
 type Props = {
@@ -16,12 +19,12 @@ type Props = {
   onViewHistory: () => void;
   onViewFinal: () => void;
   onRestart: () => void;
-  locale: Locale;
+  locale: UiLocale;
   /** Multilingual Gate — undefined when a session already exists
    *  (locale is session-locked, Beta Handoff §2): the switcher renders
    *  only when this is provided, i.e. only pre-session (hasHistory
    *  false). See HriSession.tsx's handleLocaleChange for the guard. */
-  onLocaleChange?: (locale: Locale) => void;
+  onLocaleChange?: (locale: UiLocale) => void;
 };
 
 const NOTICE_PREVIEW_LIMIT = 60;
@@ -46,32 +49,23 @@ function renderLines(text: string) {
   ));
 }
 
-// First View Benefit Message Gate — same pattern as RC_AD below: copy
-// only, not localized on purpose (only Korean text was provided), not
-// part of Arrival's per-locale CONTENT. Line breaks are kept verbatim
-// as given, not reflowed.
-const BENEFIT_MESSAGE = {
-  title: "당신에게 도움이 되는 이유 3가지",
-  core: "나를 이해 → 다른 사람을 이해 → 함께하는 일을 이해",
-  body: "를 위해 활용하세요. 다음 단계의 조직편과 자매 서비스인\n사업·프로젝트·사회활동 등의 자가진단 시스템을 활용하실 수 있게 됩니다.",
-  cta: "ID 신청은 그때 가능합니다!",
-};
-
 // RC Promo Gate — RC Production URL is not yet finalized (2+1 Layout
 // Investigation §7/§8): copy only, no href/onClick anywhere on this
 // card. Not localized on purpose — placeholder marketing copy pending
 // a real URL and translated copy from RC, not Arrival's per-locale
 // service content (see CONTENT in content.ts).
-const RC_AD = {
-  title: "사업의 문제,\n먼저 스스로 점검해보세요",
-  description:
-    "막연한 고민을 몇 줄 입력하면\nRC가 사업 현실의 구조를 보여주고,\n무엇을 더 점검해야 할지 짚어드립니다.",
-  cta: "RC Reality Check 시작하기 →",
-  // Approved image-caption standard §3 — "Business Reality Check" is
-  // the brand phrase, kept literal/English across ko/ja/en (only the
-  // line above it, adImageLine1, is translated in content.ts).
-  imageLine2: "Business Reality Check",
-};
+// Ad Structure V1 Gate — the RC_AD constant that used to live here was
+// moved verbatim into src/lib/ads/data.ts (id "rc-reality-check") so
+// Card/Banner/Full-page ads can share one data shape; this component
+// now just looks it up (see RC_AD_ID below) instead of owning the copy.
+const RC_AD_ID = "rc-reality-check";
+
+// Visible Advertising Spaces Gate — a plain, universal "AD" badge,
+// deliberately not routed through per-locale CONTENT (unlike
+// RcAdCard's label/disclaimer props, which carry real provenance/
+// disclaimer meaning) since "AD" needs no translation and is already
+// recognized in every locale this app supports.
+const AD_BADGE_LABEL = "AD";
 
 // RC Ad Size Gate — the source image's own baked-in RC logo sits at
 // y 246-382 and its baked-in (untranslatable) teal caption at y
@@ -111,13 +105,13 @@ function focusArrivalInput() {
 // viewport-margin placement). Sits inside .arrival-below-input as the
 // right column alongside chips+trust (left column); on narrow/mobile
 // widths that row stacks to a single column instead (see aurina.css).
-function ArrivalBenefit() {
+function ArrivalBenefit({ benefits }: { benefits: Content["benefits"] }) {
   return (
     <aside className="arrival-benefit">
-      <p className="arrival-benefit-title">{BENEFIT_MESSAGE.title}</p>
-      <p className="arrival-benefit-core">{renderLines(BENEFIT_MESSAGE.core)}</p>
-      <p className="arrival-benefit-body">{renderLines(BENEFIT_MESSAGE.body)}</p>
-      <p className="arrival-benefit-cta">{BENEFIT_MESSAGE.cta}</p>
+      <p className="arrival-benefit-title">{benefits.title}</p>
+      <p className="arrival-benefit-core">{renderLines(benefits.core)}</p>
+      <p className="arrival-benefit-body">{renderLines(benefits.body)}</p>
+      <p className="arrival-benefit-cta">{benefits.cta}</p>
     </aside>
   );
 }
@@ -136,12 +130,48 @@ export default function Arrival({
   onLocaleChange,
 }: Props) {
   const t = CONTENT[locale];
+  // Ad Structure V1 Gate — looked up by id rather than imported as a
+  // constant so the card can go away cleanly (ad.active === false)
+  // without an Arrival.tsx code change. No ad, or inactive, or no
+  // resolvable content (ko fallback should always cover this while
+  // the entry above has ko copy) -> the card simply doesn't render.
+  const rcAd = getAd(RC_AD_ID);
+  const rcAdContent = rcAd?.active ? resolveAdContent(rcAd, locale) : undefined;
+  // Visible Advertising Spaces Gate — both driven entirely by the ads
+  // registry (getActiveAdsByType), same "no ad -> renders nothing"
+  // contract as rcAdContent above. active banner/full-page count is 0
+  // today, so both are undefined and .arrival-ad-spaces doesn't mount
+  // at all — the moment a real one is registered active in
+  // src/lib/ads/data.ts, these appear with zero further code change.
+  const bannerAd = getActiveAdsByType("banner")[0];
+  const bannerAdContent = bannerAd ? resolveAdContent(bannerAd, locale) : undefined;
+  const fullPageAd = getActiveAdsByType("full-page")[0];
+  const fullPageAdContent = fullPageAd ? resolveAdContent(fullPageAd, locale) : undefined;
   // Notice Card Gate — first bottom card shows the latest published
   // Notice in place of the static Mirror card. notices is already
   // sorted published_at/created_at DESC server-side (listPublishedNotices),
   // so [0] is the latest. No notice -> falls back to the original card.
   const latestNotice = notices[0] ?? null;
   const [noticeDetailOpen, setNoticeDetailOpen] = useState(false);
+  // Mobile Language Icon Gate — the desktop horizontal switcher
+  // (.arrival-locale-switcher) is hidden below 561px (aurina.css): a
+  // 7-item row has no room left on a 360-390px header. Mobile reaches
+  // the same locales through this dedicated globe/language icon
+  // instead — a separate control from the hamburger (.arrival-menu),
+  // which stays exactly as it was (decorative, no handler, unrelated
+  // state). localeIconWrapRef backs the outside-click-to-close below.
+  const [mobileLocaleOpen, setMobileLocaleOpen] = useState(false);
+  const localeIconWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!mobileLocaleOpen) return;
+    function handleOutside(e: MouseEvent) {
+      if (localeIconWrapRef.current && !localeIconWrapRef.current.contains(e.target as Node)) {
+        setMobileLocaleOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [mobileLocaleOpen]);
   const handleMirrorCard = () => {
     if (hasHistory) onViewHistory();
     else focusArrivalInput();
@@ -162,12 +192,18 @@ export default function Arrival({
           {/* Multilingual Gate — Beta Handoff §2/§12 (Japanese), §4
               (English): only rendered pre-session (onLocaleChange is
               undefined once hasHistory is true, see HriSession.tsx),
-              minimal toggle, secondary to the main experience. Extended
-              from two options to three (ko/ja/en) without redesigning
-              the switcher itself. */}
+              minimal toggle, secondary to the main experience.
+              Multilingual Localization Gate — extended from three
+              options to six (+ zh-CN/zh-HK/zh-TW) without redesigning
+              the switcher itself; .arrival-locale-switcher gained
+              flex-wrap (aurina.css) so six items never overflow the
+              header row on narrow screens.
+              Mobile Language Icon Gate — this row is desktop-only now
+              (hidden below 561px in aurina.css); mobile reaches the
+              same 7 locales via the dedicated globe icon below instead. */}
           {onLocaleChange && (
             <div className="arrival-locale-switcher" role="group" aria-label="Language">
-              {(["ko", "ja", "en"] as const).map((loc, i) => (
+              {UI_LOCALES.map((loc, i) => (
                 <span key={loc} className="arrival-locale-item">
                   {i > 0 && <span className="arrival-locale-sep">|</span>}
                   <button
@@ -179,6 +215,54 @@ export default function Arrival({
                   </button>
                 </span>
               ))}
+            </div>
+          )}
+          {/* Mobile Language Icon Gate — a dedicated globe/language
+              control, independent of the hamburger below (separate
+              element, separate state, no shared handler): mobile-only
+              (hidden at >560px in aurina.css, same breakpoint as the
+              switcher it replaces there), opens a compact vertical
+              locale list. Only rendered pre-session, same guard as the
+              desktop switcher (locale is session-locked once a
+              conversation exists — Beta Handoff §2). */}
+          {onLocaleChange && (
+            <div className="arrival-locale-icon-wrap" ref={localeIconWrapRef}>
+              <button
+                type="button"
+                className="arrival-locale-icon"
+                aria-label={t.arrival.languageIconAria}
+                aria-haspopup="menu"
+                aria-expanded={mobileLocaleOpen}
+                onClick={() => setMobileLocaleOpen((open) => !open)}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+              </button>
+              {mobileLocaleOpen && (
+                <div className="arrival-locale-menu" role="group" aria-label="Language">
+                  {UI_LOCALES.map((loc) => (
+                    <button
+                      key={loc}
+                      type="button"
+                      className={`arrival-locale-menu-item${locale === loc ? " arrival-locale-menu-item--active" : ""}`}
+                      onClick={() => {
+                        onLocaleChange(loc);
+                        setMobileLocaleOpen(false);
+                      }}
+                    >
+                      <span>{t.localeSwitcher[loc]}</span>
+                      {locale === loc && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           {/* Visual only — no implementation this phase */}
@@ -212,7 +296,12 @@ export default function Arrival({
               Example is plain text, not clickable — it shows the
               allowed range, not a survey/suggestion to pick from. */}
           <p className="arrival-permission">{t.arrival.permissionText}</p>
-          <p className="arrival-example">{t.arrival.exampleText}</p>
+          {/* Readability Gate — ko-only: matches permissionText's font-
+              size/color instead of the smaller/grayer fine-print look
+              ja/en's own example line (still arrival-example) keeps. */}
+          <p className={locale === "ko" ? "arrival-example-readable" : "arrival-example"}>
+            {t.arrival.exampleText}
+          </p>
 
           <div className="arrival-pill-zone">
             <HriInput
@@ -261,12 +350,19 @@ export default function Arrival({
                       the current implementation (see observation_events +
                       the admin observation viewer); "not made public" is. */}
                   <p className="arrival-notice-privacy">{t.arrival.privacyText}</p>
-                  <p>{renderLines(t.arrival.noticeText)}</p>
+                  {/* Readability Gate — ko-only: matches the readable,
+                      non-gray body size of the two lines above instead
+                      of the small/gray fine-print treatment ja/en's own
+                      noticeText (unclassed below) still uses. Text
+                      unchanged either way. */}
+                  <p className={locale === "ko" ? "arrival-notice-readable" : undefined}>
+                    {renderLines(t.arrival.noticeText)}
+                  </p>
                 </div>
               </div>
             </div>
 
-            <ArrivalBenefit />
+            <ArrivalBenefit benefits={t.benefits} />
           </div>
 
           {/* Notice Card Gate — the separate Notice banner that used to
@@ -281,12 +377,16 @@ export default function Arrival({
       </div>
 
       <div className="arrival-cards">
-        <RcAdCard
-          label={t.arrival.adLabel}
-          disclaimer={t.arrival.adDisclaimer}
-          imageLine1={t.arrival.adImageLine1}
-          openingBadge={t.arrival.adOpeningBadge}
-        />
+        {rcAdContent && (
+          <RcAdCard
+            content={rcAdContent}
+            image={rcAd!.image}
+            label={t.arrival.adLabel}
+            disclaimer={t.arrival.adDisclaimer}
+            imageLine1={t.arrival.adImageLine1}
+            openingBadge={t.arrival.adOpeningBadge}
+          />
+        )}
         <ServiceCard
           icon={<OrbIcon />}
           title={latestNotice ? noticeCardTitle(latestNotice.title) : t.arrival.cards.mirrorTitle}
@@ -300,6 +400,21 @@ export default function Arrival({
           onClick={latestNotice ? () => setNoticeDetailOpen(true) : handleMirrorCard}
         />
       </div>
+
+      {/* Visible Advertising Spaces Gate — a separate, independent ad
+          information area below the HRI card row (HRI Experience ->
+          HRI Information -> Advertising). Never rendered when both are
+          absent, so no empty box ever shows. */}
+      {(bannerAdContent || fullPageAdContent) && (
+        <div className="arrival-ad-spaces">
+          {bannerAd && bannerAdContent && (
+            <BannerAdSlot content={bannerAdContent} destination={bannerAd.destination} />
+          )}
+          {fullPageAd && fullPageAdContent && (
+            <FullPageAdEntry id={fullPageAd.id} title={fullPageAdContent.title} locale={locale} />
+          )}
+        </div>
+      )}
 
       {/* 2+1 Layout Gate — the 3 static cards this replaced (Mirror /
           Rhythm / Next) each branched on hasHistory/hasFinal to reach
@@ -325,7 +440,7 @@ export default function Arrival({
       )}
 
       {latestNotice && noticeDetailOpen && (
-        <NoticeDetailModal notice={latestNotice} onClose={() => setNoticeDetailOpen(false)} />
+        <NoticeDetailModal notice={latestNotice} onClose={() => setNoticeDetailOpen(false)} closeLabel={t.common.close} />
       )}
     </section>
   );
@@ -334,7 +449,22 @@ export default function Arrival({
 // Notice Detail Gate — inline styles only (no aurina.css changes), so
 // this stays a single-file, additive change. title/body are rendered
 // verbatim from latestNotice, never hardcoded.
-function NoticeDetailModal({ notice, onClose }: { notice: Notice; onClose: () => void }) {
+// Multilingual Localization Gate — closeLabel replaces the two spots
+// that used to hardcode Korean "닫기" regardless of locale.
+function NoticeDetailModal({ notice, onClose, closeLabel }: { notice: Notice; onClose: () => void; closeLabel: string }) {
+  // Mobile Beta Notice Scroll Fix — this component is mounted fresh
+  // every time it opens ({latestNotice && noticeDetailOpen && <.../>}
+  // above), but on mobile the freshly-mounted scrollable content div
+  // can still render already mid-scroll (carried over from this same
+  // div's previous open, or from surrounding layout/focus timing).
+  // Force just this element's own scrollTop to 0 on every mount — the
+  // page/body scroll position is never touched, and closing still
+  // leaves the underlying HOME scroll exactly where it was.
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    contentRef.current?.scrollTo(0, 0);
+  }, []);
+
   return (
     <div
       role="presentation"
@@ -351,6 +481,7 @@ function NoticeDetailModal({ notice, onClose }: { notice: Notice; onClose: () =>
       }}
     >
       <div
+        ref={contentRef}
         role="dialog"
         aria-modal="true"
         aria-label={notice.title}
@@ -371,7 +502,7 @@ function NoticeDetailModal({ notice, onClose }: { notice: Notice; onClose: () =>
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={closeLabel}
             style={{
               flex: "none",
               border: "none",
@@ -404,7 +535,7 @@ function NoticeDetailModal({ notice, onClose }: { notice: Notice; onClose: () =>
             cursor: "pointer",
           }}
         >
-          닫기
+          {closeLabel}
         </button>
       </div>
     </div>
@@ -417,14 +548,24 @@ function NoticeDetailModal({ notice, onClose }: { notice: Notice; onClose: () =>
 // the ad be visible without interaction.
 // RC Provenance Gate — label + disclaimer make clear RC is a separate
 // service from HRI, not shared data/identity; both localized (unlike
-// RC_AD's own copy, which is placeholder pending real URL/translation)
-// since the label/disclaimer wording was given in all 3 languages.
+// the ad's own content, which is placeholder pending real URL/
+// translation) since the label/disclaimer wording was given in all 3
+// languages.
+// Ad Structure V1 Gate — `content` is the resolved (locale, with ko
+// fallback) AdContent for this ad; label/disclaimer/imageLine1/
+// openingBadge stay as separate props, sourced from CONTENT same as
+// before, since those are already fully translated per-locale and
+// this migration only moved the ad's own (ko-only) copy.
 function RcAdCard({
+  content,
+  image,
   label,
   disclaimer,
   imageLine1,
   openingBadge,
 }: {
+  content: AdContent;
+  image?: string;
   label: string;
   disclaimer: string;
   imageLine1: string;
@@ -443,7 +584,7 @@ function RcAdCard({
           {/* Image shown in full, uncropped, native 1200:675 ratio —
               aspect-ratio + object-fit:cover here only guards against
               any container rounding, they don't crop anything away. */}
-          <img src={AURINA_ASSETS.rcAdImage} alt="" className="arrival-ad-image" />
+          <img src={image ?? AURINA_ASSETS.rcAdImage} alt="" className="arrival-ad-image" />
           {/* Approved image-caption standard §3/§6 — the localized
               replacement caption. The scrim beneath it is opaque enough
               by the time it reaches the source PNG's own baked-in
@@ -452,20 +593,64 @@ function RcAdCard({
               existing CONTENT, never all 3 languages at once. */}
           <div className="arrival-ad-image-caption">
             <span className="arrival-ad-caption-line1">{imageLine1}</span>
-            <span className="arrival-ad-caption-line2">{RC_AD.imageLine2}</span>
+            <span className="arrival-ad-caption-line2">{content.imageLine2}</span>
           </div>
         </div>
         <div className="arrival-ad-body">
-          <h3 className="arrival-ad-title">{renderLines(RC_AD.title)}</h3>
-          <p className="arrival-ad-description">{renderLines(RC_AD.description)}</p>
+          <h3 className="arrival-ad-title">{renderLines(content.title)}</h3>
+          <p className="arrival-ad-description">{renderLines(content.description ?? "")}</p>
           <span className="arrival-ad-cta" aria-disabled="true">
-            {RC_AD.cta}
+            {content.ctaLabel}
             <span className="arrival-ad-cta-badge">{openingBadge}</span>
           </span>
         </div>
       </div>
       <p className="arrival-ad-disclaimer">{disclaimer}</p>
     </div>
+  );
+}
+
+// Visible Advertising Spaces Gate §3 — a Banner is deliberately the
+// smallest, least prominent ad shape: a single-line strip, never a
+// large box. Arrival only mounts this when bannerAdContent is truthy
+// (see above), so an inactive/absent banner never shows as an empty
+// placeholder. destination is optional, same "keep CTA inert, never
+// invent a URL" contract as RcAdCard.
+function BannerAdSlot({ content, destination }: { content: AdContent; destination?: string }) {
+  const body = (
+    <>
+      <span className="arrival-banner-ad-label">{AD_BADGE_LABEL}</span>
+      <span className="arrival-banner-ad-title">{content.title}</span>
+      {content.ctaLabel && <span className="arrival-banner-ad-cta">{content.ctaLabel}</span>}
+    </>
+  );
+  return destination ? (
+    <a className="arrival-banner-ad" href={destination}>
+      {body}
+    </a>
+  ) : (
+    <div className="arrival-banner-ad" aria-disabled="true">
+      {body}
+    </div>
+  );
+}
+
+// Visible Advertising Spaces Gate §6 — the only way into /ad/[id] from
+// the live HRI screen. Wired to the ads registry, not hardcoded: it
+// simply isn't rendered when getActiveAdsByType("full-page") is empty
+// (see fullPageAd above) — the moment a real full-page ad is
+// registered active, this entry appears automatically.
+// Multilingual Localization Gate — carries the current UI locale as a
+// query param so /ad/[id] (which resolves its own locale independently
+// from ?locale=, see app/ad/[id]/page.tsx) shows matching-language ad
+// copy instead of always defaulting to ko.
+function FullPageAdEntry({ id, title, locale }: { id: string; title: string; locale: UiLocale }) {
+  return (
+    <a className="arrival-fullpage-entry" href={`/ad/${id}?locale=${encodeURIComponent(locale)}`}>
+      <span className="arrival-fullpage-entry-label">{AD_BADGE_LABEL}</span>
+      <span className="arrival-fullpage-entry-title">{title}</span>
+      <span aria-hidden="true">→</span>
+    </a>
   );
 }
 

@@ -19,12 +19,27 @@ import type { Locale } from "../locale";
 
 export type Certainty = "stated" | "uncertain";
 export type EvidenceStatus = "active" | "superseded";
+/**
+ * HRI Architecture Fix Gate — Conversation Act. Additive only: every
+ * existing EvidenceItem field/consumer is unchanged. Distinguishes a
+ * bare backchannel/confirmation ("그래"/"응"/"네" and equivalents — see
+ * isConfirmationOnly below, moved here verbatim from intelligenceCore.ts
+ * rather than duplicated) from a genuine disclosure, WITHOUT dropping
+ * or refusing to store the turn (updateEvidence's own "every turn
+ * becomes an EvidenceItem, unconditionally" design below is unchanged —
+ * this only tags what was already going to be stored). Defaults to
+ * "disclosure" for anything not matching the confirmation-only marker
+ * list, so every call site that predates this field sees the same
+ * effective content it always did.
+ */
+export type ConversationAct = "disclosure" | "confirmation";
 
 export type EvidenceItem = {
   text: string;
   turn: number;
   certainty: Certainty;
   status: EvidenceStatus;
+  act: ConversationAct;
 };
 
 /**
@@ -252,6 +267,30 @@ function isCorrection(text: string, locale: Locale): boolean {
   return CORRECTION_MARKERS[locale].some((m) => cmp.includes(m));
 }
 
+/**
+ * HRI Architecture Fix Gate — moved here verbatim from
+ * intelligenceCore.ts (not duplicated — that file's own copy is
+ * removed in the same Gate) so Conversation Act can be decided at
+ * Evidence-creation time instead of one stage later. Exact-match-only
+ * after trailing punctuation is stripped, same conservatism as before:
+ * a marker only fires when the user's ENTIRE turn is bare agreement.
+ */
+const CONFIRMATION_ONLY_MARKERS: Record<Locale, string[]> = {
+  ko: ["그렇다", "그렇습니다", "맞다", "맞습니다", "그래", "그래요", "그런 것 같다", "그런 것 같아요", "응", "네", "맞아", "맞아요", "그렇지", "그러네", "그러네요"],
+  ja: ["そうです", "そうですね", "その通りです", "その通りだね", "はい", "うん", "そうだね", "そうだよ", "そう", "そうそう", "そうか", "そうかも", "そうかもしれません", "確かに", "本当にそうですね"],
+  en: [
+    "yes", "that's right", "right", "exactly", "i think so", "that's what i mean",
+    "yeah", "yep", "correct", "that's it", "yup", "sure", "definitely", "absolutely", "that's correct",
+    "yes, that's right", "yeah, that's right", "yes, exactly", "that's exactly right", "yes, that's it",
+  ],
+};
+
+function isConfirmationOnly(text: string, locale: Locale): boolean {
+  const trimmed = text.trim().replace(/[.!?~…\s。、]+$/g, "");
+  const cmp = locale === "en" ? trimmed.toLowerCase() : trimmed;
+  return CONFIRMATION_ONLY_MARKERS[locale].includes(cmp);
+}
+
 function lastActiveIndex(evidence: EvidenceItem[]): number {
   for (let i = evidence.length - 1; i >= 0; i--) {
     if (evidence[i].status === "active") return i;
@@ -288,7 +327,8 @@ export function updateEvidence(
   const trimmed = text.trim();
   const certainty: Certainty = isUncertain(trimmed, locale) ? "uncertain" : "stated";
   const correction = isCorrection(trimmed, locale);
-  const newEvidence: EvidenceItem = { text: trimmed, turn, certainty, status: "active" };
+  const act: ConversationAct = isConfirmationOnly(trimmed, locale) ? "confirmation" : "disclosure";
+  const newEvidence: EvidenceItem = { text: trimmed, turn, certainty, status: "active", act };
 
   let nextEvidence: EvidenceItem[];
   let understandingChange: string;

@@ -27,7 +27,8 @@ import type {
   TimelineEntry,
 } from "./hri/v3/types"
 import type { Notice } from "@/lib/notice/types"
-import type { Locale } from "@/lib/hri/locale"
+import type { UiLocale } from "@/lib/hri/locale"
+import { toEngineLocale } from "@/lib/hri/locale"
 import type { HriEvent, SessionState } from "@/lib/hri/types"
 import { CONTENT } from "@/lib/i18n/content"
 
@@ -93,7 +94,7 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
   // been built under a specific locale yet); handleLocaleChange below
   // guards this explicitly, and the switcher itself is only rendered
   // pre-session (Arrival, hasHistory === false) as the primary guard.
-  const [locale, setLocale] = useState<Locale>("ko")
+  const [locale, setLocale] = useState<UiLocale>("ko")
   const [activeQ, setActiveQ] = useState<string | null>(null)
   const [reflection, setReflection] = useState<string | null>(null)
   const [mainQuestion, setMainQuestion] = useState<string | null>(null)
@@ -130,7 +131,11 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
       const result = await callEngine({
         turn: nextTurn,
         inputs: nextInputs,
-        locale,
+        // Multilingual Localization Gate — Runtime only understands
+        // ko/ja/en; a zh-CN/zh-HK/zh-TW UI locale maps to en here, at
+        // this one call site, so no Runtime file needs to know about
+        // the wider UiLocale at all. See toEngineLocale's own comment.
+        locale: toEngineLocale(locale),
         priorState: engineState,
         priorEvents: engineEvents,
       })
@@ -196,7 +201,7 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
   // ── Locale (Multilingual Gate) ────────────────────────────────
   // Guarded here too, not just by the switcher's own visibility in
   // Arrival — Beta Handoff §2: language must never change mid-session.
-  const handleLocaleChange = useCallback((next: Locale) => {
+  const handleLocaleChange = useCallback((next: UiLocale) => {
     if (allInputs.length > 0) return
     setLocale(next)
   }, [allInputs.length])

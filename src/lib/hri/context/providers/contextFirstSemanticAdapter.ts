@@ -40,6 +40,7 @@
  */
 import type {
   ContextGraphSummary,
+  CrossElementContinuity,
   ElementKind,
   IdentityRelation,
   InterpreterInput,
@@ -49,6 +50,7 @@ import type {
   ProposedRelation,
   ProposedUnresolved,
   ProposedUpdate,
+  RelationProvenance,
   RelationType,
   SemanticContextInterpreter,
 } from "../types";
@@ -100,6 +102,10 @@ export type ContextFirstCallStat = {
 const ELEMENT_KINDS = ["situation", "direction", "constraint", "response"] as const;
 const UPDATE_KINDS = ["reinforce", "specify", "revise", "conflict", "deprioritize", "resolve"] as const;
 const RELATION_TYPES = ["limits", "supports", "conflictsWith", "respondsTo", "clarifies", "revises", "relatesTo"] as const;
+/** User-Stated Relation Gate — see RelationProvenance's own doc
+ *  (context/types.ts). Independent of relationType: any of the 7 types
+ *  above may carry either provenance value. */
+const RELATION_PROVENANCES = ["inferred", "user-stated"] as const;
 /** Only 3 values offered here (not the Legacy 4th, "uncertainSameElement")
  *  — by construction, an EXISTING_ELEMENT_UPDATE placement only exists
  *  because decidability was already DECIDABLE; asking for identity
@@ -122,12 +128,29 @@ If any of these apply, decidability is NOT_DECIDABLE. This is not a measure of h
 STEP 2 — PLACEMENT (only meaningful if DECIDABLE; if NOT_DECIDABLE, still fill in your best lean, but it will be discarded):
 (a) EXISTING_ELEMENT_UPDATE — this content is the SAME underlying referent as ONE SPECIFIC existing element already in the graph: a continuation, clarification, correction, or revision of it over time (a revision changes the STATE/priority/direction of the same real-world matter — e.g. "I should go soon" -> "actually it can wait" is still the same trip, not a new one). Choosing this means completing THREE commitments together, not just one: its real existing id exactly as shown to you; a real updateKind (reinforce/specify/revise/conflict/deprioritize/resolve) — never left vague; and a real identitySubkind (continuation/clarification/revision). Do not choose EXISTING_ELEMENT_UPDATE unless you can commit to a specific, defensible answer for all three — if you cannot, it is NEW_ELEMENT instead.
 (b) NEW_ELEMENT — this is genuinely independent content: either because it plays a different role within the same broader episode as something existing (e.g. a Constraint on an existing Direction), or because it has no real connection to anything existing at all. Either way it is its own new element, never forced into an existing one's description.
+
+Relatedness alone is never enough to justify EXISTING_ELEMENT_UPDATE — two things can be tightly related to each other and still be two separate Reality Points. Before choosing (a), ask: does this turn's content update the SAME Reality Point's own state, intensity, or specification (e.g. "일이 힘들다" -> "정말 많이 힘들다" — same matter, deeper degree; correctly (a))? Or does it introduce a new state, a new action, a new result, a new event, a new judgment, or any other reality that is worth preserving in its own right, even though it clearly relates to something already represented? The second case is NEW_ELEMENT, never (a) — no matter how tightly connected the two are. In particular: content that reads as "because of / as a result of the prior Point, a new reality appeared" (a consequence, a reaction, a new resulting behavior) is NOT a reinforce/specify update to the prior Point — it is a second, independent Reality Point. Whatever connection exists between it and the prior Point belongs in PHASE 3 below, never folded into this placement.
+
 Prefer (a) only when it genuinely fits — do not force a match just because SOME existing element is topically nearby.
 Decide each placement on ITS OWN merits — never choose NEW_ELEMENT in order to have "something to relate" later. Relation is decided in a later, separate phase and must never influence this one.
 
 PHASE 2 — COVERAGE (mandatory, no exceptions; you fill this AFTER every placement above — it is the coverageDisposition field, positioned after placements in the JSON). The user said something in the most recent turn. You must account for it: either place at least one piece of it (coverageDisposition=REPRESENTED, backed by at least one DECIDABLE placement above with placementKind!=none), or explicitly preserve it as unresolved (coverageDisposition=UNRESOLVED, backed by at least one NOT_DECIDABLE placement above). An empty placements array is NEVER a valid response — that would mean the user's words left no trace anywhere, which is not allowed. If the turn's content is too vague to place, that is exactly what NOT_DECIDABLE + an unresolvedCandidate is for — use it, do not simply omit the turn. Before writing this field, re-read the placements you already wrote above and choose the value that HONESTLY matches them: never REPRESENTED if none of your placements above are DECIDABLE with placementKind!=none; never UNRESOLVED if none of your placements above are NOT_DECIDABLE.
 
-PHASE 3 — RELATION (the relations array, positioned LAST in the JSON, after placements and coverageDisposition are both already final). The placements above are DONE — do not alter, reconsider, or reinterpret them here, and never invent a placement in order to create a relation. Now, looking ONLY at what already exists — the placements you just wrote above, plus any pre-existing graph elements — ask: does the CURRENT turn's evidence explicitly support a connection between two DIFFERENT already-represented things (an existing element, or a new element you proposed above; for an EXISTING_ELEMENT_UPDATE placement, its real targetElementId counts as "already represented")? For each connection you can genuinely defend with real textual grounds, add one entry: which two things (never the same one twice), a specific type (limits/supports/conflictsWith/respondsTo/clarifies/revises) with real textual grounds, or relatesTo if no more specific type fits. If nothing is genuinely supported, leave the relations array empty — this is a normal, common, honest outcome, not a failure, and never a reason to go back and change a placement.
+PHASE 3 — RELATION (the relations array, positioned LAST in the JSON, after placements and coverageDisposition are both already final). The placements above are DONE — do not alter, reconsider, or reinterpret them here, and never invent a placement in order to create a relation. Now, looking ONLY at what already exists — the placements you just wrote above, plus any pre-existing graph elements — ask: does the CURRENT turn's evidence explicitly support a connection between two DIFFERENT already-represented things (an existing element, or a new element you proposed above; for an EXISTING_ELEMENT_UPDATE placement, its real targetElementId counts as "already represented")?
+
+This judgment is mandatory to actually perform, not optional busywork to skip once PHASE 1 has already accounted for the turn's content: if PHASE 1 produced two different Reality Points (whether both new this turn, or one new and one already existing) and the current turn's own wording directly asserts a relationship between them, you must carry out this judgment and add the entry. Do not silently leave relations[] empty for a turn that plainly states a connection just because its content already found a place in PHASE 1 — placing content and relating it to something else are two different questions, and answering the first is never a reason to skip the second.
+
+A relation is not only something you infer from two separately-placed pieces of content sitting near each other — it also includes the case where the CURRENT turn's OWN WORDING states how this content relates to something already represented: as its cause or consequence, as a clarification or further specification of it, as a contrast to it, as a condition or constraint on it, or as a continuation/change of the same ongoing matter. When the turn's own wording genuinely states one of these, preserve that as a relation candidate — placing this turn's content as its own NEW_ELEMENT in PHASE 1 is never by itself a reason to drop a relation the turn itself stated. Do not treat this as a fixed checklist either — these five are examples of the shape a stated relation can take, not the only shapes allowed.
+
+Do not turn this into a keyword classifier. Connective wording ("그래서", "때문에", "그 결과", "반면", "하지만", "즉", "다시 말하면", and their equivalents in whatever language the turn is in) are only EXAMPLES of how a stated relation can surface, never a trigger list: the mere presence of such a word is never by itself sufficient grounds for a relation, and its absence is never a reason to miss one the sentence plainly states. Judge the sentence's actual meaning, not its surface words. And never manufacture a relation out of an emotion, motive, cause, intention, or value judgment the user did not themselves state — only out of a connection their own words genuinely assert.
+
+Match the STRENGTH of what you record to the strength of what the user actually said. If the user's own words only suggest a loose sequence or association ("A 이후에 B가 생겼다"), do not record it as if the user had asserted a firm, objective cause ("A가 B의 원인이다") — prefer relatesTo, or a lower confidence, over a stronger type like limits/conflictsWith/respondsTo unless the user's own wording itself asserts that stronger claim. The relation you record must never carry more certainty or a more definite direction than the user's own words support.
+
+PROVENANCE — every relation entry also needs a "provenance" field, independent of which relationType you chose: "user-stated" means the CURRENT turn's own wording itself directly presents the connection between the two things — the user is the one doing the connecting, in their own words, whether or not a connective word like "그래서"/"때문에" happens to be present. "inferred" means the connection is your own reading — real and textually grounded, but not something the current turn's own wording directly asserted (e.g. you noticed two separately-stated things bear on each other, without the user themselves linking them in one thought). This is never a judgment about objective/real-world causality either way — "user-stated" does NOT mean "A really does cause B," only "the user connected A and B in their own words." Do not default to "user-stated" for convenience or to make the relation feel more solid — if you are not looking at the user's own act of connecting the two things, it is "inferred". Do not use a connective-word's mere presence as the test either (the same rule as above: a marker alone is never sufficient, and its absence is never disqualifying) — judge whether the turn's actual meaning is the user doing the connecting.
+
+For each connection you can genuinely defend with real textual grounds, add one entry: which two things (never the same one twice), a specific type (limits/supports/conflictsWith/respondsTo/clarifies/revises) with real textual grounds, or relatesTo if no more specific type fits, and its provenance (inferred/user-stated) per the paragraph above. If nothing is genuinely supported, leave the relations array empty — this is a normal, common, honest outcome, not a failure, and never a reason to go back and change a placement.
+
+CROSS-ELEMENT CONVERSATIONAL CONTINUITY (crossElementContinuity, positioned LAST of all — after PHASE 3's relations are already final. A separate, narrower judgment that never influences placements or relations above, and is never influenced by them). This is NOT a permanent graph relation and carries none of PHASE 3's weight — it exists only so THIS TURN's response can sound natural if a NEW_ELEMENT you placed above genuinely continues from something already established, without needing the same lasting commitment a relations[] entry does. Look only at this turn's own NEW_ELEMENT placements (if any) and the pre-existing graph elements: does one of them, in the user's own words, continue from a specific existing element — as its result, its reaction, a contrast to it, or a further development of it? If so, set priorElementId to that existing element's real id and newElementLocalRef to the NEW_ELEMENT's own localRef, and set groundingQuote to a literal substring of the MOST RECENT turn's own text that shows this continuation in the user's own words — not a paraphrase, not the bare new fact restated on its own, but the actual wording that expresses the continuation (a result, a reaction, a contrast, or a further development). Judge this exactly the way PHASE 3 judges relations: from the actual meaning of what the user said, never from a connective word alone, never from mere topical closeness or the two things simply appearing in the same conversation, and never from a guessed emotion, motive, or hidden cause. If no NEW_ELEMENT above genuinely continues from something existing, set priorElementId to "none", newElementLocalRef to "none", groundingQuote to "none", and confidence to 0 — this is the normal, common, honest outcome for most turns, not a shortfall, and never a reason to go back and change a placement or a relation.
 
 Rules:
 0. Write every description/note/reason/quote in the SAME language as the source turns — never translate.
@@ -197,15 +220,28 @@ const RAW_SCHEMA = {
           relationType: { type: "string", enum: [...RELATION_TYPES], description: "A specific type (limits/supports/conflictsWith/respondsTo/clarifies/revises) with real textual grounds, or relatesTo if no more specific type fits." },
           groundingQuote: { type: "string", description: "A literal substring of the MOST RECENT turn's text supporting this specific connection." },
           confidence: { type: "number", description: "0 to 1. Genuine uncertainty, not always high." },
+          provenance: { type: "string", enum: [...RELATION_PROVENANCES], description: "See the PROVENANCE instructions above: 'user-stated' only when the current turn's own wording is the user directly connecting the two things themselves; 'inferred' otherwise. Never a claim about real-world/objective causality either way." },
         },
-        required: ["fromRef", "toRef", "relationType", "groundingQuote", "confidence"],
+        required: ["fromRef", "toRef", "relationType", "groundingQuote", "confidence", "provenance"],
         additionalProperties: false,
       },
     },
     confidence: { type: "number" },
     uncertaintyNotes: { type: "array", items: { type: "string" } },
+    crossElementContinuity: {
+      type: "object",
+      description: "Declared LAST of all, after relations above is already final. A turn-local conversational continuity signal, NOT a permanent graph relation — see the CROSS-ELEMENT CONVERSATIONAL CONTINUITY instructions above.",
+      properties: {
+        priorElementId: { type: "string", description: "The existing element id (shown to you) that this turn's NEW_ELEMENT genuinely continues from, in the user's own words, or 'none' if nothing genuinely qualifies." },
+        newElementLocalRef: { type: "string", description: "The localRef of the NEW_ELEMENT placement above that continues from priorElementId, or 'none' if priorElementId is 'none'." },
+        groundingQuote: { type: "string", description: "A literal substring of the MOST RECENT turn's text showing the continuation in the user's own words, or 'none' if priorElementId is 'none'." },
+        confidence: { type: "number", description: "0 to 1. Genuine uncertainty. 0 if priorElementId is 'none'." },
+      },
+      required: ["priorElementId", "newElementLocalRef", "groundingQuote", "confidence"],
+      additionalProperties: false,
+    },
   },
-  required: ["placements", "coverageDisposition", "relations", "confidence", "uncertaintyNotes"],
+  required: ["placements", "coverageDisposition", "relations", "confidence", "uncertaintyNotes", "crossElementContinuity"],
   additionalProperties: false,
 } as const;
 
@@ -279,12 +315,19 @@ type RawRelation = {
   relationType: string;
   groundingQuote: string;
   confidence: number;
+  provenance: string;
 };
-type RawOutput = { coverageDisposition: string; placements: RawPlacement[]; relations: RawRelation[]; confidence: number; uncertaintyNotes: string[] };
+/** Cross-Element Continuity Signal Gate — mirrors RawRelation's own
+ *  "'none' sentinel, never a genuinely-absent field" pattern (this file's
+ *  established idiom for a strict-JSON-schema optional value; see
+ *  targetElementId/localRef elsewhere in this file for the same idiom). */
+type RawCrossElementContinuity = { priorElementId: string; newElementLocalRef: string; groundingQuote: string; confidence: number };
+type RawOutput = { coverageDisposition: string; placements: RawPlacement[]; relations: RawRelation[]; confidence: number; uncertaintyNotes: string[]; crossElementContinuity: RawCrossElementContinuity };
 
 const ELEMENT_KIND_SET = new Set<string>(ELEMENT_KINDS);
 const UPDATE_KIND_SET = new Set<string>(UPDATE_KINDS);
 const RELATION_TYPE_SET = new Set<string>(RELATION_TYPES);
+const RELATION_PROVENANCE_SET = new Set<string>(RELATION_PROVENANCES);
 const IDENTITY_SUBKIND_SET = new Set<string>(IDENTITY_SUBKINDS);
 const INFO_GAIN_SET = new Set(["low", "medium", "high"]);
 const DECIDABILITY_SET = new Set(["DECIDABLE", "NOT_DECIDABLE"]);
@@ -330,7 +373,11 @@ function isValidRawOutput(x: unknown, activeElementIds: Set<string>): x is RawOu
     if (typeof r.fromRef !== "string" || typeof r.toRef !== "string") return false;
     if (typeof r.groundingQuote !== "string" || typeof r.confidence !== "number") return false;
     if (!RELATION_TYPE_SET.has(r.relationType)) return false;
+    if (!RELATION_PROVENANCE_SET.has(r.provenance)) return false;
   }
+  const cec = o.crossElementContinuity as Record<string, unknown> | undefined;
+  if (!cec || typeof cec !== "object") return false;
+  if (typeof cec.priorElementId !== "string" || typeof cec.newElementLocalRef !== "string" || typeof cec.groundingQuote !== "string" || typeof cec.confidence !== "number") return false;
   return true;
 }
 
@@ -466,10 +513,41 @@ function toInterpreterOutput(raw: RawOutput, currentTurn: number): InterpreterOu
       groundingTurn: currentTurn,
       groundingText: r.groundingQuote,
       confidence: r.confidence,
+      // User-Stated Relation Gate — passed through as-is from the
+      // model's own PROVENANCE judgment (see SYSTEM_PROMPT); shape
+      // already guaranteed valid by isValidRawOutput's RELATION_PROVENANCE_SET check above.
+      provenance: r.provenance as RelationProvenance,
     });
   }
 
-  return { newElements, updatedElements, relations, unresolvedCandidates, confidence: raw.confidence, uncertaintyNotes: raw.uncertaintyNotes };
+  /**
+   * Cross-Element Continuity Signal Gate — mirrors the relations loop's
+   * own remap discipline: newElementLocalRef is only ever accepted when
+   * it genuinely names one of THIS turn's own NEW_ELEMENT placements
+   * (rawLocalRefs, already computed above), namespaced the same way a
+   * relation's fromRef/toRef would be. priorElementId is passed through
+   * as-is (already a real pre-existing graph id, same as any other
+   * "already represented" reference elsewhere in this file) — its
+   * existence is re-checked downstream (decideResponse, via
+   * elementById) rather than here, so a malformed value degrades to
+   * "no signal" rather than failing the whole turn's real, unrelated
+   * output (unlike EXISTING_ELEMENT_UPDATE's targetElementId, this
+   * signal is never merged into the graph, so a bad reference has no
+   * lasting cost — see this file's own "no proposal is safer than a
+   * fabricated one" precedent above).
+   */
+  let crossElementContinuity: CrossElementContinuity | undefined;
+  const cec = raw.crossElementContinuity;
+  if (cec.priorElementId !== "none" && cec.newElementLocalRef !== "none" && rawLocalRefs.has(cec.newElementLocalRef)) {
+    crossElementContinuity = {
+      priorElementId: cec.priorElementId,
+      newElementLocalRef: namespace(cec.newElementLocalRef),
+      groundingQuote: cec.groundingQuote,
+      confidence: cec.confidence,
+    };
+  }
+
+  return { newElements, updatedElements, relations, unresolvedCandidates, confidence: raw.confidence, uncertaintyNotes: raw.uncertaintyNotes, crossElementContinuity };
 }
 
 /**

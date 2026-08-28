@@ -309,6 +309,10 @@ function toInterpreterOutput(raw: RawOutput, currentTurn: number): InterpreterOu
     groundingTurn: r.groundingTurn ?? currentTurn,
     groundingText: r.groundingQuote,
     confidence: r.confidence,
+    // User-Stated Relation Gate — this Legacy adapter's own schema/prompt
+    // has no provenance judgment; every relation it has ever produced is
+    // HRI's own inference, same as before this field existed.
+    provenance: "inferred",
   }));
   const unresolvedCandidates: ProposedUnresolved[] = raw.unresolvedCandidates.map((u) => ({
     // "none" sentinel (strict JSON schema has no true optional fields —

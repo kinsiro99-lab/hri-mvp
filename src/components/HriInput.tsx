@@ -11,7 +11,7 @@ import {
   KeyboardEvent,
   ChangeEvent,
 } from "react"
-import type { Locale } from "@/lib/hri/locale"
+import type { UiLocale } from "@/lib/hri/locale"
 import { CONTENT } from "@/lib/i18n/content"
 
 interface HriInputProps {
@@ -21,7 +21,7 @@ interface HriInputProps {
   placeholder?: string
   disabled?:   boolean
   autoFocus?:  boolean
-  locale?:     Locale
+  locale?:     UiLocale
 }
 
 export default function HriInput({
