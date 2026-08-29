@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import HriInput from "../HriInput";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
+import { resolveNoticeContent } from "@/lib/notice/types";
 import type { UiLocale } from "@/lib/hri/locale";
 import { UI_LOCALES } from "@/lib/hri/locale";
 import { CONTENT, type Content } from "@/lib/i18n/content";
@@ -152,6 +153,10 @@ export default function Arrival({
   // sorted published_at/created_at DESC server-side (listPublishedNotices),
   // so [0] is the latest. No notice -> falls back to the original card.
   const latestNotice = notices[0] ?? null;
+  // Multilingual Notice Gate — resolved once, shared by both the card
+  // preview and the full modal below, so they can never show two
+  // different locales' content for the same notice.
+  const localizedNotice = latestNotice ? resolveNoticeContent(latestNotice, locale) : null;
   const [noticeDetailOpen, setNoticeDetailOpen] = useState(false);
   // Mobile Language Icon Gate — the desktop horizontal switcher
   // (.arrival-locale-switcher) is hidden below 561px (aurina.css): a
@@ -399,10 +404,10 @@ export default function Arrival({
         )}
         <ServiceCard
           icon={<OrbIcon />}
-          title={latestNotice ? noticeCardTitle(latestNotice.title) : t.arrival.cards.mirrorTitle}
+          title={localizedNotice ? noticeCardTitle(localizedNotice.title) : t.arrival.cards.mirrorTitle}
           line={
-            latestNotice
-              ? noticePreview(latestNotice.body)
+            localizedNotice
+              ? noticePreview(localizedNotice.body)
               : hasHistory
                 ? t.arrival.cards.mirrorLineHistory
                 : t.arrival.cards.mirrorLineDefault
@@ -449,8 +454,8 @@ export default function Arrival({
         </div>
       )}
 
-      {latestNotice && noticeDetailOpen && (
-        <NoticeDetailModal notice={latestNotice} onClose={() => setNoticeDetailOpen(false)} closeLabel={t.common.close} />
+      {localizedNotice && noticeDetailOpen && (
+        <NoticeDetailModal title={localizedNotice.title} body={localizedNotice.body} onClose={() => setNoticeDetailOpen(false)} closeLabel={t.common.close} />
       )}
     </section>
   );
@@ -458,10 +463,13 @@ export default function Arrival({
 
 // Notice Detail Gate — inline styles only (no aurina.css changes), so
 // this stays a single-file, additive change. title/body are rendered
-// verbatim from latestNotice, never hardcoded.
+// verbatim from whatever the caller resolved, never hardcoded.
 // Multilingual Localization Gate — closeLabel replaces the two spots
 // that used to hardcode Korean "닫기" regardless of locale.
-function NoticeDetailModal({ notice, onClose, closeLabel }: { notice: Notice; onClose: () => void; closeLabel: string }) {
+// Multilingual Notice Gate — takes the already-resolved title/body
+// (not a raw Notice) so it can never pick a different locale than the
+// card that opened it — see localizedNotice above.
+function NoticeDetailModal({ title, body, onClose, closeLabel }: { title: string; body: string; onClose: () => void; closeLabel: string }) {
   // Mobile Beta Notice Scroll Fix — this component is mounted fresh
   // every time it opens ({latestNotice && noticeDetailOpen && <.../>}
   // above), but on mobile the freshly-mounted scrollable content div
@@ -494,7 +502,7 @@ function NoticeDetailModal({ notice, onClose, closeLabel }: { notice: Notice; on
         ref={contentRef}
         role="dialog"
         aria-modal="true"
-        aria-label={notice.title}
+        aria-label={title}
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "#fff",
@@ -508,7 +516,7 @@ function NoticeDetailModal({ notice, onClose, closeLabel }: { notice: Notice; on
         }}
       >
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#1a1a1a" }}>{notice.title}</h3>
+          <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#1a1a1a" }}>{title}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -528,7 +536,7 @@ function NoticeDetailModal({ notice, onClose, closeLabel }: { notice: Notice; on
           </button>
         </div>
         <p style={{ marginTop: "16px", marginBottom: "20px", fontSize: "14px", lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap" }}>
-          {notice.body}
+          {body}
         </p>
         <button
           type="button"

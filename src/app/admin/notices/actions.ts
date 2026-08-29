@@ -17,6 +17,28 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createNotice, deleteNotice, setPublished, updateNotice } from "@/lib/notice/store";
+import type { NoticeLocale, NoticeTranslations } from "@/lib/notice/types";
+
+// Multilingual Notice Gate — the 6 non-ko locales the translation
+// fields below cover; ko itself is never one of these (it's the
+// existing title/body fields above, already on this form).
+const NOTICE_TRANSLATION_LOCALES: NoticeLocale[] = ["ja", "en", "fr", "zh-CN", "zh-HK", "zh-TW"];
+
+// Reads trans_<locale>_title / trans_<locale>_body pairs from the
+// form. A locale is only included if BOTH fields are non-empty —
+// same "no half-filled translation" contract resolveNoticeContent
+// enforces on read, kept consistent on write too.
+function readTranslationsFromForm(formData: FormData): NoticeTranslations {
+  const translations: NoticeTranslations = {};
+  for (const locale of NOTICE_TRANSLATION_LOCALES) {
+    const title = String(formData.get(`trans_${locale}_title`) ?? "").trim();
+    const body = String(formData.get(`trans_${locale}_body`) ?? "").trim();
+    if (title && body) {
+      translations[locale] = { title, body };
+    }
+  }
+  return translations;
+}
 
 function isAuthorized(providedKey: FormDataEntryValue | null): boolean {
   const accessKey = process.env.ADMIN_ACCESS_KEY;
@@ -46,7 +68,7 @@ export async function createNoticeAction(formData: FormData) {
   const isPublished = formData.get("isPublished") === "on";
   if (!title || !body) backTo(key);
 
-  await createNotice(title, body, isPublished);
+  await createNotice(title, body, isPublished, readTranslationsFromForm(formData));
   afterWrite(key);
 }
 
@@ -60,7 +82,7 @@ export async function updateNoticeAction(formData: FormData) {
   const isPublished = formData.get("isPublished") === "on";
   if (!Number.isInteger(id) || !title || !body) backTo(key);
 
-  await updateNotice(id, title, body, isPublished);
+  await updateNotice(id, title, body, isPublished, readTranslationsFromForm(formData));
   afterWrite(key);
 }
 

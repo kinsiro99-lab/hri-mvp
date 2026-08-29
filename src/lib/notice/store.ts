@@ -14,7 +14,7 @@
  * break the Landing page or crash an admin action.
  */
 import { neon } from "@neondatabase/serverless";
-import type { Notice } from "./types";
+import type { Notice, NoticeTranslations } from "./types";
 
 const LANDING_NOTICE_LIMIT = 3;
 const ADMIN_LIST_LIMIT = 100;
@@ -27,11 +27,35 @@ type NoticeRow = {
   created_at: string | Date;
   updated_at: string | Date;
   published_at: string | Date | null;
+  // Multilingual Notice Gate — nullable JSONB, additive column (see
+  // schema.sql). Older rows / a fresh SELECT before the column exists
+  // in a given environment simply come back as null/undefined here,
+  // which parseTranslations already treats as "no translations".
+  translations?: unknown;
 };
 
 function toIso(value: string | Date | null): string | null {
   if (value === null) return null;
   return value instanceof Date ? value.toISOString() : value;
+}
+
+// Multilingual Notice Gate — defensive on purpose: the neon driver
+// typically returns JSONB already parsed as an object, but this
+// never assumes that — a raw JSON string, null/undefined, or a
+// malformed value (hand-edited in the DB, say) all safely resolve to
+// "no translations" rather than throwing and breaking the Landing
+// page or the admin list.
+function parseTranslations(value: unknown): NoticeTranslations | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "object") return value as NoticeTranslations;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as NoticeTranslations;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 function toNotice(row: NoticeRow): Notice {
@@ -43,6 +67,7 @@ function toNotice(row: NoticeRow): Notice {
     createdAt: toIso(row.created_at) as string,
     updatedAt: toIso(row.updated_at) as string,
     publishedAt: toIso(row.published_at),
+    translations: parseTranslations(row.translations),
   };
 }
 
@@ -59,7 +84,7 @@ export async function listPublishedNotices(): Promise<Notice[]> {
   if (!sql) return [];
   try {
     const rows = (await sql`
-      SELECT id, title, body, is_published, created_at, updated_at, published_at
+      SELECT id, title, body, is_published, created_at, updated_at, published_at, translations
       FROM notices
       WHERE is_published = true
       ORDER BY published_at DESC NULLS LAST, created_at DESC
@@ -80,7 +105,7 @@ export async function listAllNotices(): Promise<{ notices: Notice[]; error: stri
   if (!sql) return { notices: [], error: "DATABASE_URL is not configured." };
   try {
     const rows = (await sql`
-      SELECT id, title, body, is_published, created_at, updated_at, published_at
+      SELECT id, title, body, is_published, created_at, updated_at, published_at, translations
       FROM notices
       ORDER BY id DESC
       LIMIT ${ADMIN_LIST_LIMIT}
@@ -96,7 +121,7 @@ export async function getNotice(id: number): Promise<Notice | null> {
   if (!sql) return null;
   try {
     const rows = (await sql`
-      SELECT id, title, body, is_published, created_at, updated_at, published_at
+      SELECT id, title, body, is_published, created_at, updated_at, published_at, translations
       FROM notices WHERE id = ${id}
     `) as NoticeRow[];
     return rows[0] ? toNotice(rows[0]) : null;
@@ -107,7 +132,22 @@ export async function getNotice(id: number): Promise<Notice | null> {
 
 export type NoticeWriteResult = { ok: true } | { ok: false; error: string };
 
-export async function createNotice(title: string, body: string, isPublished: boolean): Promise<NoticeWriteResult> {
+// Multilingual Notice Gate — translations is optional/nullable at
+// every call site: existing callers that never pass it keep working
+// exactly as before (stored as NULL), which resolveNoticeContent
+// already treats as "fall back to title/body" for every non-ko
+// locale.
+function serializeTranslations(translations: NoticeTranslations | null | undefined): string | null {
+  if (!translations || Object.keys(translations).length === 0) return null;
+  return JSON.stringify(translations);
+}
+
+export async function createNotice(
+  title: string,
+  body: string,
+  isPublished: boolean,
+  translations?: NoticeTranslations | null,
+): Promise<NoticeWriteResult> {
   const sql = client();
   if (!sql) return { ok: false, error: "DATABASE_URL is not configured." };
   try {
@@ -117,8 +157,8 @@ export async function createNotice(title: string, body: string, isPublished: boo
     // query is built, never inside it.
     const publishedAt = isPublished ? new Date().toISOString() : null;
     await sql`
-      INSERT INTO notices (title, body, is_published, published_at)
-      VALUES (${title}, ${body}, ${isPublished}, ${publishedAt})
+      INSERT INTO notices (title, body, is_published, published_at, translations)
+      VALUES (${title}, ${body}, ${isPublished}, ${publishedAt}, ${serializeTranslations(translations)})
     `;
     return { ok: true };
   } catch (error) {
@@ -126,7 +166,13 @@ export async function createNotice(title: string, body: string, isPublished: boo
   }
 }
 
-export async function updateNotice(id: number, title: string, body: string, isPublished: boolean): Promise<NoticeWriteResult> {
+export async function updateNotice(
+  id: number,
+  title: string,
+  body: string,
+  isPublished: boolean,
+  translations?: NoticeTranslations | null,
+): Promise<NoticeWriteResult> {
   const sql = client();
   if (!sql) return { ok: false, error: "DATABASE_URL is not configured." };
   try {
@@ -140,7 +186,7 @@ export async function updateNotice(id: number, title: string, body: string, isPu
     const publishedAt = justPublished ? new Date().toISOString() : (existing?.publishedAt ?? null);
     await sql`
       UPDATE notices
-      SET title = ${title}, body = ${body}, is_published = ${isPublished}, updated_at = now(), published_at = ${publishedAt}
+      SET title = ${title}, body = ${body}, is_published = ${isPublished}, updated_at = now(), published_at = ${publishedAt}, translations = ${serializeTranslations(translations)}
       WHERE id = ${id}
     `;
     return { ok: true };

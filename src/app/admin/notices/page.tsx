@@ -3,6 +3,20 @@ import { notFound } from "next/navigation";
 import { getNotice, listAllNotices } from "@/lib/notice/store";
 import { createNoticeAction, deleteNoticeAction, togglePublishAction, updateNoticeAction } from "./actions";
 import DeleteButton from "./DeleteButton";
+import type { NoticeLocale } from "@/lib/notice/types";
+
+// Multilingual Notice Gate — same 6-locale list actions.ts reads from
+// the form; kept here too (not shared) since this is the only other
+// place that needs it and a shared constant would be a bigger change
+// than the Gate asked for ("UI는 단순하게 유지").
+const NOTICE_TRANSLATION_LOCALES: { locale: NoticeLocale; label: string }[] = [
+  { locale: "ja", label: "JA" },
+  { locale: "en", label: "EN" },
+  { locale: "fr", label: "FR" },
+  { locale: "zh-CN", label: "ZH-CN" },
+  { locale: "zh-HK", label: "ZH-HK" },
+  { locale: "zh-TW", label: "ZH-TW" },
+];
 
 // Notice admin — Gate §5: one page, one form, no multi-step workflow.
 // Same ADMIN_ACCESS_KEY convention as /admin, /admin/observations, and
@@ -75,6 +89,37 @@ export default async function NoticeAdminPage({
             <input type="checkbox" name="isPublished" defaultChecked={editing?.isPublished ?? false} />
             {" "}공개
           </label>
+
+          {/* Multilingual Notice Gate — 제목/내용 위 KO 필드가 계속
+              authoritative master; 이 아래 6개는 선택 입력이며 비워두면
+              resolveNoticeContent가 KO로 fallback한다 (store.ts 참고).
+              탭/별도 컴포넌트 없이 같은 폼 안에 이어서 배치. */}
+          <fieldset style={{ border: "1px solid #ddd", borderRadius: "6px", padding: "12px", marginBottom: "14px" }}>
+            <legend style={{ fontSize: "12px", color: "#666", padding: "0 6px" }}>
+              번역 (선택 — 비워두면 한국어로 표시됩니다)
+            </legend>
+            {NOTICE_TRANSLATION_LOCALES.map(({ locale, label }) => (
+              <div key={locale} style={{ marginBottom: "10px" }}>
+                <div style={{ fontSize: "11px", fontWeight: "bold", color: "#888", marginBottom: "2px" }}>
+                  {label}
+                </div>
+                <input
+                  type="text"
+                  name={`trans_${locale}_title`}
+                  placeholder={`${label} title`}
+                  defaultValue={editing?.translations?.[locale]?.title ?? ""}
+                  style={inputStyle}
+                />
+                <textarea
+                  name={`trans_${locale}_body`}
+                  placeholder={`${label} body`}
+                  defaultValue={editing?.translations?.[locale]?.body ?? ""}
+                  rows={3}
+                  style={inputStyle}
+                />
+              </div>
+            ))}
+          </fieldset>
 
           <button
             type="submit"
