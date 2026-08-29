@@ -348,16 +348,26 @@ export default function Arrival({
                       is deliberately narrower than "never stored"/"no one
                       can see it"/"fully anonymous" — those aren't backed by
                       the current implementation (see observation_events +
-                      the admin observation viewer); "not made public" is. */}
-                  <p className="arrival-notice-privacy">{t.arrival.privacyText}</p>
-                  {/* Readability Gate — ko-only: matches the readable,
-                      non-gray body size of the two lines above instead
-                      of the small/gray fine-print treatment ja/en's own
-                      noticeText (unclassed below) still uses. Text
-                      unchanged either way. */}
-                  <p className={locale === "ko" ? "arrival-notice-readable" : undefined}>
-                    {renderLines(t.arrival.noticeText)}
-                  </p>
+                      the admin observation viewer); "not made public" is.
+                      Left Info Order Final — ko-only: the user's confirmed
+                      reading order puts this privacy line last, after
+                      noticeText, not 2nd. Every other locale keeps its
+                      original order (privacy before notice) untouched,
+                      since only ko's copy has been finalized so far. */}
+                  {locale === "ko" ? (
+                    <>
+                      <p className="arrival-notice-readable">{renderLines(t.arrival.noticeText)}</p>
+                      <p className="arrival-notice-privacy">{t.arrival.privacyText}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="arrival-notice-privacy">{t.arrival.privacyText}</p>
+                      {/* Readability Gate — ko-only note applies to the ko
+                          branch above; this branch (ja/en/fr/zh-*) keeps
+                          the original unclassed treatment untouched. */}
+                      <p>{renderLines(t.arrival.noticeText)}</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
