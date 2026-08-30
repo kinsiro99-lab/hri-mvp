@@ -52,3 +52,27 @@ CREATE TABLE IF NOT EXISTS observation_reflections (
   session_id TEXT NOT NULL,
   reflection_text TEXT NOT NULL
 );
+
+-- Reality Gain Observation Sprint 02 — additive only, does not touch
+-- observation_turns/observation_reflections above (no ALTER, no
+-- column added to either). One row per turn, classifying what
+-- structurally changed in the live ContextGraph as a result of that
+-- turn's answer — see src/lib/observation/types.ts's
+-- ObservationRealityGain/RealityGainType for the exact classification
+-- rule (derived only from counts the Runtime already computes, never
+-- from wording/length/an LLM judge). gain_type is one of
+-- NEW_REALITY / CLARIFICATION / RELATION / NO_STRUCTURAL_GAIN.
+-- element_ref is nullable: a real ContextElement/ContextRelation id
+-- when the live path produced one, never a fabricated identifier.
+CREATE TABLE IF NOT EXISTS observation_reality_gains (
+  id BIGSERIAL PRIMARY KEY,
+  timestamp TIMESTAMPTZ NOT NULL,
+  session_id TEXT NOT NULL,
+  turn_index INTEGER NOT NULL,
+  gain_type TEXT NOT NULL,
+  new_element_count INTEGER NOT NULL,
+  updated_element_count INTEGER NOT NULL,
+  new_relation_count INTEGER NOT NULL,
+  element_ref TEXT,
+  UNIQUE (session_id, turn_index)
+);

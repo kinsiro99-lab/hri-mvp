@@ -11,7 +11,7 @@
  * this yet; a future caller decides when (and whether) to.
  */
 
-import type { ObservationEvent, ObservationReflection, ObservationTurn } from "./types";
+import type { ObservationEvent, ObservationReflection, ObservationRealityGain, ObservationTurn, RealityGainType } from "./types";
 import type { ObservationStorage, ObservationStorageResult } from "./storage";
 
 const FIRST_INPUT_MAX_LENGTH = 500;
@@ -126,6 +126,56 @@ export async function emitObservationReflection(
     };
 
     return await storage.recordReflection(reflection);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
+    return { persisted: false, reason: message };
+  }
+}
+
+// Reality Gain Observation Sprint 02 — classifies gainType purely
+// from the three counts already computed by intelligenceCore.ts's
+// updateGraph() (see StructuralChangeSummary there). No wording, no
+// answer length, no emotion detection, no LLM judge call — exactly
+// the boundary the Sprint requires. Priority when a turn produced
+// more than one kind of change: NEW_REALITY > RELATION > CLARIFICATION.
+function classifyGain(newElementCount: number, updatedElementCount: number, newRelationCount: number): RealityGainType {
+  if (newElementCount > 0) return "NEW_REALITY";
+  if (newRelationCount > 0) return "RELATION";
+  if (updatedElementCount > 0) return "CLARIFICATION";
+  return "NO_STRUCTURAL_GAIN";
+}
+
+export async function emitObservationRealityGain(
+  input: {
+    sessionId: string;
+    turnIndex: number;
+    newElementCount: number;
+    updatedElementCount: number;
+    newRelationCount: number;
+    elementRef: string | null;
+  },
+  storage: ObservationStorage,
+): Promise<ObservationStorageResult> {
+  try {
+    if (!input.sessionId.trim()) {
+      return { persisted: false, reason: INVALID_OBSERVATION_EVENT_REASON };
+    }
+    if (!Number.isInteger(input.turnIndex) || input.turnIndex < 0) {
+      return { persisted: false, reason: INVALID_OBSERVATION_EVENT_REASON };
+    }
+
+    const gain: ObservationRealityGain = {
+      timestamp: new Date().toISOString(),
+      sessionId: input.sessionId.trim(),
+      turnIndex: input.turnIndex,
+      gainType: classifyGain(input.newElementCount, input.updatedElementCount, input.newRelationCount),
+      newElementCount: input.newElementCount,
+      updatedElementCount: input.updatedElementCount,
+      newRelationCount: input.newRelationCount,
+      elementRef: input.elementRef,
+    };
+
+    return await storage.recordRealityGain(gain);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
     return { persisted: false, reason: message };

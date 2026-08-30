@@ -29,12 +29,28 @@ export type HriEvent =
       questionId: string;
       category: QuestionCategory;
       createdAt: number;
+      // Reality Gain Observation Sprint 02 — optional, read-only
+      // structural-change summary for THIS turn (see StructuralChangeSummary
+      // in intelligence/intelligenceCore.ts). Flat primitives rather than
+      // a nested/imported type, matching this union's existing style and
+      // avoiding a new cross-module import here. Undefined whenever
+      // USE_INTELLIGENCE_CORE's branch didn't run this turn.
+      structuralNewElements?: number;
+      structuralUpdatedElements?: number;
+      structuralNewRelations?: number;
+      structuralElementRef?: string | null;
     }
   | {
       id: string;
       type: "reflection";
       text: string;
       createdAt: number;
+      // Reality Gain Observation Sprint 02 — same fields/meaning as the
+      // "question" variant above.
+      structuralNewElements?: number;
+      structuralUpdatedElements?: number;
+      structuralNewRelations?: number;
+      structuralElementRef?: string | null;
     }
   | {
       id: string;
@@ -125,12 +141,24 @@ export type QuestionOutput = {
   category: QuestionCategory;
   aperture: "small" | "medium";
   weight: number;
+  // Reality Gain Observation Sprint 02 — see HriEvent's "question"
+  // variant above; copied through verbatim by createQuestionEvent.
+  structuralNewElements?: number;
+  structuralUpdatedElements?: number;
+  structuralNewRelations?: number;
+  structuralElementRef?: string | null;
 };
 
 export type ReflectionOutput = {
   text: string;
   tone: "quiet" | "still" | "dense";
   compressionLevel: "low" | "medium";
+  // Reality Gain Observation Sprint 02 — see HriEvent's "reflection"
+  // variant above; copied through verbatim by createReflectionEvent.
+  structuralNewElements?: number;
+  structuralUpdatedElements?: number;
+  structuralNewRelations?: number;
+  structuralElementRef?: string | null;
 };
 
 export type WhisperOutput = {

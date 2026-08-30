@@ -59,7 +59,7 @@ import {
   applyEvidenceToUnderstanding,
   type Probe,
 } from "./v2/questionCorePrototype";
-import { advanceIntelligence, updateGraph } from "./intelligence/intelligenceCore";
+import { advanceIntelligence, updateGraph, type StructuralChangeSummary } from "./intelligence/intelligenceCore";
 import { createContextFirstSemanticAdapter } from "./context/providers/contextFirstSemanticAdapter";
 import { emptyContextGraph, type ConversationTurn } from "./context/types";
 import { buildFinalExperienceGrounding } from "./intelligence/finalExperienceComposer";
@@ -580,6 +580,11 @@ const fallbackReflectionText = [
     // stale one — no other behavior in this block changes.
     let nextIntelligenceGraph = hriState.intelligenceGraph;
     let nextIntelligenceProposalFeedback = hriState.intelligenceProposalFeedback;
+    // Reality Gain Observation Sprint 02 — undefined whenever this
+    // branch doesn't run (USE_INTELLIGENCE_CORE off, or no
+    // prototypeUpdateResult this turn), same as every other
+    // intelligence-core-only field in this function.
+    let nextStructuralChange: StructuralChangeSummary | undefined;
     if (USE_INTELLIGENCE_CORE && prototypeUpdateResult) {
       const allTurnsForGraph: ConversationTurn[] = (hriState.prototypeEvidence ?? []).map((e) => ({ turn: e.turn, text: e.text }));
       const { interpreter: reflectInterpreter } = createContextFirstSemanticAdapter();
@@ -596,6 +601,7 @@ const fallbackReflectionText = [
       });
       nextIntelligenceGraph = graphUpdate.graph;
       nextIntelligenceProposalFeedback = graphUpdate.proposalFeedback;
+      nextStructuralChange = graphUpdate.structuralChange;
     }
 
     // Gate 31 — AURINA Final Experience. Single rollback switch, same
@@ -629,6 +635,10 @@ const fallbackReflectionText = [
       text: reflectionText,
       tone: "quiet",
       compressionLevel: "low",
+      structuralNewElements: nextStructuralChange?.newElementCount,
+      structuralUpdatedElements: nextStructuralChange?.updatedElementCount,
+      structuralNewRelations: nextStructuralChange?.newRelationCount,
+      structuralElementRef: nextStructuralChange?.elementRef,
     };
 
     const nextState: SessionStateV2 = {
@@ -689,6 +699,10 @@ const fallbackReflectionText = [
       category: hriState.lastQuestionCategory ?? "density",
       aperture: "small",
       weight: 1,
+      structuralNewElements: intelligenceResult.structuralChange.newElementCount,
+      structuralUpdatedElements: intelligenceResult.structuralChange.updatedElementCount,
+      structuralNewRelations: intelligenceResult.structuralChange.newRelationCount,
+      structuralElementRef: intelligenceResult.structuralChange.elementRef,
     };
     devLog("INTELLIGENCE QUESTION SOURCE:", question.id, question.text);
 

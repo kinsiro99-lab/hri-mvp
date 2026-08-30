@@ -52,3 +52,28 @@ export type ObservationReflection = {
   sessionId: string;
   reflectionText: string;
 };
+
+/**
+ * Reality Gain Observation Sprint 02 — one row per turn, classifying
+ * what structurally changed in the live ContextGraph as a direct
+ * result of that turn's answer. gainType is derived purely from
+ * counts already computed by intelligenceCore.ts's updateGraph()
+ * (see StructuralChangeSummary there) — never from answer length,
+ * emotion words, an LLM judge call, or the Reflection text. Priority
+ * when a turn produced more than one kind of change:
+ * NEW_REALITY > RELATION > CLARIFICATION > NO_STRUCTURAL_GAIN.
+ * elementRef is a real ContextElement/ContextRelation id when one is
+ * available, never a fabricated identifier — null otherwise.
+ */
+export type RealityGainType = "NEW_REALITY" | "CLARIFICATION" | "RELATION" | "NO_STRUCTURAL_GAIN";
+
+export type ObservationRealityGain = {
+  timestamp: string;
+  sessionId: string;
+  turnIndex: number;
+  gainType: RealityGainType;
+  newElementCount: number;
+  updatedElementCount: number;
+  newRelationCount: number;
+  elementRef: string | null;
+};

@@ -20,6 +20,10 @@ export function createQuestionEvent(question: QuestionOutput): HriEvent {
     questionId: question.id,
     category: question.category,
     createdAt: Date.now(),
+    structuralNewElements: question.structuralNewElements,
+    structuralUpdatedElements: question.structuralUpdatedElements,
+    structuralNewRelations: question.structuralNewRelations,
+    structuralElementRef: question.structuralElementRef,
   };
 }
 export function createObservationEvent(text: string): HriEvent {
@@ -41,7 +45,16 @@ export function createResonanceEvent(pauseMs = 5000): HriEvent {
 }
 
 export function createReflectionEvent(reflection: ReflectionOutput): HriEvent {
-  return { id: makeId("reflection"), type: "reflection", text: reflection.text, createdAt: Date.now() };
+  return {
+    id: makeId("reflection"),
+    type: "reflection",
+    text: reflection.text,
+    createdAt: Date.now(),
+    structuralNewElements: reflection.structuralNewElements,
+    structuralUpdatedElements: reflection.structuralUpdatedElements,
+    structuralNewRelations: reflection.structuralNewRelations,
+    structuralElementRef: reflection.structuralElementRef,
+  };
 }
 
 export function createWhisperEvent(whisper: WhisperOutput): HriEvent {

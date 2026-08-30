@@ -1,9 +1,10 @@
 import { getNextOutput, type EngineRequest } from "@/lib/hriRuntime";
 import { advanceSession } from "@/lib/hri/controller";
 import { devLog } from "@/lib/devLog";
+import type { HriEvent } from "@/lib/hri/types";
 import { NeonObservationStorage } from "@/lib/observation/neonStorage";
 import { NoopObservationStorage } from "@/lib/observation/storage";
-import { emitObservationReflection, emitObservationTurn } from "@/lib/observation/adapter";
+import { emitObservationReflection, emitObservationRealityGain, emitObservationTurn } from "@/lib/observation/adapter";
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store",
@@ -48,6 +49,52 @@ async function recordReflectionObservation(payload: EngineRequest, result: Await
   if (!outcome.persisted) devLog("Observation reflection not persisted:", outcome.reason);
 }
 
+// Reality Gain Observation Sprint 02 — reads the structural-change
+// summary controller.ts already attached to this turn's question/
+// reflection HriEvent (see types.ts's HriEvent "question"/"reflection"
+// variants), rather than adding any new field to EngineResponse/
+// RuntimeResponse. nextEvents already flows unmodified from
+// sessionAdapter.ts through to here.
+type StructuralChangeEvent = Extract<HriEvent, { type: "question" | "reflection" }>;
+
+function isStructuralChangeEvent(event: HriEvent): event is StructuralChangeEvent {
+  return event.type === "question" || event.type === "reflection";
+}
+
+function latestQuestionOrReflectionEvent(events: HriEvent[] | undefined): StructuralChangeEvent | undefined {
+  if (!Array.isArray(events)) return undefined;
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (isStructuralChangeEvent(event)) return event;
+  }
+  return undefined;
+}
+
+async function recordRealityGainObservation(payload: EngineRequest, result: Awaited<ReturnType<typeof getNextOutput>>) {
+  if (!payload.sessionId) return;
+  const event = latestQuestionOrReflectionEvent(result.nextEvents);
+  // undefined fields mean the intelligence-core branch simply didn't
+  // run this turn (e.g. USE_INTELLIGENCE_CORE off, or an early-return
+  // path) — there is no real signal to observe, so this turn is
+  // skipped entirely rather than asserting a NO_STRUCTURAL_GAIN fact
+  // that was never actually computed.
+  if (!event || event.structuralNewElements === undefined) return;
+
+  const storage = process.env.DATABASE_URL ? new NeonObservationStorage() : new NoopObservationStorage();
+  const outcome = await emitObservationRealityGain(
+    {
+      sessionId: payload.sessionId,
+      turnIndex: payload.turn,
+      newElementCount: event.structuralNewElements ?? 0,
+      updatedElementCount: event.structuralUpdatedElements ?? 0,
+      newRelationCount: event.structuralNewRelations ?? 0,
+      elementRef: event.structuralElementRef ?? null,
+    },
+    storage,
+  );
+  if (!outcome.persisted) devLog("Observation reality gain not persisted:", outcome.reason);
+}
+
 export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as EngineRequest;
@@ -57,6 +104,7 @@ export async function POST(req: Request) {
     try {
       await recordTurnObservation(payload, result);
       await recordReflectionObservation(payload, result);
+      await recordRealityGainObservation(payload, result);
     } catch (observationError) {
       // Belt-and-suspenders — emitObservationTurn/Reflection already
       // never throw, but this call site must never let an Observation

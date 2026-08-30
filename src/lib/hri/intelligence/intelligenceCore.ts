@@ -79,6 +79,27 @@ export type AdvanceIntelligenceInput = {
   locale: Locale;
 };
 
+/**
+ * Reality Gain Observation Sprint 02 — a read-only, purely additive
+ * summary of what structurally changed in the ContextGraph THIS turn,
+ * derived entirely from values updateGraph() already computes for its
+ * own internal use (accepted.newElements, acceptedUpdatesThisTurn, a
+ * relations-length diff). Never fed back into decideResponse, never
+ * affects graph merge logic, never affects prompts or wording —
+ * consumed only by Observation logging (api/analyze/route.ts). See
+ * that Sprint's own report for the full boundary rationale.
+ */
+export type StructuralChangeSummary = {
+  newElementCount: number;
+  updatedElementCount: number;
+  newRelationCount: number;
+  /** A real ContextElement/ContextRelation id when one is available —
+   *  never a fabricated identifier. Priority: first new element, else
+   *  the most recently added relation, else the first updated element,
+   *  else null. */
+  elementRef: string | null;
+};
+
 export type AdvanceIntelligenceResult = {
   graph: ContextGraph;
   probedRefs: string[];
@@ -93,6 +114,7 @@ export type AdvanceIntelligenceResult = {
    *  reported so wording quality is auditable per-turn. */
   wordingSource: "provider" | "template";
   hypotheses: Hypothesis[];
+  structuralChange: StructuralChangeSummary;
 };
 
 /**
@@ -1096,6 +1118,14 @@ export type UpdateGraphResult = {
    *  carries it — see contextFirstSemanticAdapter.ts's own doc on this
    *  field). Never stored on `graph`. */
   crossElementContinuity?: CrossElementContinuity;
+  structuralChange: StructuralChangeSummary;
+};
+
+const NO_STRUCTURAL_CHANGE: StructuralChangeSummary = {
+  newElementCount: 0,
+  updatedElementCount: 0,
+  newRelationCount: 0,
+  elementRef: null,
 };
 
 /**
@@ -1136,6 +1166,7 @@ export async function updateGraph(input: UpdateGraphInput): Promise<UpdateGraphR
       proposalFeedback: { acceptedRefs: [], rejectedRefs: [], uncertainRefs: [], reasons: ["skipped: incomplete/still-typing input, not sent to interpreter"] },
       acceptedUpdatesThisTurn: [],
       providerStatus: "success",
+      structuralChange: NO_STRUCTURAL_CHANGE,
     };
   }
 
@@ -1174,10 +1205,23 @@ export async function updateGraph(input: UpdateGraphInput): Promise<UpdateGraphR
   let graph = priorGraph;
   let acceptedUpdatesThisTurn: ProposedUpdate[] = [];
   let crossElementContinuity: CrossElementContinuity | undefined;
+  // Reality Gain Observation Sprint 02 — newElementCount/newElementRef
+  // captured here (accepted.newElements is otherwise scoped to this
+  // block and discarded); everything else the summary needs
+  // (acceptedUpdatesThisTurn, a relations-length diff) is already
+  // available after this if-block ends.
+  let newElementCount = 0;
+  let newElementRef: string | null = null;
   if (validation.summary.status !== "REJECT") {
     const accepted = filterAcceptedProposals(combinedOutput, validation);
     acceptedUpdatesThisTurn = accepted.updatedElements;
+    newElementCount = accepted.newElements.length;
     graph = mergeInterpreterOutput(priorGraph, accepted, turn);
+    // ProposedElement (accepted.newElements) has no `id` — the real id
+    // (el.localRef, see mergeInterpreterOutput) only exists once merged
+    // into `graph`, appended in the same order right after
+    // priorGraph.elements's existing entries.
+    newElementRef = newElementCount > 0 ? (graph.elements[priorGraph.elements.length]?.id ?? null) : null;
     // filterAcceptedProposals/mergeInterpreterOutput do not carry this
     // field through (it is never a "proposal" subject to V1-V10
     // grounding review, nor ever merged into the graph) — read directly
@@ -1235,14 +1279,29 @@ export async function updateGraph(input: UpdateGraphInput): Promise<UpdateGraphR
     devLog("USER-STATED RELATION (deterministic fallback):", { turn, relation: fallbackRelation });
   }
 
-  return { graph, proposalFeedback, acceptedUpdatesThisTurn, providerStatus, crossElementContinuity };
+  // Reality Gain Observation Sprint 02 — computed last, after every
+  // possible source of a new relation this turn (including the
+  // deterministic fallback above) has already run. A reinforced
+  // (already-existing) relation does not grow graph.relations (see
+  // evaluationHarness.ts's mergeInterpreterOutput), so this diff is 0
+  // in that case, correctly not counted as "new."
+  const newRelationCount = graph.relations.length - priorGraph.relations.length;
+  const newRelationRef = newRelationCount > 0 ? (graph.relations[graph.relations.length - 1]?.id ?? null) : null;
+  const structuralChange: StructuralChangeSummary = {
+    newElementCount,
+    updatedElementCount: acceptedUpdatesThisTurn.length,
+    newRelationCount,
+    elementRef: newElementRef ?? newRelationRef ?? acceptedUpdatesThisTurn[0]?.targetElementId ?? null,
+  };
+
+  return { graph, proposalFeedback, acceptedUpdatesThisTurn, providerStatus, crossElementContinuity, structuralChange };
 }
 
 export async function advanceIntelligence(
   input: AdvanceIntelligenceInput,
   phraseStats?: ResponseCallStat[],
 ): Promise<AdvanceIntelligenceResult> {
-  const { graph, proposalFeedback, acceptedUpdatesThisTurn, providerStatus, crossElementContinuity } = await updateGraph(input);
+  const { graph, proposalFeedback, acceptedUpdatesThisTurn, providerStatus, crossElementContinuity, structuralChange } = await updateGraph(input);
 
   const decision = decideResponse({
     graph, newEvidence: input.newEvidence, wasCorrection: input.wasCorrection,
@@ -1293,5 +1352,5 @@ export async function advanceIntelligence(
     elementCount: graph.elements.length, relationCount: graph.relations.length, unresolvedCount: graph.unresolved.length,
   });
 
-  return { graph, probedRefs, proposalFeedback, decision, renderedText, wordingSource, hypotheses };
+  return { graph, probedRefs, proposalFeedback, decision, renderedText, wordingSource, hypotheses, structuralChange };
 }

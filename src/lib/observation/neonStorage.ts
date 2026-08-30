@@ -10,7 +10,7 @@
  */
 
 import { neon } from "@neondatabase/serverless";
-import type { ObservationEvent, ObservationReflection, ObservationTurn } from "./types";
+import type { ObservationEvent, ObservationReflection, ObservationRealityGain, ObservationTurn } from "./types";
 import type { ObservationStorage, ObservationStorageResult } from "./storage";
 
 export class NeonObservationStorage implements ObservationStorage {
@@ -90,6 +90,35 @@ export class NeonObservationStorage implements ObservationStorage {
           (timestamp, session_id, reflection_text)
         VALUES
           (${reflection.timestamp}, ${reflection.sessionId}, ${reflection.reflectionText})
+      `;
+      return { persisted: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown Neon storage error";
+      return { persisted: false, reason: message };
+    }
+  }
+
+  // Reality Gain Observation Sprint 02 — targets the new additive
+  // observation_reality_gains table (schema.sql). Same
+  // UNIQUE(session_id, turn_index) duplicate-write protection as
+  // recordTurn above; independent table, does not touch
+  // observation_turns/observation_reflections at all.
+  async recordRealityGain(gain: ObservationRealityGain): Promise<ObservationStorageResult> {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      return {
+        persisted: false,
+        reason: "DATABASE_URL is not configured — Neon storage is inactive.",
+      };
+    }
+
+    try {
+      const sql = neon(connectionString);
+      await sql`
+        INSERT INTO observation_reality_gains
+          (timestamp, session_id, turn_index, gain_type, new_element_count, updated_element_count, new_relation_count, element_ref)
+        VALUES
+          (${gain.timestamp}, ${gain.sessionId}, ${gain.turnIndex}, ${gain.gainType}, ${gain.newElementCount}, ${gain.updatedElementCount}, ${gain.newRelationCount}, ${gain.elementRef})
       `;
       return { persisted: true };
     } catch (error) {

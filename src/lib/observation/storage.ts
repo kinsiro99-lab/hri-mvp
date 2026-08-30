@@ -10,7 +10,7 @@
  * in src/lib/hri/logStore.ts.
  */
 
-import type { ObservationEvent, ObservationReflection, ObservationTurn } from "./types";
+import type { ObservationEvent, ObservationReflection, ObservationRealityGain, ObservationTurn } from "./types";
 
 export type ObservationStorageResult = {
   persisted: boolean;
@@ -23,27 +23,26 @@ export interface ObservationStorage {
   // same never-throws/fail-soft contract as record() above.
   recordTurn(turn: ObservationTurn): Promise<ObservationStorageResult>;
   recordReflection(reflection: ObservationReflection): Promise<ObservationStorageResult>;
+  // Reality Gain Observation Sprint 02 — same contract.
+  recordRealityGain(gain: ObservationRealityGain): Promise<ObservationStorageResult>;
 }
+
+const NOT_CONFIGURED_REASON = "No storage backend configured yet — Observation Console logging is contract-only in this sprint.";
 
 export class NoopObservationStorage implements ObservationStorage {
   async record(_event: ObservationEvent): Promise<ObservationStorageResult> {
-    return {
-      persisted: false,
-      reason: "No storage backend configured yet — Observation Console logging is contract-only in this sprint.",
-    };
+    return { persisted: false, reason: NOT_CONFIGURED_REASON };
   }
 
   async recordTurn(_turn: ObservationTurn): Promise<ObservationStorageResult> {
-    return {
-      persisted: false,
-      reason: "No storage backend configured yet — Observation Console logging is contract-only in this sprint.",
-    };
+    return { persisted: false, reason: NOT_CONFIGURED_REASON };
   }
 
   async recordReflection(_reflection: ObservationReflection): Promise<ObservationStorageResult> {
-    return {
-      persisted: false,
-      reason: "No storage backend configured yet — Observation Console logging is contract-only in this sprint.",
-    };
+    return { persisted: false, reason: NOT_CONFIGURED_REASON };
+  }
+
+  async recordRealityGain(_gain: ObservationRealityGain): Promise<ObservationStorageResult> {
+    return { persisted: false, reason: NOT_CONFIGURED_REASON };
   }
 }
