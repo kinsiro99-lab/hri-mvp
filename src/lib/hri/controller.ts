@@ -128,6 +128,27 @@ const USE_INTELLIGENCE_CORE = true;
  */
 const USE_FINAL_EXPERIENCE = true;
 
+/**
+ * Beta Safe Reflection Baseline (Sprint 05) — interim Beta decision,
+ * NOT the final HRI architecture. Live measurement this Sprint showed
+ * generative `sharing` (Model A: unconstrained; Model B: role-redefined
+ * as GroundedDiscovery expression) either fabricates unsupported User
+ * Reality or collapses to empty ~100% of the time — neither is
+ * something Beta should depend on. `mirror` alone was consistently
+ * grounded across every live test this Sprint.
+ *
+ * This flag does NOT delete sharing/GroundedDiscovery/phraseFinalExperience
+ * — all of that keeps running exactly as before, unchanged, and its
+ * output is still fully computed (still validated, still observed via
+ * Reflection Safety Observation). This flag only decides whether
+ * `finalExperience.sharing` is allowed to reach the TEXT the user
+ * actually sees. True = deterministic mirror-only Reflection (Beta).
+ * Flip to false post-Beta once sharing's generative expression problem
+ * is actually solved — see Sprint 05's own report for what remains
+ * open (GroundedDiscovery → Natural Expression).
+ */
+const BETA_SAFE_MIRROR_ONLY_REFLECTION = true;
+
 export type AdvanceSessionInput = {
   inputText: string;
   state: SessionState;
@@ -637,7 +658,13 @@ const fallbackReflectionText = [
       devLog("FINAL EXPERIENCE:", { outcome: phrased.outcome, errorMessage: phrased.errorMessage });
       reflectionSafetyOutcome = phrased.outcome;
       reflectionSafetyError = phrased.errorMessage ?? null;
-      reflectionText = joinFinalExperience(finalExperience.mirror, finalExperience.sharing);
+      // Beta Safe Reflection Baseline — finalExperience.sharing is still
+      // fully computed and validated above (nothing upstream changed),
+      // it simply never reaches the text the user sees while this flag
+      // is on. joinFinalExperience itself is untouched; called with ""
+      // it already returns mirror alone (see its own doc), so no new
+      // branching logic was needed beyond this one substitution.
+      reflectionText = joinFinalExperience(finalExperience.mirror, BETA_SAFE_MIRROR_ONLY_REFLECTION ? "" : finalExperience.sharing);
     }
 
     const reflection: ReflectionOutput = {

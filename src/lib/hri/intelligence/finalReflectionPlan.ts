@@ -54,9 +54,140 @@ export type ReflectionPlan = {
    *  re-derived here. See RelationProvenance's own doc for what "user-
    *  stated" does and does not mean — never objective/world causality. */
   primaryRelationProvenance?: RelationProvenance;
-  /** Only set when primaryDiscovery is "open". */
+  /** Only set when primaryDiscovery is "open". Kept for audit/devLog
+   *  only — Grounded Discovery Layer Gate: NEVER read by
+   *  finalExperiencePhraser.ts any more (see groundedDiscovery below),
+   *  since this is HRI-authored free text (the interpreter's own
+   *  unresolvedReason), not literal user evidence, and must not be
+   *  shown to the phraser with the same authority as anchorEvidence. */
   unresolvedFocus?: string;
+  /** Grounded Discovery Layer Gate — additive. A minimal, deterministic
+   *  reframing of the fields above (kind/evidence renamed and
+   *  reorganized, nothing new computed except coreClaim/provenance/
+   *  latitude — see buildGroundedDiscovery below) that
+   *  finalExperiencePhraser.ts now reads instead of the raw fields
+   *  above directly. Every field here is derived ONLY from data this
+   *  file already computed for the same reasons as before this Gate —
+   *  no new LLM call, no keyword table, no ContextGraph change. */
+  groundedDiscovery: GroundedDiscovery;
 };
+
+/**
+ * Grounded Discovery Layer Gate.
+ *
+ * Separates DISCOVERY AUTHORITY (what must remain true — fixed here,
+ * deterministically, before the phraser ever runs) from EXPRESSION
+ * FREEDOM (how naturally to say it — left to the phraser, calibrated by
+ * `latitude`). `coreClaim` is a semantic invariant to satisfy, never
+ * mandatory final wording, a sentence template, or a lexical
+ * containment boundary — see finalExperiencePhraser.ts's own use of it
+ * for how that distinction is enforced in the prompt.
+ */
+export type GroundedDiscoveryKind = "EXPLICIT" | "RELATION" | "CHANGE" | "STRUCTURE" | "UNRESOLVED";
+
+/** USER_EXPLICIT: the coreClaim traces to the user's own act of stating
+ *  it (either the evidence IS the whole claim, kind=EXPLICIT; or a
+ *  ContextRelation the user themselves connected, provenance="user-
+ *  stated" — see RelationProvenance's own doc). STRUCTURALLY_DERIVED:
+ *  HRI's own reading (an inferred relation, a recurrence, a structural
+ *  tension, an open question) — real and evidence-grounded, but not
+ *  something the user asserted in these words. */
+export type GroundedDiscoveryProvenance = "USER_EXPLICIT" | "STRUCTURALLY_DERIVED";
+
+/** Deterministic, from kind+provenance only (see
+ *  computeGroundedDiscoveryLatitude below) — never from a raw
+ *  confidence number, which CONTEXT_CONFIDENCE_POLICY's own doc
+ *  documents as provisional/unmeasured (confidencePolicy.ts). HIGH is
+ *  reached only when the user's own words already supply the entire
+ *  claim (kind=EXPLICIT, provenance=USER_EXPLICIT) — there is no
+ *  unclaimed content left for extra warmth to fill, so richer
+ *  expression is safe specifically there, not as a general reward for
+ *  "strong" evidence. */
+export type GroundedDiscoveryLatitude = "LOW" | "MEDIUM" | "HIGH";
+
+export type GroundedDiscovery = {
+  kind: GroundedDiscoveryKind;
+  /** = anchorEvidence, verbatim — always literal user text (see this
+   *  file's own header doc). Never includes unresolvedFocus. */
+  evidence: string[];
+  /** What must remain TRUE in the Reflection — not required wording.
+   *  For EXPLICIT/UNRESOLVED: the literal evidence items themselves,
+   *  concatenated, never reduced to a single paraphrase (this is the
+   *  direct fix for explicit-meaning loss — see Sprint's own report).
+   *  For RELATION/STRUCTURE: a fixed template keyed only by the
+   *  already-typed RelationType enum (never free text). For CHANGE: a
+   *  fixed, content-free "same continuing matter" sentence, since that
+   *  is literally all this signal establishes. */
+  coreClaim: string;
+  provenance: GroundedDiscoveryProvenance;
+  latitude: GroundedDiscoveryLatitude;
+};
+
+const RELATION_CLAIM_LABELS: Record<RelationType, (a: string, b: string) => string> = {
+  limits: (a, b) => `"${a}" limits "${b}"`,
+  supports: (a, b) => `"${a}" supports "${b}"`,
+  conflictsWith: (a, b) => `"${a}" and "${b}" are in tension`,
+  respondsTo: (a, b) => `"${b}" responds to "${a}"`,
+  clarifies: (a, b) => `"${b}" clarifies "${a}"`,
+  revises: (a, b) => `"${b}" revises "${a}"`,
+  relatesTo: (a, b) => `"${a}" and "${b}" are connected`,
+};
+
+function buildCoreClaim(
+  kind: GroundedDiscoveryKind,
+  evidence: string[],
+  relationType: RelationType | undefined,
+): string {
+  if (kind === "RELATION" || kind === "STRUCTURE") {
+    const [a, b] = evidence;
+    if (a && b) return RELATION_CLAIM_LABELS[relationType ?? "relatesTo"](a, b);
+    return evidence.map((e) => `"${e}"`).join(" and ");
+  }
+  if (kind === "CHANGE") {
+    const [a, b] = evidence;
+    if (a && b) return `"${a}" and "${b}" are the same continuing matter, restated or elaborated across turns.`;
+    return evidence.map((e) => `"${e}"`).join(" and ") || "the same matter recurred across turns.";
+  }
+  // EXPLICIT / UNRESOLVED — never reduced, every literal item preserved.
+  return evidence.map((e) => `"${e}"`).join(" and ");
+}
+
+function computeProvenance(
+  kind: GroundedDiscoveryKind,
+  relationProvenance: RelationProvenance | undefined,
+): GroundedDiscoveryProvenance {
+  if (kind === "EXPLICIT") return "USER_EXPLICIT";
+  if (kind === "RELATION" && relationProvenance === "user-stated") return "USER_EXPLICIT";
+  return "STRUCTURALLY_DERIVED";
+}
+
+function computeLatitude(kind: GroundedDiscoveryKind, provenance: GroundedDiscoveryProvenance): GroundedDiscoveryLatitude {
+  if (kind === "EXPLICIT" && provenance === "USER_EXPLICIT") return "HIGH";
+  if (kind === "RELATION" && provenance === "USER_EXPLICIT") return "MEDIUM";
+  return "LOW";
+}
+
+const DISCOVERY_TO_KIND: Record<DiscoverySignal | "explicit-only", GroundedDiscoveryKind> = {
+  "explicit-only": "EXPLICIT",
+  relation: "RELATION",
+  change: "CHANGE",
+  structure: "STRUCTURE",
+  open: "UNRESOLVED",
+};
+
+function buildGroundedDiscovery(
+  primaryDiscovery: DiscoverySignal | "explicit-only",
+  anchorEvidence: string[],
+  primaryRelationType: RelationType | undefined,
+  primaryRelationProvenance: RelationProvenance | undefined,
+): GroundedDiscovery {
+  const kind = DISCOVERY_TO_KIND[primaryDiscovery];
+  const evidence = anchorEvidence;
+  const coreClaim = buildCoreClaim(kind, evidence, primaryRelationType);
+  const provenance = computeProvenance(kind, primaryRelationProvenance);
+  const latitude = computeLatitude(kind, provenance);
+  return { kind, evidence, coreClaim, provenance, latitude };
+}
 
 /** The one place this file resolves a graph-side turn pointer back to
  *  real user words. Excludes confirmation-only and superseded evidence
@@ -165,19 +296,28 @@ export function buildReflectionPlan(
       primaryDiscovery: "relation",
       primaryRelationType: relation.type,
       primaryRelationProvenance: relation.provenance,
+      groundedDiscovery: buildGroundedDiscovery("relation", relation.anchor, relation.type, relation.provenance),
     };
   }
   const change = tryChange(g, ev);
   if (change) {
-    return { grounding, anchorEvidence: change, primaryDiscovery: "change" };
+    return { grounding, anchorEvidence: change, primaryDiscovery: "change", groundedDiscovery: buildGroundedDiscovery("change", change, undefined, undefined) };
   }
   const structure = tryStructure(g, ev);
   if (structure) {
-    return { grounding, anchorEvidence: structure.anchor, primaryDiscovery: "structure", primaryRelationType: structure.type };
+    return {
+      grounding,
+      anchorEvidence: structure.anchor,
+      primaryDiscovery: "structure",
+      primaryRelationType: structure.type,
+      groundedDiscovery: buildGroundedDiscovery("structure", structure.anchor, structure.type, undefined),
+    };
   }
   const open = tryOpen(g, ev);
   if (open) {
-    return { grounding, anchorEvidence: open.anchor ? [open.anchor] : [], primaryDiscovery: "open", unresolvedFocus: open.reason };
+    const anchor = open.anchor ? [open.anchor] : [];
+    return { grounding, anchorEvidence: anchor, primaryDiscovery: "open", unresolvedFocus: open.reason, groundedDiscovery: buildGroundedDiscovery("open", anchor, undefined, undefined) };
   }
-  return { grounding, anchorEvidence: fallbackAnchor(ev), primaryDiscovery: "explicit-only" };
+  const fallback = fallbackAnchor(ev);
+  return { grounding, anchorEvidence: fallback, primaryDiscovery: "explicit-only", groundedDiscovery: buildGroundedDiscovery("explicit-only", fallback, undefined, undefined) };
 }

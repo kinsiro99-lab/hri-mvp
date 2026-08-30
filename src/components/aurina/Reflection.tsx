@@ -88,30 +88,41 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
         </div>
       </section>
 
-      <section
-        className="reflection-layer reflection-fade"
-        style={{ animationDelay: "300ms" }}
-        aria-labelledby="reflection-layer-2"
-      >
-        <h2 id="reflection-layer-2" className="reflection-section-title">
-          {t.giftLabel}
-        </h2>
-        <div className="reflection-giftcard">
-          <div className="reflection-giftcard-inner">
-            <span className="reflection-giftcard-corner reflection-giftcard-corner--tl" aria-hidden="true" />
-            <span className="reflection-giftcard-corner reflection-giftcard-corner--br" aria-hidden="true" />
-            <span className="reflection-giftcard-mark" aria-hidden="true">“</span>
-            <div className="reflection-giftcard-body">
-              {sharingParagraphs.length > 0 ? (
-                sharingParagraphs.map((p, i) => <p key={i}>{p}</p>)
-              ) : (
-                <p>{t.giftEmpty}</p>
-              )}
+      {/* Beta Safe Reflection Baseline (Sprint 05) — sharing is now
+          deterministically empty for every Beta session (controller.ts's
+          BETA_SAFE_MIRROR_ONLY_REFLECTION), so unconditionally rendering
+          this section produced the SAME giftEmpty placeholder sentence
+          on every single Reflection — a real, visible artifact this
+          section's copy was never written for (giftEmpty was authored
+          as a rare fallback string, matching finalExperiencePhraser.ts's
+          own rare empty-anchor template). Minimum fix: skip the whole
+          section, not just its body, when there is nothing real to
+          show — same "don't manufacture content to fill a slot"
+          principle Sprint 05 applied everywhere else. Reversible by
+          removing this one condition once sharing is reactivated
+          post-Beta; nothing else in this component changed. */}
+      {sharingParagraphs.length > 0 && (
+        <section
+          className="reflection-layer reflection-fade"
+          style={{ animationDelay: "300ms" }}
+          aria-labelledby="reflection-layer-2"
+        >
+          <h2 id="reflection-layer-2" className="reflection-section-title">
+            {t.giftLabel}
+          </h2>
+          <div className="reflection-giftcard">
+            <div className="reflection-giftcard-inner">
+              <span className="reflection-giftcard-corner reflection-giftcard-corner--tl" aria-hidden="true" />
+              <span className="reflection-giftcard-corner reflection-giftcard-corner--br" aria-hidden="true" />
+              <span className="reflection-giftcard-mark" aria-hidden="true">“</span>
+              <div className="reflection-giftcard-body">
+                {sharingParagraphs.map((p, i) => <p key={i}>{p}</p>)}
+              </div>
+              <div className="reflection-giftcard-sign">AURINA</div>
             </div>
-            <div className="reflection-giftcard-sign">AURINA</div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Final UI Gate §7 — two actions, deliberately unequal weight.
           "대화 다시 보기" is the more important navigation (real

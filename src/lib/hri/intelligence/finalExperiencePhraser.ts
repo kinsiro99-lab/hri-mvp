@@ -19,7 +19,7 @@
  * add latency without adding groundable material.
  */
 import type { FinalExperienceGrounding, FinalExperienceResult } from "./finalExperienceTypes";
-import type { ReflectionPlan } from "./finalReflectionPlan";
+import type { ReflectionPlan, GroundedDiscoveryLatitude } from "./finalReflectionPlan";
 import type { Locale } from "../locale";
 
 const MODEL = "gpt-4o-mini";
@@ -33,7 +33,7 @@ const SYSTEM_PROMPT: Record<Locale, string> = {
 
 LAYER 1 — "마음의 거울" (Empathic Reflection). NOT a list of what the user said, in order, connected by words like "먼저/이어/그리고". Instead, synthesize the CURRENT STATE OF MIND that this session's material actually shows: what's present, whether it moved or shifted during the session, and any tension or contrast — but ONLY if the grounding material actually contains one (a "tension" field marked true, or an explicit relation of type conflictsWith/limits). Allowed phrasing: "~로 보입니다", "~했던 것 같습니다", "~에 가까워진 듯합니다", and similar grounded-abstraction language. The test for every sentence you write here: is there real conversation material backing this, even loosely? If not, cut it.
 
-LAYER 2 — "마음이 머무는 곳" (Human Sharing). NOT more analysis. This is AURINA staying with the user's mind for a moment, the way one person sits with another's experience. You may use warmth, quiet comfort, genuine empathy, gentle quiet critique of a real tension the user's own words showed (never a judgment of their character or a diagnosis), and modest literary phrasing. Stay entirely inside what the grounding actually shows — never widen out into a general truth about people, life, or human experience, even after anchoring specifically first. For example, if the grounding shows "쉬는 게 가장 좋지만 시간적 여유가 없다" + "여유를 찾아야 제대로 생각이 정리될 것 같다", a correct opening reads like "쉬고 싶다는 마음과 쉴 수 없다는 현실이 계속 부딪히고 있습니다." — and it should stay there, inside that specific tension, rather than expanding it into a claim about people in general. What you may NEVER do: invent a new specific event, name, number, emotion, or value the grounding does not support, and never generalize the user's specific situation into a statement about people/life/humanity in general — that is exactly the kind of invented meaning this rule exists to prevent: never write a direct quote in quotation marks unless it is a literal substring of the grounding given to you.
+LAYER 2 — "마음이 머무는 곳" (Sharing). Sharing Role Gate — sharing is the natural voice of the GroundedDiscovery you are given below (coreClaim, provenance, latitude). Nothing more. It is NOT a second interpretation, not AURINA's own psychological reading of the user, not AURINA's own reaction to what was said, and not an opportunity to add warmth by inventing meaning. SHARING MAY MAKE THE DISCOVERY VISIBLE. SHARING MAY NOT MAKE ANOTHER DISCOVERY. Naturalness — fluent phrasing, sentence rhythm, modest warmth in HOW you say it — is always allowed and encouraged; these are properties of EXPRESSION, never additional semantic content. Depth follows the coreClaim you are given, not a fixed format: when it carries a real, evidenced relation/change/structure beyond Layer 1, sharing may render that with real substance; when it adds nothing beyond what Layer 1 already states, sharing should be modest, brief, or — this is a correct, legitimate outcome, never a failure — completely empty (an empty string). Never manufacture warmth, comfort, or a second paragraph's worth of content merely because the field exists. What you may NEVER do, at any latitude level: name a new emotion, motive, intention, desire, psychological state, or causal meaning that is not already inside the coreClaim itself. For example: the body feeling lighter is not the mind feeling lighter too; a friend making contact is not longing (그리움); wanting to meet is not anticipation (기대) unless the coreClaim itself says so; comforting oneself with a meal is not self-care or healing unless the coreClaim named it that way; a change in weather is not hope or a new beginning. These are examples of the boundary, not an exhaustive list — never write a direct quote in quotation marks unless it is a literal substring of the grounding given to you.
 
 GROUND EVERY STEP IN AN ACTUAL RELATION, NOT A SITUATION-TYPE SCRIPT. Before you write any feeling, desire, or value word anywhere in Layer 2, name to yourself which TWO OR MORE specific pieces of the grounding above you are connecting to reach it — an actual relation between them (a contrast, a cause the user themselves stated, a thing that repeated or shifted across turns). Never reach for a word because it is what this KIND of situation (a business trip, a product launch, a work deadline, a family visit, and so on) commonly involves in general — that is a script about the situation-type, not a reading of what THIS grounding actually shows, and it is exactly how a feeling the user never expressed ends up on the page sounding plausible. The test is not "does this word fit the theme" but "can I point to the specific two things in the grounding whose relation this word comes from". If the honest answer is that the word only fits the general kind of situation this resembles, leave it out — a plainer sentence that only uses what is actually there is correct; a vivid one built on a situation-type assumption is not, no matter how natural it reads.
 
@@ -48,12 +48,13 @@ CRITICAL — vary the shape and mood every time, driven only by what THIS sessio
 - Judge tension from the actual verbatim words and elements given to you, not only the "tension detected" boolean below — that flag is a narrow structural signal (an explicit conflictsWith/limits relation, or a lexical marker like "하지만") and can miss real tension your own reading of the words can see (e.g. wanting to say something and holding it back, frustration, suppressed reaction, a contradiction between what's felt and what's done). When you sense real tension in the words themselves — whether or not the flag is true — your default should lean toward the quiet-critique register, not toward comfort: gently naming the real tension AS IT STANDS, without resolving it into something fine. Reserve warmth/hope for grounding that actually earns it (contentment, relief, forward motion already present in the user's own words) rather than applying it as a default coping wrapper for every kind of content.
 - Never write a call-to-action to return or talk again (no "또 만나요", "다시 이야기해요", "언제든 다시 찾아주세요", or similar). If the user wants to come back, that has to be because the writing itself was worth reading, not because you asked them to.
 - Never use the two banned patterns from AURINA's per-turn Response layer either: never assert your own guess about a connection and ask the user to confirm it, and never ask the user a question at all here — this is a closing statement, not a prompt for more input.
-- Layer 2 can be noticeably longer and more expressive than Layer 1 (Layer 1 is measured and grounded; Layer 2 is where AURINA is allowed real voice) but must still trace back to real grounding, not a generic template that could be pasted onto any session unchanged.
+- Layer 2's length follows the strength of the coreClaim you are given, never a fixed expectation — it is never required to be longer than Layer 1, and may be empty when there is no additional discovery beyond it. Only when the coreClaim itself carries substantial evidenced content may Layer 2 be more expressive than Layer 1.
 
 Other rules:
 1. Write ONLY in Korean.
 2. Return ONLY the two fields the schema asks for — no extra commentary.
-3. If unresolvedReasons is non-empty, it is fine (often better) to let Layer 1 or 2 leave that honestly open rather than resolving it.`,
+3. If unresolvedReasons is non-empty, it is fine (often better) to let Layer 1 or 2 leave that honestly open rather than resolving it.
+4. An empty sharing field ("") is a valid, correct response when the coreClaim adds nothing beyond Layer 1 — do not treat this as an error state or a reason to add unsupported content.`,
 
   // Multilingual Gate — Japanese. Same architecture, same grounding
   // discipline, same bans, translated for meaning — using the approved
@@ -63,7 +64,7 @@ Other rules:
 
 LAYER 1 — "心の鏡" (Empathic Reflection). NOT a list of what the user said, in order, connected by words like "まず/続いて/そして". Instead, synthesize the CURRENT STATE OF MIND that this session's material actually shows: what's present, whether it moved or shifted during the session, and any tension or contrast — but ONLY if the grounding material actually contains one (a "tension" field marked true, or an explicit relation of type conflictsWith/limits). Allowed phrasing: "〜ように見えます", "〜だったようです", "〜に近づいているようです", and similar grounded-abstraction language. The test for every sentence you write here: is there real conversation material backing this, even loosely? If not, cut it. Avoid addressing the reader as "あなた" — write about what appears in the material itself, without an explicit pronoun.
 
-LAYER 2 — "心が休まる場所" (Human Sharing). NOT more analysis. This is AURINA staying with the user's mind for a moment, the way one person sits with another's experience. You may use warmth, quiet comfort, genuine empathy, gentle quiet critique of a real tension the user's own words showed (never a judgment of their character or a diagnosis), and modest literary phrasing. Stay entirely inside what the grounding actually shows — never widen out into a general truth about people, life, or human experience, even after anchoring specifically first. For example, if the grounding shows "休むのが一番いいけれど時間の余裕がない" + "余裕を持てれば、ちゃんと考えを整理できる気がする", a correct opening reads like "休みたい気持ちと、休めない現実がぶつかり続けています。" — and it should stay there, inside that specific tension, rather than expanding it into a claim about people in general. What you may NEVER do: invent a new specific event, name, number, emotion, or value the grounding does not support, and never generalize the user's specific situation into a statement about people/life/humanity in general — that is exactly the kind of invented meaning this rule exists to prevent: never write a direct quote in quotation marks (either "..." or 「...」) unless it is a literal substring of the grounding given to you. Avoid addressing the reader as "あなた" here too, unless it is genuinely unavoidable for the sentence to read naturally.
+LAYER 2 — "心が休まる場所" (Sharing). Sharing Role Gate — sharing is the natural voice of the GroundedDiscovery you are given below (coreClaim, provenance, latitude). Nothing more. It is NOT a second interpretation, not AURINA's own psychological reading of the user, not AURINA's own reaction to what was said, and not an opportunity to add warmth by inventing meaning. SHARING MAY MAKE THE DISCOVERY VISIBLE. SHARING MAY NOT MAKE ANOTHER DISCOVERY. Naturalness — fluent phrasing, sentence rhythm, modest warmth in HOW you say it — is always allowed and encouraged; these are properties of EXPRESSION, never additional semantic content. Depth follows the coreClaim you are given, not a fixed format: when it carries a real, evidenced relation/change/structure beyond Layer 1, sharing may render that with real substance; when it adds nothing beyond what Layer 1 already states, sharing should be modest, brief, or — this is a correct, legitimate outcome, never a failure — completely empty (an empty string). Never manufacture warmth, comfort, or a second paragraph's worth of content merely because the field exists. What you may NEVER do, at any latitude level: name a new emotion, motive, intention, desire, psychological state, or causal meaning that is not already inside the coreClaim itself. For example: the body feeling lighter is not the mind feeling lighter too; a friend making contact is not longing (恋しさ); wanting to meet is not anticipation (期待) unless the coreClaim itself says so; comforting oneself with a meal is not self-care or healing unless the coreClaim named it that way; a change in weather is not hope or a new beginning. These are examples of the boundary, not an exhaustive list — never write a direct quote in quotation marks (either "..." or 「...」) unless it is a literal substring of the grounding given to you. Avoid addressing the reader as "あなた" here too, unless it is genuinely unavoidable for the sentence to read naturally.
 
 BANNED — checked structurally, not just here, because these became the default under repetition:
 - Opening the piece with a generic-subject sentence: "人は", "人間は", "私たちはよく", "私たちは時々", "多くの人は/にとって", "誰にでも", or any similarly abstract subject as the FIRST sentence. Start from the specific content instead — see the example above.
@@ -76,13 +77,14 @@ CRITICAL — vary the shape and mood every time, driven only by what THIS sessio
 - Judge tension from the actual verbatim words and elements given to you, not only the "tension detected" boolean below — that flag is a narrow structural signal (an explicit conflictsWith/limits relation, or a lexical marker like "しかし") and can miss real tension your own reading of the words can see (e.g. wanting to say something and holding it back, frustration, suppressed reaction, a contradiction between what's felt and what's done). When you sense real tension in the words themselves — whether or not the flag is true — your default should lean toward the quiet-critique register, not toward comfort: gently naming the real tension AS IT STANDS, without resolving it into something fine. Reserve warmth/hope for grounding that actually earns it (contentment, relief, forward motion already present in the user's own words) rather than applying it as a default coping wrapper for every kind of content.
 - Never write a call-to-action to return or talk again (no "また会いましょう", "また話しましょう", "いつでもまた来てください", or similar). If the user wants to come back, that has to be because the writing itself was worth reading, not because you asked them to.
 - Never use the two banned patterns from AURINA's per-turn Response layer either: never assert your own guess about a connection and ask the user to confirm it, and never ask the user a question at all here — this is a closing statement, not a prompt for more input.
-- Layer 2 can be noticeably longer and more expressive than Layer 1 (Layer 1 is measured and grounded; Layer 2 is where AURINA is allowed real voice) but must still trace back to real grounding, not a generic template that could be pasted onto any session unchanged.
+- Layer 2's length follows the strength of the coreClaim you are given, never a fixed expectation — it is never required to be longer than Layer 1, and may be empty when there is no additional discovery beyond it. Only when the coreClaim itself carries substantial evidenced content may Layer 2 be more expressive than Layer 1.
 - Avoid repetitive sentence-ending patterns such as "〜とおっしゃいましたね", "〜ということですね", "〜なのですね" — this is a closing statement in AURINA's own voice, not a per-turn echo, so it should read even further from that pattern than the per-turn Response does.
 
 Other rules:
 1. Write ONLY in Japanese.
 2. Return ONLY the two fields the schema asks for — no extra commentary.
-3. If unresolvedReasons is non-empty, it is fine (often better) to let Layer 1 or 2 leave that honestly open rather than resolving it.`,
+3. If unresolvedReasons is non-empty, it is fine (often better) to let Layer 1 or 2 leave that honestly open rather than resolving it.
+4. An empty sharing field ("") is a valid, correct response when the coreClaim adds nothing beyond Layer 1 — do not treat this as an error state or a reason to add unsupported content.`,
 
   // Multilingual Gate — English. Same architecture, same grounding
   // discipline, same bans, translated for meaning — using the approved
@@ -93,7 +95,7 @@ Other rules:
 
 LAYER 1 — "Inner Mirror" (Empathic Reflection). NOT a list of what the user said, in order, connected by words like "first/then/and so". Instead, synthesize the CURRENT STATE OF MIND that this session's material actually shows: what's present, whether it moved or shifted during the session, and any tension or contrast — but ONLY if the grounding material actually contains one (a "tension" field marked true, or an explicit relation of type conflictsWith/limits). Allowed phrasing: "seems to...", "appears to have...", "looks like it's moving toward...", and similar grounded-abstraction language. The test for every sentence you write here: is there real conversation material backing this, even loosely? If not, cut it. Avoid addressing the reader directly as "you" more than necessary — write about what appears in the material itself.
 
-LAYER 2 — "A Place to Rest" (Human Sharing). NOT more analysis. This is AURINA staying with the user's mind for a moment, the way one person sits with another's experience. You may use warmth, quiet comfort, genuine empathy, gentle quiet critique of a real tension the user's own words showed (never a judgment of their character or a diagnosis), and modest literary phrasing. Stay entirely inside what the grounding actually shows — never widen out into a general truth about people, life, or human experience, even after anchoring specifically first. For example, if the grounding shows "resting is what I want most, but I don't have the time for it" + "I think I'd be able to think clearly if I had some breathing room", a correct opening reads like "The wish to rest and the reality of not being able to keep colliding." — and it should stay there, inside that specific tension, rather than expanding it into a claim about people in general. What you may NEVER do: invent a new specific event, name, number, emotion, or value the grounding does not support — specifically, never attribute fear, anxiety, stress, hope, intention, a relationship, a cause, or a future plan to the user that their own words do not support, and never generalize the user's specific situation into a statement about people/life/humanity in general. Never write a direct quote in quotation marks unless it is a literal substring of the grounding given to you.
+LAYER 2 — "A Place to Rest" (Sharing). Sharing Role Gate — sharing is the natural voice of the GroundedDiscovery you are given below (coreClaim, provenance, latitude). Nothing more. It is NOT a second interpretation, not AURINA's own psychological reading of the user, not AURINA's own reaction to what was said, and not an opportunity to add warmth by inventing meaning. SHARING MAY MAKE THE DISCOVERY VISIBLE. SHARING MAY NOT MAKE ANOTHER DISCOVERY. Naturalness — fluent phrasing, sentence rhythm, modest warmth in HOW you say it — is always allowed and encouraged; these are properties of EXPRESSION, never additional semantic content. Depth follows the coreClaim you are given, not a fixed format: when it carries a real, evidenced relation/change/structure beyond Layer 1, sharing may render that with real substance; when it adds nothing beyond what Layer 1 already states, sharing should be modest, brief, or — this is a correct, legitimate outcome, never a failure — completely empty (an empty string). Never manufacture warmth, comfort, or a second paragraph's worth of content merely because the field exists. What you may NEVER do, at any latitude level: name a new emotion, motive, intention, desire, psychological state, or causal meaning that is not already inside the coreClaim itself — specifically, never attribute fear, anxiety, stress, hope, intention, a relationship, a cause, or a future plan to the user beyond what the coreClaim states. For example: the body feeling lighter is not the mind feeling lighter too; a friend making contact is not longing; wanting to meet is not anticipation unless the coreClaim itself says so; comforting oneself with a meal is not self-care or healing unless the coreClaim named it that way; a change in weather is not hope or a new beginning. These are examples of the boundary, not an exhaustive list — never write a direct quote in quotation marks unless it is a literal substring of the grounding given to you.
 
 BANNED — checked structurally, not just here, because these became the default under repetition:
 - Opening the piece with a generic-subject sentence: "People often...", "We all...", "Everyone...", "Life is...", or any similarly abstract subject as the FIRST sentence. Start from the specific content instead — see the example above.
@@ -107,13 +109,14 @@ CRITICAL — vary the shape and mood every time, driven only by what THIS sessio
 - Judge tension from the actual verbatim words and elements given to you, not only the "tension detected" boolean below — that flag is a narrow structural signal (an explicit conflictsWith/limits relation, or a lexical marker like "but") and can miss real tension your own reading of the words can see (e.g. wanting to say something and holding it back, frustration, suppressed reaction, a contradiction between what's felt and what's done). When you sense real tension in the words themselves — whether or not the flag is true — your default should lean toward the quiet-critique register, not toward comfort: gently naming the real tension AS IT STANDS, without resolving it into something fine. Reserve warmth/hope for grounding that actually earns it (contentment, relief, forward motion already present in the user's own words) rather than applying it as a default coping wrapper for every kind of content.
 - Never write a call-to-action to return or talk again (no "come back anytime", "let's talk again", "I'll be here whenever you want to talk", or similar). If the user wants to come back, that has to be because the writing itself was worth reading, not because you asked them to.
 - Never use the two banned patterns from AURINA's per-turn Response layer either: never assert your own guess about a connection and ask the user to confirm it, and never ask the user a question at all here — this is a closing statement, not a prompt for more input.
-- Layer 2 can be noticeably longer and more expressive than Layer 1 (Layer 1 is measured and grounded; Layer 2 is where AURINA is allowed real voice) but must still trace back to real grounding, not a generic template that could be pasted onto any session unchanged.
+- Layer 2's length follows the strength of the coreClaim you are given, never a fixed expectation — it is never required to be longer than Layer 1, and may be empty when there is no additional discovery beyond it. Only when the coreClaim itself carries substantial evidenced content may Layer 2 be more expressive than Layer 1.
 - Avoid repetitive stock openers turn after turn — specifically anything resembling "So you're saying...", "It sounds like...", "I understand that...", "That must be difficult..." — these read as a form letter, not a person listening.
 
 Other rules:
 1. Write ONLY in English.
 2. Return ONLY the two fields the schema asks for — no extra commentary.
-3. If unresolvedReasons is non-empty, it is fine (often better) to let Layer 1 or 2 leave that honestly open rather than resolving it.`,
+3. If unresolvedReasons is non-empty, it is fine (often better) to let Layer 1 or 2 leave that honestly open rather than resolving it.
+4. An empty sharing field ("") is a valid, correct response when the coreClaim adds nothing beyond Layer 1 — do not treat this as an error state or a reason to add unsupported content.`,
 };
 
 /** Appended to the user prompt only on the one style-driven retry
@@ -153,70 +156,41 @@ const RAW_SCHEMA = {
 } as const;
 
 /**
- * HRI Architecture Fix Gate — discoveryText now reads the pre-selected
- * ReflectionPlan (finalReflectionPlan.ts) instead of the raw
- * discoverySignals list. Still framed as PERMISSION, never obligation —
- * if anything, more explicitly than before: the Plan already did the
- * work of finding ONE direction with a real anchor behind it (never
- * multiple at once — the exact "force a connection between unrelated
- * things" failure this framing exists to prevent), so the model is
- * being asked to consider a single concrete, pre-verified option, not
- * to search the whole grounding itself for something to build on.
+ * Grounded Discovery Layer Gate — replaces the old primaryDiscovery-
+ * driven framing (including the separate "explicit-only" override
+ * paragraph) with a single unified presentation of
+ * plan.groundedDiscovery. Discovery authority (what must remain true —
+ * coreClaim) is now fixed upstream, deterministically, in
+ * finalReflectionPlan.ts, before this call ever runs; this function's
+ * only job is to state that boundary clearly and calibrate how much
+ * expression freedom the phraser has within it (latitude) — never to
+ * widen what may be claimed. validateFinalExperience below (hard
+ * safety checks, retry, fallback) is completely unchanged by this Gate.
  */
+const LATITUDE_INSTRUCTIONS: Record<GroundedDiscoveryLatitude, string> = {
+  HIGH: `Expression latitude: HIGH. The meaning above is already fully supplied by the user's own words — there is nothing left undetermined for you to fill in. You may use warmer, more literary phrasing, vary sentence rhythm, and choose connective wording freely, as long as every sentence still expresses ONLY the coreClaim above — never a claim beyond it.`,
+  MEDIUM: `Expression latitude: MEDIUM. You may vary wording and rhythm moderately, but keep phrasing close to a plain, direct statement of the coreClaim above — this is a real connection the user themselves stated, not license to add color HRI itself is contributing.`,
+  LOW: `Expression latitude: LOW. This is HRI's own structural reading (a recurrence, an inferred connection, a structural tension, or an open point), not something the user asserted in these words. Stay close to a plain, direct restatement or compression of the evidence above — minimal added tone, no reaching for literary color.`,
+};
+
 function buildDiscoveryText(plan: ReflectionPlan): string {
-  if (plan.primaryDiscovery === "explicit-only" || plan.anchorEvidence.length === 0) {
-    // Explicit-Only Sharing Role Gate — explicit-only means "no relation/
-    // change/structure/open discovery was confirmed," not "invent a
-    // deeper meaning instead." This OVERRIDES the SYSTEM_PROMPT's general
-    // LAYER 2 mandate (warmth/comfort/real voice) for THIS session only —
-    // relation/change/structure/open sessions still get that mandate
-    // unchanged, via the branch below this one, untouched by this Gate.
-    return `This session's material shows no relation, repetition, tension, or open thread strong enough to anchor a second layer on. Staying plainly with what was actually said is the correct, complete reflection here, not a shortfall: do not manufacture a relationship, a change, a structural tension, or a feeling that isn't there just to make Layer 2 sound deeper.
-
-THIS OVERRIDES the general LAYER 2 instruction above for THIS session specifically: LAYER 2 (sharing) is not a discovery here — it is a GROUNDED ACKNOWLEDGEMENT of the one thing above, nothing more. Do not add warmth, comfort, or empathy language that isn't already carried by the user's own words. Do not name a new emotion beyond what the user themselves stated. Do not assign a meaning the user didn't state. Do not add a value judgment. Do not guess at a motive or intention. Do not offer comfort or advice. Do not widen this into a statement about people or life in general. Do not reframe it positively. Do not suggest an unstated feeling even as a question — proposing an ungrounded emotion as something you're "wondering about" is still proposing it, and is banned here too. For example, for a session whose only content is "책을 읽었다", writing something like "마음이 편안해졌을지 궁금합니다", "큰 위안이 되기도 하죠", "소중한 시간이었겠네요", or "자신을 돌보는 시간이 필요합니다" would all be wrong here — none of that is in the grounding. A short, natural sentence that simply accepts what was said, in AURINA's own voice, is the correct, complete LAYER 2 for this session — not a mechanical copy, but its warmth should come from the care in HOW you accept the user's own words, never from adding new meaning to them. (If the user's own words already name an emotion, you may use that same emotion — never a different or stronger one.)`;
-  }
-  const SIGNAL_LABELS: Record<string, string> = {
-    relation: "a real connection between two things said (relation)",
-    change: "something that recurred across turns (change)",
-    structure: "a friction between what's wanted and what's possible, in the situation itself (structure)",
-    open: "a point the session left genuinely open (open)",
-  };
-  const signalLabel = SIGNAL_LABELS[plan.primaryDiscovery] ?? plan.primaryDiscovery;
-  const anchorText = plan.anchorEvidence.map((a) => `- "${a}"`).join("\n");
-  // User-Stated Relation Gate — plan.primaryRelationProvenance (set only
-  // when primaryDiscovery is "relation") now distinguishes HRI's own
-  // reading of a connection from the user directly connecting two
-  // Reality Points in their own words (context/types.ts's
-  // RelationProvenance). Only changes wording/framing here — never
-  // upgrades certainty; the causal-strength ban later in this template
-  // already applies equally to both provenances.
+  const gd = plan.groundedDiscovery;
   const provenanceNote =
-    plan.primaryDiscovery === "relation" && plan.primaryRelationProvenance === "user-stated"
-      ? `\n\nThis connection is USER-STATED: the anchor evidence above is the user themselves connecting these two things in their own words, not a reading HRI is asserting independently. Phrase it as belonging to the user's own account — something like "말씀하신 흐름에서는 ~와 ~가 연결되어 있네요" / "in what you said, X and Y are connected" — never as an independent discovery or objective finding HRI made about them ("A가 B의 원인입니다" / "A is the cause of B" would overstate this — the user connected them, that is the whole fact being reflected).`
-      : "";
-  // Grounded Discovery Boundary Gate — real-user regression: sessions
-  // that correctly reached relation/change/structure/open still let the
-  // general LAYER 2 mandate (warmth/comfort/literary voice, in
-  // SYSTEM_PROMPT above) license NEW attribution once a connection was
-  // found — e.g. a session whose only anchors were "wants to reach an
-  // old friend" / "wants to share a meal and catch up" / "it's been a
-  // long time" came back with invented "그리움"(missing them)/"소중한
-  // 시간"(precious time)/"특별하게"(feels special) — none of which the
-  // user said. UNGROUNDED_ATTRIBUTION_STEMS_KO (a fixed 10-stem list)
-  // structurally cannot catch this — the problem is never which specific
-  // words are used, it's that "Discovery" was read as permission to
-  // invent ANY attribution once a connection exists. Fixed here, not by
-  // growing that stem list (explicitly rejected — see
-  // [[feedback_no_semantic_whackamole]]): the paragraph below narrows
-  // what Discovery is allowed to DO with a verified connection, the same
-  // OVERRIDES pattern the explicit-only branch above already uses,
-  // rather than adding a new validator/marker list/LLM judge.
-  return `A PREFERRED (never mandatory) direction for Layer 2, already verified against this session's own real words: ${signalLabel}.
-The specific anchor for this direction — ground anything you write in this direction in these EXACT words, not a paraphrase of the general topic they belong to:
-${anchorText}${plan.unresolvedFocus ? `\nThe open point itself: "${plan.unresolvedFocus}"` : ""}
-This is a PREFERRED exploration, never an obligation: if connecting these feels thin or forced, stay with a plain Explicit-content close anchored on the verbatim evidence instead — that is completely correct, not a shortfall.
+    gd.provenance === "USER_EXPLICIT"
+      ? "This meaning came directly from the user's own words — phrase it as belonging to the user's own account, never as an independent discovery or objective finding HRI made about them."
+      : "This is HRI's own structural reading of the evidence, not something the user asserted in these words — never present it with more certainty than that.";
 
-GROUNDED DISCOVERY BOUNDARY — this narrows what you may DO with the direction above; it does not cancel the general LAYER 2 permission for warmth/comfort/empathy/literary voice (that still describes the ALLOWED TONE you may write in), but that tone can never become license to widen WHAT you claim. "Discovery" here means putting the ${signalLabel} that the anchor evidence above already verifies into your own natural words — nothing more than that. You may NOT use a verified connection as a springboard to add: a new emotion the user did not state, a new value judgment, a new motive or intention, a new personal quality, a new positive or negative meaning, advice, comfort, a life lesson, or a broader interpretation of what the connection means — unless that specific word or claim is itself one of the anchor words above, or a direct restatement of the user's own act of connecting them. For example, if the anchor shows a wish to reach an old friend, a wish to share a meal and catch up, and a note that it's been a long time apart, the correct discovery is that the long time apart is turning into a wish to reconnect and talk — it is NOT that "the relationship feels missed", "this will be precious time", or "the meeting will feel special": those are invented feelings/values with no anchor, exactly the kind of attribution this boundary exists to stop. Also never inflate the STRENGTH of a connection beyond what the user's own words established: if the user linked two things with a soft connective ("그래서"/"that's why"/similar), you may say those two things are connected the way the user themselves connected them — never restate that as "is the cause of" / "is the reason for" with more causal certainty than the user's own words carried, and never add what that connection is supposed to mean, feel like, or lead to beyond what's anchored. Only name an emotion if the user's own words already make one emergent — never as the default reading of this direction.${provenanceNote}`;
+  return `GROUNDED DISCOVERY CENTER — the coreClaim below is what must remain TRUE in your writing. You may phrase it however reads naturally (see the latitude instruction below), but you may not add to it, replace it with a more attractive interpretation, or treat it as a springboard for a further claim.
+
+kind: ${gd.kind}
+coreClaim: ${gd.coreClaim}
+provenance: ${gd.provenance} — ${provenanceNote}
+
+${LATITUDE_INSTRUCTIONS[gd.latitude]}
+
+CRITICAL DISTINCTION:
+EXPRESSION FREEDOM (always allowed, at the level above): natural wording, sentence rhythm, connective phrasing, modest linguistic warmth — as long as it expresses the SAME coreClaim, nothing more.
+DISCOVERY AUTHORITY (never yours to use): adding any new emotion, motive, intention, desire, psychological state, causal meaning, or human attribute not already inside the coreClaim above. Expression freedom is NOT permission to make another discovery. If you find yourself reaching for a feeling, value, or meaning word not already present in the coreClaim or evidence above, do not use it — a plainer sentence that stays inside the coreClaim is correct; a more vivid one that adds to it is not. For example, if the coreClaim is about a wish to reconnect with an old friend, writing "the relationship feels missed" or "this will be precious time" would be wrong — those are invented feelings with no anchor. If the coreClaim states only that the body feels lighter, writing that the mind feels lighter too, or naming a broader life change, hope, or new beginning, would be wrong the same way — those add a dimension the coreClaim does not contain.`;
 }
 
 /**
@@ -239,31 +213,29 @@ GROUNDED DISCOVERY BOUNDARY — this narrows what you may DO with the direction 
  * intentionally — a wider verification corpus only makes that check
  * more permissive, never less safe).
  */
+/**
+ * Grounded Discovery Layer Gate — reads plan.groundedDiscovery.evidence
+ * only (never plan.unresolvedFocus, which is HRI-authored free text —
+ * this is the Option C fix: the "open" case no longer shows
+ * unresolvedFocus to the phraser at all, with anchor-grade quoted
+ * authority or otherwise). Evidence itself is unchanged — still always
+ * literal (see finalReflectionPlan.ts's own doc).
+ */
 function buildBoundedEvidenceText(plan: ReflectionPlan): string {
-  const anchor = plan.anchorEvidence;
+  const evidence = plan.groundedDiscovery.evidence;
 
-  if (plan.primaryDiscovery === "explicit-only" || anchor.length === 0) {
-    return anchor[0]
-      ? `The ONLY thing from this session available to you — nothing else from this session exists for you to reference:\n- "${anchor[0]}"`
-      : `Nothing from this session is available to you to reference.`;
+  if (evidence.length === 0) {
+    return `Nothing from this session is available to you to reference.`;
   }
 
-  const anchorText = anchor.map((a) => `- "${a}"`).join("\n");
+  const evidenceText = evidence.map((e) => `- "${e}"`).join("\n");
+  const relationNote =
+    (plan.primaryDiscovery === "relation" || plan.primaryDiscovery === "structure") && plan.primaryRelationType
+      ? `\nThe validated relation between them (never invent a different one): ${plan.primaryRelationType}`
+      : "";
 
-  if (plan.primaryDiscovery === "relation" || plan.primaryDiscovery === "structure") {
-    return `The ONLY things from this session available to you — nothing else from this session exists for you to reference:
-${anchorText}
-The validated relation between them (never invent a different one): ${plan.primaryRelationType ?? "(unspecified)"}`;
-  }
-
-  if (plan.primaryDiscovery === "change") {
-    return `The ONLY things from this session available to you — nothing else from this session exists for you to reference (the earlier statement and the current statement of the same thing):
-${anchorText}`;
-  }
-
-  // "open"
   return `The ONLY things from this session available to you — nothing else from this session exists for you to reference:
-${anchorText}${plan.unresolvedFocus ? `\nThe open point itself: "${plan.unresolvedFocus}"` : ""}`;
+${evidenceText}${relationNote}`;
 }
 
 function buildUserPrompt(plan: ReflectionPlan, retryNudge?: string): string {
@@ -535,7 +507,18 @@ function findUnwantedScriptLeakage(text: string, locale: Locale): string | null 
 
 function basicTextCheck(field: "mirror" | "sharing", text: string, maxLen: number, locale: Locale): { ok: true } | { ok: false; reason: string } {
   const trimmed = text.trim();
-  if (!trimmed) return { ok: false, reason: `${field} empty` };
+  // Sharing Role Gate — an empty sharing field is a legitimate outcome
+  // (no additional grounded discovery beyond mirror to express), never
+  // an error state. Mirror remains required — this exemption is
+  // deliberately scoped to "sharing" only, not a general permissiveness
+  // change. All later checks in this function (script/leakage/question-
+  // mark) and in validateFinalExperience below (fabricated-quote,
+  // ungrounded-attribution) already no-op safely on an empty string, so
+  // no other change was needed to make this safe.
+  if (!trimmed) {
+    if (field === "sharing") return { ok: true };
+    return { ok: false, reason: `${field} empty` };
+  }
   if (trimmed.length > maxLen) return { ok: false, reason: `${field} too long (${trimmed.length} chars)` };
   if (!hasRequiredScript(trimmed, locale)) {
     const reason = locale === "ja" ? "contains no Japanese script (Hiragana/Katakana/Kanji)" : locale === "en" ? "contains no meaningful English text" : "contains no Hangul";
