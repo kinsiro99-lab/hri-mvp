@@ -305,12 +305,22 @@ export default function AurinaSpace({
             <div className="aurina-continuation">
               <h2 className="aurina-continuation-title">{t.conversation.continuationTitle}</h2>
               <div className="aurina-input-zone aurina-input-zone--continuation">
+                {/* Reflection Final View Position Fix — this was the
+                    actual root cause: HriInput defaults autoFocus to
+                    true, and this input sits below both Reflection
+                    layers, so the browser's focus-triggered
+                    scroll-into-view was pulling the page down to here
+                    every time Reflection appeared, before the user
+                    ever saw 마음의 거울 at the top. Explicitly off —
+                    see Reflection.tsx for the matching explicit
+                    scroll-to-top-of-Reflection fix. */}
                 <HriInput
                   value={inputValue}
                   onChange={onInputChange}
                   onSubmit={onSubmit}
                   placeholder={t.conversation.continuationPlaceholder}
                   locale={locale}
+                  autoFocus={false}
                 />
               </div>
             </div>

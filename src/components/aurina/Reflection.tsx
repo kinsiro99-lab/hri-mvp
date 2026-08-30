@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { AURINA_ASSETS } from "./assets";
 import { splitFinalExperience } from "../../lib/hri/intelligence/finalExperienceTypes";
 import type { UiLocale } from "@/lib/hri/locale";
@@ -35,9 +36,29 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
   const mirrorParagraphs = splitParagraphs(mirror);
   const sharingParagraphs = splitParagraphs(sharing);
 
+  // Reflection Final View Position Fix — root cause was NOT this
+  // component: AurinaSpace.tsx mounts a continuation <HriInput> right
+  // after this section, which was inheriting HriInput's own
+  // autoFocus=true default; browsers auto-scroll a newly-focused
+  // element into view, and since that input sits below both Reflection
+  // layers, the page landed on "마음이 머무는 곳" instead of the top of
+  // this section every time Reflection appeared (see that fix too).
+  // Disabling that autoFocus only removes the wrong scroll — it does
+  // not, by itself, guarantee this section's own top is what's
+  // visible (the page could simply stay wherever it happened to be
+  // scrolled during the prior Conversation turn). This explicitly
+  // scrolls THIS section's header into view, once, on mount, on both
+  // desktop and mobile — instant (no smooth animation), since it is
+  // establishing the correct starting position for a new view, not a
+  // user-visible scroll gesture.
+  const topRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    topRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+  }, []);
+
   return (
     <section className="reflection">
-      <header className="reflection-header reflection-fade" style={{ animationDelay: "0ms" }}>
+      <header ref={topRef} className="reflection-header reflection-fade" style={{ animationDelay: "0ms" }}>
         <div className="reflection-host">
           <img src={AURINA_ASSETS.finalHostImage} alt="AURINA" />
         </div>
