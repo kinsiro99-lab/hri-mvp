@@ -4,7 +4,7 @@ import { devLog } from "@/lib/devLog";
 import type { HriEvent } from "@/lib/hri/types";
 import { NeonObservationStorage } from "@/lib/observation/neonStorage";
 import { NoopObservationStorage } from "@/lib/observation/storage";
-import { emitObservationReflection, emitObservationRealityGain, emitObservationTurn } from "@/lib/observation/adapter";
+import { emitObservationReflection, emitObservationRealityGain, emitObservationQuestionQuality, emitObservationTurn } from "@/lib/observation/adapter";
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store",
@@ -95,6 +95,34 @@ async function recordRealityGainObservation(payload: EngineRequest, result: Awai
   if (!outcome.persisted) devLog("Observation reality gain not persisted:", outcome.reason);
 }
 
+// Question Quality Evaluation V1 Sprint 03 — reuses the exact same
+// event lookup/fields as recordRealityGainObservation above (same
+// "no signal this turn -> skip entirely" rule), so this evaluation is
+// always derived from the identical counts just written to
+// observation_reality_gains for this turn — never a second,
+// independently-drifting read. Purely deterministic (see
+// evaluateQuestionQuality in adapter.ts) — no LLM call, no new
+// Runtime signal, nothing here can affect the next question or
+// Reflection.
+async function recordQuestionQualityObservation(payload: EngineRequest, result: Awaited<ReturnType<typeof getNextOutput>>) {
+  if (!payload.sessionId) return;
+  const event = latestQuestionOrReflectionEvent(result.nextEvents);
+  if (!event || event.structuralNewElements === undefined) return;
+
+  const storage = process.env.DATABASE_URL ? new NeonObservationStorage() : new NoopObservationStorage();
+  const outcome = await emitObservationQuestionQuality(
+    {
+      sessionId: payload.sessionId,
+      turnIndex: payload.turn,
+      newElementCount: event.structuralNewElements ?? 0,
+      updatedElementCount: event.structuralUpdatedElements ?? 0,
+      newRelationCount: event.structuralNewRelations ?? 0,
+    },
+    storage,
+  );
+  if (!outcome.persisted) devLog("Observation question quality not persisted:", outcome.reason);
+}
+
 export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as EngineRequest;
@@ -105,6 +133,7 @@ export async function POST(req: Request) {
       await recordTurnObservation(payload, result);
       await recordReflectionObservation(payload, result);
       await recordRealityGainObservation(payload, result);
+      await recordQuestionQualityObservation(payload, result);
     } catch (observationError) {
       // Belt-and-suspenders — emitObservationTurn/Reflection already
       // never throw, but this call site must never let an Observation

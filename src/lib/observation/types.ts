@@ -77,3 +77,44 @@ export type ObservationRealityGain = {
   newRelationCount: number;
   elementRef: string | null;
 };
+
+/**
+ * Question Quality Evaluation V1 (Sprint 03) — deterministic
+ * evaluation derived ONLY from an already-recorded ObservationRealityGain
+ * row, never from wording/length/an LLM judge (see classifyGain/
+ * evaluateQuestionQuality in adapter.ts). Kept in its own table, never
+ * overwriting observation_reality_gains — this record is a JUDGMENT
+ * about those facts, not a replacement for them (join on
+ * sessionId+turnIndex to see both).
+ *
+ * NEW_REALITY is deliberately NOT treated as automatically superior
+ * to CLARIFICATION/RELATION anywhere in this V1 — realityGain simply
+ * carries the same RealityGainType value through as a record of WHAT
+ * happened, with no ranking/scoring applied to it.
+ */
+export type QuestionQualityRedundancy = "NOT_REDUNDANT" | "UNKNOWN";
+// V1 has no reliable turn-level grounding-safety signal reaching
+// Observation yet (see the Sprint's own signal audit) — this is
+// always NOT_OBSERVABLE for now, not a fabricated verdict. Typed as a
+// union of one, rather than a plain boolean/string literal, so a
+// future sprint adding a real signal is a natural type extension here.
+export type QuestionQualityGroundingSafety = "NOT_OBSERVABLE";
+export type QuestionQualityInformationGain = "ADDED" | "REFINED" | "NONE";
+
+export const QUESTION_QUALITY_EVALUATION_VERSION = "v1";
+
+export type ObservationQuestionQuality = {
+  timestamp: string;
+  sessionId: string;
+  turnIndex: number;
+  evaluationVersion: string;
+  /** Same value as the source ObservationRealityGain.gainType for this
+   *  turn — carried through as-is, not re-derived or re-judged. */
+  realityGain: RealityGainType;
+  redundancy: QuestionQualityRedundancy;
+  groundingSafety: QuestionQualityGroundingSafety;
+  informationGain: QuestionQualityInformationGain;
+  /** Name of the table/fact source this evaluation was derived from —
+   *  always "observation_reality_gains" in V1. */
+  provenance: string;
+};

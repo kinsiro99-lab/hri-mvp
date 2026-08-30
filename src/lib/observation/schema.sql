@@ -76,3 +76,30 @@ CREATE TABLE IF NOT EXISTS observation_reality_gains (
   element_ref TEXT,
   UNIQUE (session_id, turn_index)
 );
+
+-- Question Quality Evaluation V1 Sprint 03 — additive only, does not
+-- touch observation_reality_gains above (no ALTER, no column added,
+-- no row overwritten). One row per turn: a DETERMINISTIC judgment
+-- derived only from that turn's already-recorded
+-- observation_reality_gains row (join on session_id+turn_index to see
+-- both) — never from wording, answer length, or a new LLM call. See
+-- src/lib/observation/adapter.ts's evaluateQuestionQuality() for the
+-- exact, reproducible rule. reality_gain/redundancy/grounding_safety/
+-- information_gain are kept as separate columns (not collapsed into
+-- one score) — NEW_REALITY is never treated as automatically superior
+-- to CLARIFICATION/RELATION anywhere in this table or its write path.
+-- grounding_safety is fixed 'NOT_OBSERVABLE' in V1 (no reliable
+-- turn-level signal exists yet) — not a fabricated verdict.
+CREATE TABLE IF NOT EXISTS observation_question_quality (
+  id BIGSERIAL PRIMARY KEY,
+  timestamp TIMESTAMPTZ NOT NULL,
+  session_id TEXT NOT NULL,
+  turn_index INTEGER NOT NULL,
+  evaluation_version TEXT NOT NULL,
+  reality_gain TEXT NOT NULL,
+  redundancy TEXT NOT NULL,
+  grounding_safety TEXT NOT NULL,
+  information_gain TEXT NOT NULL,
+  provenance TEXT NOT NULL,
+  UNIQUE (session_id, turn_index)
+);

@@ -11,7 +11,17 @@
  * this yet; a future caller decides when (and whether) to.
  */
 
-import type { ObservationEvent, ObservationReflection, ObservationRealityGain, ObservationTurn, RealityGainType } from "./types";
+import type {
+  ObservationEvent,
+  ObservationReflection,
+  ObservationRealityGain,
+  ObservationQuestionQuality,
+  ObservationTurn,
+  RealityGainType,
+  QuestionQualityRedundancy,
+  QuestionQualityInformationGain,
+} from "./types";
+import { QUESTION_QUALITY_EVALUATION_VERSION } from "./types";
 import type { ObservationStorage, ObservationStorageResult } from "./storage";
 
 const FIRST_INPUT_MAX_LENGTH = 500;
@@ -176,6 +186,90 @@ export async function emitObservationRealityGain(
     };
 
     return await storage.recordRealityGain(gain);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
+    return { persisted: false, reason: message };
+  }
+}
+
+/**
+ * Question Quality Evaluation V1 (Sprint 03) — pure, deterministic:
+ * the same three counts always produce the same evaluation, no I/O,
+ * no LLM call, no randomness. Reuses classifyGain() so realityGain
+ * here is guaranteed identical to what emitObservationRealityGain
+ * just wrote for the same turn — never independently re-derived.
+ *
+ * Deliberately does NOT rank NEW_REALITY > RELATION > CLARIFICATION >
+ * NO_STRUCTURAL_GAIN as a quality score — realityGain is carried
+ * through as a fact, not converted into a number.
+ *
+ * redundancy: NO_STRUCTURAL_GAIN cannot be distinguished, from this
+ * data alone, between "the question was redundant" and "the user gave
+ * a legitimate brief acknowledgement" — so it's UNKNOWN, never a
+ * fabricated "bad question" verdict. Any real structural gain at all
+ * means the turn was clearly not redundant.
+ *
+ * groundingSafety: fixed NOT_OBSERVABLE in V1 — no turn-level
+ * grounding-safety signal currently reaches Observation (see the
+ * Sprint's own signal audit). Not inferred from wording.
+ *
+ * informationGain: a deliberately narrow reading of the same counts —
+ * ADDED (new element and/or new relation), REFINED (only an update,
+ * no new element/relation), or NONE. Presence only, not magnitude or
+ * semantic importance.
+ */
+function evaluateQuestionQuality(
+  newElementCount: number,
+  updatedElementCount: number,
+  newRelationCount: number,
+): {
+  realityGain: RealityGainType;
+  redundancy: QuestionQualityRedundancy;
+  groundingSafety: "NOT_OBSERVABLE";
+  informationGain: QuestionQualityInformationGain;
+} {
+  const realityGain = classifyGain(newElementCount, updatedElementCount, newRelationCount);
+  const anyGain = newElementCount > 0 || updatedElementCount > 0 || newRelationCount > 0;
+  const redundancy: QuestionQualityRedundancy = anyGain ? "NOT_REDUNDANT" : "UNKNOWN";
+  const informationGain: QuestionQualityInformationGain =
+    newElementCount > 0 || newRelationCount > 0 ? "ADDED" : updatedElementCount > 0 ? "REFINED" : "NONE";
+
+  return { realityGain, redundancy, groundingSafety: "NOT_OBSERVABLE", informationGain };
+}
+
+export async function emitObservationQuestionQuality(
+  input: {
+    sessionId: string;
+    turnIndex: number;
+    newElementCount: number;
+    updatedElementCount: number;
+    newRelationCount: number;
+  },
+  storage: ObservationStorage,
+): Promise<ObservationStorageResult> {
+  try {
+    if (!input.sessionId.trim()) {
+      return { persisted: false, reason: INVALID_OBSERVATION_EVENT_REASON };
+    }
+    if (!Number.isInteger(input.turnIndex) || input.turnIndex < 0) {
+      return { persisted: false, reason: INVALID_OBSERVATION_EVENT_REASON };
+    }
+
+    const evaluation = evaluateQuestionQuality(input.newElementCount, input.updatedElementCount, input.newRelationCount);
+
+    const quality: ObservationQuestionQuality = {
+      timestamp: new Date().toISOString(),
+      sessionId: input.sessionId.trim(),
+      turnIndex: input.turnIndex,
+      evaluationVersion: QUESTION_QUALITY_EVALUATION_VERSION,
+      realityGain: evaluation.realityGain,
+      redundancy: evaluation.redundancy,
+      groundingSafety: evaluation.groundingSafety,
+      informationGain: evaluation.informationGain,
+      provenance: "observation_reality_gains",
+    };
+
+    return await storage.recordQuestionQuality(quality);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
     return { persisted: false, reason: message };

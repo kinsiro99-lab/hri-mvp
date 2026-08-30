@@ -10,7 +10,7 @@
  * in src/lib/hri/logStore.ts.
  */
 
-import type { ObservationEvent, ObservationReflection, ObservationRealityGain, ObservationTurn } from "./types";
+import type { ObservationEvent, ObservationReflection, ObservationRealityGain, ObservationQuestionQuality, ObservationTurn } from "./types";
 
 export type ObservationStorageResult = {
   persisted: boolean;
@@ -25,6 +25,8 @@ export interface ObservationStorage {
   recordReflection(reflection: ObservationReflection): Promise<ObservationStorageResult>;
   // Reality Gain Observation Sprint 02 — same contract.
   recordRealityGain(gain: ObservationRealityGain): Promise<ObservationStorageResult>;
+  // Question Quality Evaluation V1 Sprint 03 — same contract.
+  recordQuestionQuality(quality: ObservationQuestionQuality): Promise<ObservationStorageResult>;
 }
 
 const NOT_CONFIGURED_REASON = "No storage backend configured yet — Observation Console logging is contract-only in this sprint.";
@@ -43,6 +45,10 @@ export class NoopObservationStorage implements ObservationStorage {
   }
 
   async recordRealityGain(_gain: ObservationRealityGain): Promise<ObservationStorageResult> {
+    return { persisted: false, reason: NOT_CONFIGURED_REASON };
+  }
+
+  async recordQuestionQuality(_quality: ObservationQuestionQuality): Promise<ObservationStorageResult> {
     return { persisted: false, reason: NOT_CONFIGURED_REASON };
   }
 }
