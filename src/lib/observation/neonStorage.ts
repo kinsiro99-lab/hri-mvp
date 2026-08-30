@@ -10,7 +10,7 @@
  */
 
 import { neon } from "@neondatabase/serverless";
-import type { ObservationEvent, ObservationReflection, ObservationRealityGain, ObservationQuestionQuality, ObservationTurn } from "./types";
+import type { ObservationEvent, ObservationReflection, ObservationRealityGain, ObservationQuestionQuality, ObservationReflectionSafety, ObservationTurn } from "./types";
 import type { ObservationStorage, ObservationStorageResult } from "./storage";
 
 export class NeonObservationStorage implements ObservationStorage {
@@ -148,6 +148,39 @@ export class NeonObservationStorage implements ObservationStorage {
           (timestamp, session_id, turn_index, evaluation_version, reality_gain, redundancy, grounding_safety, information_gain, provenance)
         VALUES
           (${quality.timestamp}, ${quality.sessionId}, ${quality.turnIndex}, ${quality.evaluationVersion}, ${quality.realityGain}, ${quality.redundancy}, ${quality.groundingSafety}, ${quality.informationGain}, ${quality.provenance})
+      `;
+      return { persisted: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown Neon storage error";
+      return { persisted: false, reason: message };
+    }
+  }
+
+  // Reflection Safety Observation V1 Sprint 04 — targets the new
+  // additive observation_reflection_safety table (schema.sql).
+  // Session-level linkage only (no turn_index) — see
+  // ObservationReflectionSafety's own doc in types.ts for why. No
+  // UNIQUE constraint: unlike observation_turns/reality_gains/
+  // question_quality (one row per turn, naturally unique), a session
+  // could in principle produce more than one Final Experience call
+  // (e.g. a retry path outside this Sprint's scope) — never force-
+  // deduplicated here, matching observation_reflections' own shape.
+  async recordReflectionSafety(safety: ObservationReflectionSafety): Promise<ObservationStorageResult> {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      return {
+        persisted: false,
+        reason: "DATABASE_URL is not configured — Neon storage is inactive.",
+      };
+    }
+
+    try {
+      const sql = neon(connectionString);
+      await sql`
+        INSERT INTO observation_reflection_safety
+          (timestamp, session_id, evaluation_version, reflection_outcome, error_message, provenance)
+        VALUES
+          (${safety.timestamp}, ${safety.sessionId}, ${safety.evaluationVersion}, ${safety.reflectionOutcome}, ${safety.errorMessage}, ${safety.provenance})
       `;
       return { persisted: true };
     } catch (error) {

@@ -4,7 +4,7 @@ import { devLog } from "@/lib/devLog";
 import type { HriEvent } from "@/lib/hri/types";
 import { NeonObservationStorage } from "@/lib/observation/neonStorage";
 import { NoopObservationStorage } from "@/lib/observation/storage";
-import { emitObservationReflection, emitObservationRealityGain, emitObservationQuestionQuality, emitObservationTurn } from "@/lib/observation/adapter";
+import { emitObservationReflection, emitObservationRealityGain, emitObservationQuestionQuality, emitObservationReflectionSafety, emitObservationTurn } from "@/lib/observation/adapter";
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "no-store",
@@ -123,6 +123,42 @@ async function recordQuestionQualityObservation(payload: EngineRequest, result: 
   if (!outcome.persisted) devLog("Observation question quality not persisted:", outcome.reason);
 }
 
+// Reflection Safety Observation V1 Sprint 04 — reads the "reflection"
+// HriEvent's reflectionSafetyOutcome/Error (controller.ts), the exact
+// values finalExperiencePhraser.ts's existing safety mechanism already
+// computed for this session's Final Experience call. Session-level only
+// (no turn lookup, no reuse of latestQuestionOrReflectionEvent above) —
+// see ObservationReflectionSafety's own doc for why a turnIndex would
+// not be a real per-turn signal here. Undefined outcome means
+// USE_FINAL_EXPERIENCE didn't run this turn (not every turn is a
+// Reflection turn) — skipped entirely, never a fabricated "no data"
+// outcome.
+function latestReflectionEvent(events: HriEvent[] | undefined): Extract<HriEvent, { type: "reflection" }> | undefined {
+  if (!Array.isArray(events)) return undefined;
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event.type === "reflection") return event;
+  }
+  return undefined;
+}
+
+async function recordReflectionSafetyObservation(payload: EngineRequest, result: Awaited<ReturnType<typeof getNextOutput>>) {
+  if (!payload.sessionId) return;
+  const event = latestReflectionEvent(result.nextEvents);
+  if (!event || event.reflectionSafetyOutcome === undefined) return;
+
+  const storage = process.env.DATABASE_URL ? new NeonObservationStorage() : new NoopObservationStorage();
+  const outcome = await emitObservationReflectionSafety(
+    {
+      sessionId: payload.sessionId,
+      reflectionOutcome: event.reflectionSafetyOutcome,
+      errorMessage: event.reflectionSafetyError ?? null,
+    },
+    storage,
+  );
+  if (!outcome.persisted) devLog("Observation reflection safety not persisted:", outcome.reason);
+}
+
 export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as EngineRequest;
@@ -134,6 +170,7 @@ export async function POST(req: Request) {
       await recordReflectionObservation(payload, result);
       await recordRealityGainObservation(payload, result);
       await recordQuestionQualityObservation(payload, result);
+      await recordReflectionSafetyObservation(payload, result);
     } catch (observationError) {
       // Belt-and-suspenders — emitObservationTurn/Reflection already
       // never throw, but this call site must never let an Observation

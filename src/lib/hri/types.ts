@@ -51,6 +51,17 @@ export type HriEvent =
       structuralUpdatedElements?: number;
       structuralNewRelations?: number;
       structuralElementRef?: string | null;
+      // Reflection Safety Observation V1 (Sprint 04) — the existing
+      // finalExperiencePhraser.ts outcome/errorMessage for THIS
+      // session's Final Experience call, copied through verbatim (never
+      // re-derived). Flat primitive (string, not the real
+      // FinalExperienceCallOutcome union) — same "avoid a new
+      // cross-module import here" convention as the structuralX fields
+      // above. Undefined whenever USE_FINAL_EXPERIENCE didn't run this
+      // turn (see controller.ts) — no real signal to observe, never a
+      // fabricated "no data" outcome.
+      reflectionSafetyOutcome?: string;
+      reflectionSafetyError?: string | null;
     }
   | {
       id: string;
@@ -159,6 +170,11 @@ export type ReflectionOutput = {
   structuralUpdatedElements?: number;
   structuralNewRelations?: number;
   structuralElementRef?: string | null;
+  // Reflection Safety Observation V1 (Sprint 04) — see HriEvent's
+  // "reflection" variant above; copied through verbatim by
+  // createReflectionEvent.
+  reflectionSafetyOutcome?: string;
+  reflectionSafetyError?: string | null;
 };
 
 export type WhisperOutput = {

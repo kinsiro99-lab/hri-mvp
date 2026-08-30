@@ -54,6 +54,8 @@ export function createReflectionEvent(reflection: ReflectionOutput): HriEvent {
     structuralUpdatedElements: reflection.structuralUpdatedElements,
     structuralNewRelations: reflection.structuralNewRelations,
     structuralElementRef: reflection.structuralElementRef,
+    reflectionSafetyOutcome: reflection.reflectionSafetyOutcome,
+    reflectionSafetyError: reflection.reflectionSafetyError,
   };
 }
 

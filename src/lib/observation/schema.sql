@@ -103,3 +103,30 @@ CREATE TABLE IF NOT EXISTS observation_question_quality (
   provenance TEXT NOT NULL,
   UNIQUE (session_id, turn_index)
 );
+
+-- Reflection Safety Observation V1 Sprint 04 — additive only, does not
+-- touch observation_question_quality or any table above (no ALTER, no
+-- column added, no row overwritten). One row per Final Experience call,
+-- recording ONLY what finalExperiencePhraser.ts's existing safety
+-- mechanism already computed (reflection_outcome/error_message copied
+-- verbatim — see src/lib/observation/types.ts's
+-- ObservationReflectionSafety for the exact source and its documented
+-- limits). No turn_index: Final Experience is a once-per-session call,
+-- not a per-turn signal — session_id is the correct live boundary (see
+-- that same doc). reflection_outcome is one of SUCCESS / SKIPPED /
+-- TECHNICAL_FAILURE / VALIDATION_FAILURE, the existing
+-- FinalExperienceCallOutcome value space — never renamed or
+-- reinterpreted. IMPORTANT: a SUCCESS row here does not prove the
+-- Reflection was fully grounded, that attribution never escaped
+-- undetected, or that ja/en have the same safety coverage as ko — this
+-- table records detection, not a grounding guarantee. No UNIQUE
+-- constraint, matching observation_reflections above.
+CREATE TABLE IF NOT EXISTS observation_reflection_safety (
+  id BIGSERIAL PRIMARY KEY,
+  timestamp TIMESTAMPTZ NOT NULL,
+  session_id TEXT NOT NULL,
+  evaluation_version TEXT NOT NULL,
+  reflection_outcome TEXT NOT NULL,
+  error_message TEXT,
+  provenance TEXT NOT NULL
+);

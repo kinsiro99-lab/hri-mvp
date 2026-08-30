@@ -118,3 +118,50 @@ export type ObservationQuestionQuality = {
    *  always "observation_reality_gains" in V1. */
   provenance: string;
 };
+
+/**
+ * Reflection Safety Observation V1 (Sprint 04) — records ONLY what
+ * finalExperiencePhraser.ts's existing safety mechanism already
+ * computed and previously discarded after a devLog line (controller.ts
+ * "FINAL EXPERIENCE:" log). No re-validation, no new LLM call, no new
+ * keyword/stem rule — reflectionOutcome/errorMessage below are copied
+ * through verbatim from FinalExperienceCallOutcome/errorMessage
+ * (finalExperiencePhraser.ts), never re-derived or reinterpreted here.
+ *
+ * IMPORTANT LIMIT (Sprint 04's own scope boundary — do not lose this
+ * when reading the table later): this record says WHAT THE EXISTING
+ * SAFETY MECHANISM DETECTED, nothing more. A "SUCCESS" row does NOT
+ * prove the Reflection was fully grounded, that no attribution escaped
+ * undetected, that the user's explicit meaning was preserved, or that
+ * ja/en have the same safety coverage as ko (findUngroundedAttribution
+ * in finalExperiencePhraser.ts is ko-only — see that file). There is
+ * deliberately no boolean field here like "isGrounded" — that would
+ * claim more than this signal supports.
+ *
+ * Session-level linkage only (no turnIndex): Final Experience is
+ * computed once per session (the single closing Reflection), not per
+ * turn — same boundary ObservationReflection above already uses for
+ * the reflection text itself. A turnIndex here would not describe a
+ * repeating per-turn signal the way ObservationTurn/RealityGain's does;
+ * it would just be the session's last turn number restated, so it is
+ * intentionally omitted rather than invented.
+ */
+export type ReflectionSafetyOutcome = "SUCCESS" | "SKIPPED" | "TECHNICAL_FAILURE" | "VALIDATION_FAILURE";
+
+export const REFLECTION_SAFETY_OBSERVATION_VERSION = "v1";
+
+export type ObservationReflectionSafety = {
+  timestamp: string;
+  sessionId: string;
+  evaluationVersion: string;
+  /** Verbatim FinalExperienceCallOutcome value — see this type's own
+   *  doc above for what each value does and does not prove. */
+  reflectionOutcome: ReflectionSafetyOutcome;
+  /** Verbatim FinalExperienceCallOutcome errorMessage, or null when
+   *  the Runtime itself did not produce one — never a fabricated
+   *  reason. */
+  errorMessage: string | null;
+  /** Name of the Runtime module this outcome was read from, never a
+   *  re-derived judgment — always "final_experience_phraser" in V1. */
+  provenance: string;
+};

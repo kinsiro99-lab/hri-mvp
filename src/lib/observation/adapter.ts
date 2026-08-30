@@ -16,12 +16,14 @@ import type {
   ObservationReflection,
   ObservationRealityGain,
   ObservationQuestionQuality,
+  ObservationReflectionSafety,
   ObservationTurn,
   RealityGainType,
   QuestionQualityRedundancy,
   QuestionQualityInformationGain,
+  ReflectionSafetyOutcome,
 } from "./types";
-import { QUESTION_QUALITY_EVALUATION_VERSION } from "./types";
+import { QUESTION_QUALITY_EVALUATION_VERSION, REFLECTION_SAFETY_OBSERVATION_VERSION } from "./types";
 import type { ObservationStorage, ObservationStorageResult } from "./storage";
 
 const FIRST_INPUT_MAX_LENGTH = 500;
@@ -270,6 +272,47 @@ export async function emitObservationQuestionQuality(
     };
 
     return await storage.recordQuestionQuality(quality);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
+    return { persisted: false, reason: message };
+  }
+}
+
+// Reflection Safety Observation V1 (Sprint 04) — validate-then-delegate,
+// same shape as every emit* function above. reflectionOutcome arrives as
+// a plain string (HriEvent's flat-primitive convention, see types.ts) —
+// checked against the exact, unmodified FinalExperienceCallOutcome value
+// space (finalExperiencePhraser.ts) so an unrecognized value fails
+// INVALID_OBSERVATION_EVENT_REASON rather than being written as-is; this
+// is input validation, not a reinterpretation of what Runtime produced.
+const REFLECTION_SAFETY_OUTCOMES: ReadonlySet<string> = new Set<ReflectionSafetyOutcome>([
+  "SUCCESS",
+  "SKIPPED",
+  "TECHNICAL_FAILURE",
+  "VALIDATION_FAILURE",
+]);
+
+export async function emitObservationReflectionSafety(
+  input: { sessionId: string; reflectionOutcome: string; errorMessage: string | null },
+  storage: ObservationStorage,
+): Promise<ObservationStorageResult> {
+  try {
+    if (!input.sessionId.trim() || !REFLECTION_SAFETY_OUTCOMES.has(input.reflectionOutcome)) {
+      return { persisted: false, reason: INVALID_OBSERVATION_EVENT_REASON };
+    }
+
+    const safety: ObservationReflectionSafety = {
+      timestamp: new Date().toISOString(),
+      sessionId: input.sessionId.trim(),
+      evaluationVersion: REFLECTION_SAFETY_OBSERVATION_VERSION,
+      reflectionOutcome: input.reflectionOutcome as ReflectionSafetyOutcome,
+      // Do not fabricate a reason — absent stays null, exactly as
+      // Runtime produced it.
+      errorMessage: input.errorMessage,
+      provenance: "final_experience_phraser",
+    };
+
+    return await storage.recordReflectionSafety(safety);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
     return { persisted: false, reason: message };

@@ -617,6 +617,13 @@ const fallbackReflectionText = [
     // see that file's validateFinalExperience. Falls back to a plain,
     // honest (deliberately unpoetic) template on any provider failure.
     let reflectionText = preFinalExperienceText;
+    // Reflection Safety Observation V1 (Sprint 04) — preserves exactly
+    // what phraseFinalExperience() already computes and previously only
+    // reached devLog (see the same values in the line below, unchanged).
+    // Undefined whenever USE_FINAL_EXPERIENCE is off — no call was made,
+    // so there is no real outcome to report.
+    let reflectionSafetyOutcome: string | undefined;
+    let reflectionSafetyError: string | null | undefined;
     if (USE_FINAL_EXPERIENCE) {
       const grounding = buildFinalExperienceGrounding(
         hriState.prototypeEvidence,
@@ -628,6 +635,8 @@ const fallbackReflectionText = [
       const phrased = await phraseFinalExperience(plan, locale);
       const finalExperience = phrased.result ?? renderFinalExperienceTemplate(plan, locale);
       devLog("FINAL EXPERIENCE:", { outcome: phrased.outcome, errorMessage: phrased.errorMessage });
+      reflectionSafetyOutcome = phrased.outcome;
+      reflectionSafetyError = phrased.errorMessage ?? null;
       reflectionText = joinFinalExperience(finalExperience.mirror, finalExperience.sharing);
     }
 
@@ -639,6 +648,8 @@ const fallbackReflectionText = [
       structuralUpdatedElements: nextStructuralChange?.updatedElementCount,
       structuralNewRelations: nextStructuralChange?.newRelationCount,
       structuralElementRef: nextStructuralChange?.elementRef,
+      reflectionSafetyOutcome,
+      reflectionSafetyError,
     };
 
     const nextState: SessionStateV2 = {
