@@ -11,10 +11,16 @@
  * this yet; a future caller decides when (and whether) to.
  */
 
-import type { ObservationEvent } from "./types";
+import type { ObservationEvent, ObservationReflection, ObservationTurn } from "./types";
 import type { ObservationStorage, ObservationStorageResult } from "./storage";
 
 const FIRST_INPUT_MAX_LENGTH = 500;
+// Question Observation Foundation Sprint 01 — generous but bounded,
+// same defensive intent as FIRST_INPUT_MAX_LENGTH above (a stray huge
+// payload should truncate, never fail the whole write).
+const QUESTION_TEXT_MAX_LENGTH = 2000;
+const ANSWER_TEXT_MAX_LENGTH = 2000;
+const REFLECTION_TEXT_MAX_LENGTH = 20000;
 
 export type ObservationEventInput = {
   sessionId: unknown;
@@ -65,6 +71,61 @@ export async function emitObservationEvent(
     }
 
     return await storage.record(event);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
+    return { persisted: false, reason: message };
+  }
+}
+
+// Question Observation Foundation Sprint 01 — same
+// validate-then-delegate shape as emitObservationEvent above, kept as
+// plain function parameters (not a FormData-shaped input type) since
+// both callers are internal (api/analyze/route.ts), not a public HTTP
+// body like ObservationEventInput above.
+export async function emitObservationTurn(
+  input: { sessionId: string; turnIndex: number; questionText: string; questionRef: string | null; answerText: string },
+  storage: ObservationStorage,
+): Promise<ObservationStorageResult> {
+  try {
+    if (!input.sessionId.trim() || !input.questionText.trim() || !input.answerText.trim()) {
+      return { persisted: false, reason: INVALID_OBSERVATION_EVENT_REASON };
+    }
+    if (!Number.isInteger(input.turnIndex) || input.turnIndex < 0) {
+      return { persisted: false, reason: INVALID_OBSERVATION_EVENT_REASON };
+    }
+
+    const turn: ObservationTurn = {
+      timestamp: new Date().toISOString(),
+      sessionId: input.sessionId.trim(),
+      turnIndex: input.turnIndex,
+      questionText: input.questionText.slice(0, QUESTION_TEXT_MAX_LENGTH),
+      questionRef: input.questionRef,
+      answerText: input.answerText.slice(0, ANSWER_TEXT_MAX_LENGTH),
+    };
+
+    return await storage.recordTurn(turn);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
+    return { persisted: false, reason: message };
+  }
+}
+
+export async function emitObservationReflection(
+  input: { sessionId: string; reflectionText: string },
+  storage: ObservationStorage,
+): Promise<ObservationStorageResult> {
+  try {
+    if (!input.sessionId.trim() || !input.reflectionText.trim()) {
+      return { persisted: false, reason: INVALID_OBSERVATION_EVENT_REASON };
+    }
+
+    const reflection: ObservationReflection = {
+      timestamp: new Date().toISOString(),
+      sessionId: input.sessionId.trim(),
+      reflectionText: input.reflectionText.slice(0, REFLECTION_TEXT_MAX_LENGTH),
+    };
+
+    return await storage.recordReflection(reflection);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown Observation Adapter error";
     return { persisted: false, reason: message };

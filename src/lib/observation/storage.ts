@@ -10,7 +10,7 @@
  * in src/lib/hri/logStore.ts.
  */
 
-import type { ObservationEvent } from "./types";
+import type { ObservationEvent, ObservationReflection, ObservationTurn } from "./types";
 
 export type ObservationStorageResult = {
   persisted: boolean;
@@ -19,10 +19,28 @@ export type ObservationStorageResult = {
 
 export interface ObservationStorage {
   record(event: ObservationEvent): Promise<ObservationStorageResult>;
+  // Question Observation Foundation Sprint 01 — additive methods,
+  // same never-throws/fail-soft contract as record() above.
+  recordTurn(turn: ObservationTurn): Promise<ObservationStorageResult>;
+  recordReflection(reflection: ObservationReflection): Promise<ObservationStorageResult>;
 }
 
 export class NoopObservationStorage implements ObservationStorage {
   async record(_event: ObservationEvent): Promise<ObservationStorageResult> {
+    return {
+      persisted: false,
+      reason: "No storage backend configured yet — Observation Console logging is contract-only in this sprint.",
+    };
+  }
+
+  async recordTurn(_turn: ObservationTurn): Promise<ObservationStorageResult> {
+    return {
+      persisted: false,
+      reason: "No storage backend configured yet — Observation Console logging is contract-only in this sprint.",
+    };
+  }
+
+  async recordReflection(_reflection: ObservationReflection): Promise<ObservationStorageResult> {
     return {
       persisted: false,
       reason: "No storage backend configured yet — Observation Console logging is contract-only in this sprint.",

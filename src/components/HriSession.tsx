@@ -138,6 +138,14 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
         locale: toEngineLocale(locale),
         priorState: engineState,
         priorEvents: engineEvents,
+        // Question Observation Foundation Sprint 01 — same sessionId
+        // already used below for logObservationEvent; mainQuestion is
+        // whatever question was on screen before this submission (null
+        // on the very first turn, since that answers the static
+        // Landing prompt, not an HRI-generated question). Read only by
+        // the API route for Observation logging.
+        sessionId: sessionIdRef.current!,
+        previousQuestion: mainQuestion ?? undefined,
       })
       setEngineState(result.nextState)
       setEngineEvents(result.nextEvents)

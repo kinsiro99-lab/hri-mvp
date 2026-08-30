@@ -18,6 +18,18 @@ export type EngineRequest = {
    *  for the full contract. Optional and passed straight through. */
   priorState?: SessionState;
   priorEvents?: HriEvent[];
+  /**
+   * Question Observation Foundation Sprint 01 — client-generated
+   * session id (already created in HriSession.tsx for the existing
+   * /api/log call) and the question text the client had on screen
+   * before this submission, i.e. what `inputs`'s last element is
+   * answering. Both optional, both read only by api/analyze/route.ts
+   * for Observation logging — getNextOutput/runHriSession/advanceSession
+   * never read or forward either field, so this adds no new input to
+   * the Engine itself.
+   */
+  sessionId?: string;
+  previousQuestion?: string;
 };
 
 export type EngineResponse = {
