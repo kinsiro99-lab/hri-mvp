@@ -14,6 +14,16 @@ const CRISIS_MESSAGE: Record<Locale, string> = {
   // Multilingual Gate — English. Same content/structure as ko/ja, not a
   // literal translation of either.
   en: "What you're sharing sounds like something that calls for safety first, more than a quiet continued conversation. Please don't carry this alone — reach out to someone close to you or a local crisis support line right away. If you are in immediate danger, please contact your local emergency number.",
+  // 7-Locale Runtime Output Support Gate — same content/structure as
+  // ko/ja/en, not a literal translation of any of them. zh-HK/zh-TW
+  // kept near-identical to each other (unlike other locale-keyed prose
+  // in this codebase) deliberately: this is the crisis-response message
+  // itself, where safety-recall/clarity matters far more than regional
+  // stylistic distinctiveness.
+  fr: "Ce que vous partagez semble appeler la sécurité avant tout, plutôt qu'une simple continuation de la conversation. Ne portez pas cela seul(e) — contactez dès maintenant un proche ou une ligne d'écoute locale. En cas de danger immédiat, contactez les services d'urgence de votre région.",
+  "zh-CN": "你现在分享的内容，似乎比安静地继续对话更需要优先考虑安全。请不要独自承受这些，请立即联系身边信任的人，或当地的紧急支援热线。如果有即时危险，请联系当地的紧急电话。",
+  "zh-HK": "你現在分享的內容，似乎比安靜地繼續對話更需要優先考慮安全。請不要獨自承受這些，請立即聯絡身邊信任的人，或本地的緊急支援熱線。如果有即時危險，請聯絡當地的緊急電話。",
+  "zh-TW": "你現在分享的內容，似乎比安靜地繼續對話更需要優先考慮安全。請不要獨自承受這些，請立即聯絡身邊信任的人，或當地的緊急支援專線。如果有立即危險，請聯絡當地的緊急電話。",
 };
 
 /**
@@ -80,6 +90,44 @@ const SELF_CONTAINED_CRISIS_MARKERS: Record<Locale, string[]> = {
     "do not want to live anymore",
     "suicide",
   ],
+  // 7-Locale Runtime Output Support Gate — same categories as ko/ja/en
+  // (want to die, want to disappear, self-harm, a full negated-life-wish
+  // phrase rather than a bare stem), plus English-loanword coverage kept
+  // for parity, same reasoning as en's own array above. zh-HK/zh-TW kept
+  // deliberately near-identical (recall priority for crisis detection —
+  // see CRISIS_MESSAGE's own note), unlike other locale-keyed lists.
+  fr: [
+    "je veux mourir", "j'ai envie de mourir", "je voudrais mourir",
+    "je veux disparaître", "je veux disparaitre",
+    "automutilation",
+    "je ne veux plus vivre", "je ne veux pas vivre",
+    "en finir avec ma vie", "me suicider",
+    "suicide", "kill myself", "self harm",
+  ],
+  "zh-CN": [
+    "想死", "不想活了",
+    "想消失",
+    "自残",
+    "自杀", "想自杀",
+    "结束自己的生命",
+    "suicide", "kill myself", "self harm",
+  ],
+  "zh-HK": [
+    "想死", "不想活了",
+    "想消失",
+    "自殘",
+    "自殺", "想自殺",
+    "結束自己的生命",
+    "suicide", "kill myself", "self harm",
+  ],
+  "zh-TW": [
+    "想死", "不想活了",
+    "想消失",
+    "自殘",
+    "自殺", "想自殺",
+    "結束自己的生命",
+    "suicide", "kill myself", "self harm",
+  ],
 };
 
 /**
@@ -97,6 +145,12 @@ const AMBIGUOUS_CRISIS_MARKERS: Record<Locale, string[]> = {
   // phrase (could mean a task/project ending, or something more
   // serious), same role as ko's "끝내고 싶"/ja's "終わりにしたい".
   en: ["end it all", "want it to be over", "put an end to it"],
+  // 7-Locale Runtime Output Support Gate — same ambiguity as ko/ja/en:
+  // could mean a task/project ending, or something more serious.
+  fr: ["en finir", "que ça s'arrête", "mettre fin à tout"],
+  "zh-CN": ["想结束", "想了结", "一了百了"],
+  "zh-HK": ["想結束", "想了結", "一了百了"],
+  "zh-TW": ["想結束", "想了結", "一了百了"],
 };
 
 /** If a life/self object co-occurs with an ambiguous marker, it stays
@@ -106,6 +160,10 @@ const LIFE_OBJECT_MARKERS: Record<Locale, string[]> = {
   ko: ["삶", "인생", "목숨", "생명", "모든 것", "모든 걸"],
   ja: ["人生", "命", "生命", "すべて", "全部"],
   en: ["my life", "life", "everything", "living"],
+  fr: ["ma vie", "vie", "tout", "vivre"],
+  "zh-CN": ["生命", "人生", "一切", "全部"],
+  "zh-HK": ["生命", "人生", "一切", "全部"],
+  "zh-TW": ["生命", "人生", "一切", "全部"],
 };
 
 /** Minimal reuse of domainEngine.ts's "work" domain keywords — only what's
@@ -114,6 +172,10 @@ const WORK_OBJECT_MARKERS: Record<Locale, string[]> = {
   ko: ["일", "업무", "회사", "직장", "프로젝트", "회의", "보고", "마감", "과제", "작업", "숙제", "출근", "야근"],
   ja: ["仕事", "業務", "会社", "職場", "プロジェクト", "会議", "報告", "締め切り", "締切", "課題", "作業", "宿題", "出勤", "残業"],
   en: ["work", "job", "project", "meeting", "deadline", "report", "assignment", "shift", "overtime", "task"],
+  fr: ["travail", "boulot", "projet", "réunion", "rapport", "délai", "échéance", "devoir", "tâche", "heures supplémentaires"],
+  "zh-CN": ["工作", "上班", "公司", "职场", "项目", "会议", "报告", "截止日期", "作业", "任务", "加班"],
+  "zh-HK": ["工作", "返工", "公司", "職場", "項目", "會議", "報告", "死線", "功課", "任務", "加班"],
+  "zh-TW": ["工作", "上班", "公司", "職場", "專案", "會議", "報告", "期限", "作業", "任務", "加班"],
 };
 
 function includesAny(text: string, markers: readonly string[]): boolean {

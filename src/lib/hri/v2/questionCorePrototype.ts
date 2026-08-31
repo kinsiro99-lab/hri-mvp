@@ -239,6 +239,13 @@ const UNCERTAIN_MARKERS: Record<Locale, string[]> = {
   // isUncertain below) since Latin script varies case naturally at
   // sentence-start unlike Korean/Japanese — markers stored lowercase.
   en: ["i don't know", "i do not know", "not sure how to explain", "hard to explain", "i'm not sure"],
+  // 7-Locale Runtime Output Support Gate — same concept as ko/ja/en
+  // ("don't know" / "hard to put into words"), matched case-
+  // insensitively for fr (see isUncertain below).
+  fr: ["je ne sais pas", "difficile à expliquer", "je n'arrive pas à expliquer", "pas sûr comment expliquer", "je ne suis pas sûr"],
+  "zh-CN": ["不知道", "说不清楚", "很难解释", "不太清楚怎么说", "不确定"],
+  "zh-HK": ["唔知道", "講唔清楚", "好難解釋", "唔太清楚點講", "唔確定"],
+  "zh-TW": ["不知道", "說不清楚", "很難解釋", "不太清楚怎麼說", "不確定"],
 };
 const CORRECTION_MARKERS: Record<Locale, string[]> = {
   ko: ["아니다", "아니야", "사실은", "사실 아직", "아직 결정된 것은 아니다", "그게 아니라"],
@@ -251,6 +258,12 @@ const CORRECTION_MARKERS: Record<Locale, string[]> = {
   // phrases that actually signal a correction, same conservatism as
   // ja's full-phrase choices above.
   en: ["actually, no", "no, that's not it", "that's not right", "wait, actually", "on second thought", "i take that back"],
+  // 7-Locale Runtime Output Support Gate — same "conservative full-
+  // phrase, not bare 'no'/'actually'" discipline as en's own list.
+  fr: ["en fait, non", "non, ce n'est pas ça", "ce n'est pas ça", "attends, en fait", "en y repensant", "je me reprends"],
+  "zh-CN": ["其实不是", "不是这样", "不对，是", "等等，其实", "我改一下", "我重新说"],
+  "zh-HK": ["其實唔係", "唔係咁", "唔啱，係", "等等，其實", "我改吓", "我講返"],
+  "zh-TW": ["其實不是", "不是這樣", "不對，是", "等等，其實", "我改一下", "我重新說"],
 };
 
 /** English is matched case-insensitively (markers stored lowercase) —
@@ -258,12 +271,12 @@ const CORRECTION_MARKERS: Record<Locale, string[]> = {
  *  know") in a way Korean/Japanese do not. ko/ja stay exactly as
  *  before this Gate: raw, case-sensitive substring match. */
 function isUncertain(text: string, locale: Locale): boolean {
-  const cmp = locale === "en" ? text.toLowerCase() : text;
+  const cmp = locale === "en" || locale === "fr" ? text.toLowerCase() : text;
   return UNCERTAIN_MARKERS[locale].some((m) => cmp.includes(m));
 }
 
 function isCorrection(text: string, locale: Locale): boolean {
-  const cmp = locale === "en" ? text.toLowerCase() : text;
+  const cmp = locale === "en" || locale === "fr" ? text.toLowerCase() : text;
   return CORRECTION_MARKERS[locale].some((m) => cmp.includes(m));
 }
 
@@ -283,11 +296,33 @@ const CONFIRMATION_ONLY_MARKERS: Record<Locale, string[]> = {
     "yeah", "yep", "correct", "that's it", "yup", "sure", "definitely", "absolutely", "that's correct",
     "yes, that's right", "yeah, that's right", "yes, exactly", "that's exactly right", "yes, that's it",
   ],
+  // 7-Locale Runtime Output Support Gate — same "entire turn is bare
+  // agreement" exact-match-only discipline as ko/ja/en.
+  fr: [
+    "oui", "c'est ça", "exactement", "je crois que oui", "c'est ce que je veux dire",
+    "ouais", "correct", "voilà", "bien sûr", "tout à fait", "absolument", "c'est exact",
+    "oui, c'est ça", "oui, exactement", "c'est exactement ça",
+  ],
+  "zh-CN": [
+    "是的", "对", "没错", "是这样", "我是这个意思",
+    "嗯", "对的", "就是这样", "当然", "确实", "完全正确",
+    "是的，没错", "对，没错", "就是这样没错",
+  ],
+  "zh-HK": [
+    "係", "啱", "冇錯", "係咁", "我係咁嘅意思",
+    "係呀", "啱嘅", "就係咁", "梗係", "的確", "完全正確",
+    "係呀，冇錯", "啱，冇錯", "就係咁冇錯",
+  ],
+  "zh-TW": [
+    "是的", "對", "沒錯", "是這樣", "我是這個意思",
+    "嗯", "對的", "就是這樣", "當然", "確實", "完全正確",
+    "是的，沒錯", "對，沒錯", "就是這樣沒錯",
+  ],
 };
 
 function isConfirmationOnly(text: string, locale: Locale): boolean {
   const trimmed = text.trim().replace(/[.!?~…\s。、]+$/g, "");
-  const cmp = locale === "en" ? trimmed.toLowerCase() : trimmed;
+  const cmp = locale === "en" || locale === "fr" ? trimmed.toLowerCase() : trimmed;
   return CONFIRMATION_ONLY_MARKERS[locale].includes(cmp);
 }
 

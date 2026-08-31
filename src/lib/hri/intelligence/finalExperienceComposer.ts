@@ -27,6 +27,12 @@ const CONTRAST_MARKERS: Record<Locale, string[]> = {
   ko: ["하지만", "그렇지만", "그러나", "반면", "그래도"],
   ja: ["しかし", "でも", "だが", "一方で", "それでも", "けれど", "けれども"],
   en: ["but", "however", "although", "even though", "still", "yet"],
+  // 7-Locale Runtime Output Support Gate — same soft tension-detection
+  // role as ko/ja/en above, not empirically tuned yet.
+  fr: ["mais", "cependant", "pourtant", "bien que", "même si", "toutefois"],
+  "zh-CN": ["但是", "可是", "然而", "不过", "尽管"],
+  "zh-HK": ["但是", "可是", "然而", "不過", "儘管"],
+  "zh-TW": ["但是", "可是", "然而", "不過", "儘管"],
 };
 
 function hasLexicalContrast(texts: string[], locale: Locale): boolean {

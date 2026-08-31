@@ -572,12 +572,19 @@ const HEDGE_MARKERS: Record<Locale, string[]> = {
   // hasHedge below). Directly from the Beta Handoff's own English
   // hedge candidate list (§6).
   en: ["maybe", "perhaps", "probably", "i think", "i guess", "it seems", "i feel like", "might", "could be"],
+  // 7-Locale Runtime Output Support Gate — same "guess without stated
+  // basis" concept as ko/ja/en, matched case-insensitively for fr (see
+  // hasHedge's own locale check), not a word-for-word translation.
+  fr: ["peut-être", "probablement", "je pense", "je crois", "il me semble", "j'ai l'impression", "sans doute"],
+  "zh-CN": ["也许", "大概", "可能", "我觉得", "我想", "好像", "似乎"],
+  "zh-HK": ["也許", "大概", "可能", "我覺得", "我諗", "好似", "似乎"],
+  "zh-TW": ["也許", "大概", "可能", "我覺得", "我想", "好像", "似乎"],
 };
 /** English is matched case-insensitively — Latin script varies case
  *  naturally in a way Korean/Japanese do not; ko/ja stay exactly as
  *  before this Gate (raw, case-sensitive substring match). */
 function hasHedge(text: string, locale: Locale): boolean {
-  const cmp = locale === "en" ? text.toLowerCase() : text;
+  const cmp = locale === "en" || locale === "fr" ? text.toLowerCase() : text;
   return HEDGE_MARKERS[locale].some((m) => cmp.includes(m));
 }
 
