@@ -48,6 +48,7 @@ import { phraseResponse, type ResponseCallStat } from "./responsePhraser";
 import {
   hypothesesFromGraph,
   type ConnectionContext,
+  type GroundedForwardIntent,
   type Hypothesis,
   type ProviderStatus,
   type QuestionDecision,
@@ -398,8 +399,19 @@ export function decideQuestion(args: {
   }
 
   // 4) explore-relation — real provider output, previously never read.
+  // Grounded Forward Intent Gate 1 — a "user-stated" relation (the user
+  // themselves already connected the two Reality Points in their own
+  // words, e.g. "그만두고 싶어서" between quitting and studying painting;
+  // see RelationProvenance's own doc in context/types.ts) is already-
+  // known User Reality, not an open hypothesis to explore or ask the
+  // user to reconfirm. Only "inferred" relations (HRI's own reading,
+  // never asserted by the user) remain genuinely open here. This was
+  // previously unfiltered because this whole branch was dead code (see
+  // this file's header — decideResponse() never calls decideQuestion())
+  // with no live audit pressure on it; the distinction always existed
+  // in the data (RelationProvenance), only the filter was missing.
   const openRelations = graph.relations
-    .filter((r) => r.status === "open" && !probedSet.has(r.id))
+    .filter((r) => r.status === "open" && !probedSet.has(r.id) && r.provenance !== "user-stated")
     .sort((a, b) => b.confidence - a.confidence);
   if (openRelations.length > 0) {
     const r = openRelations[0];
@@ -412,11 +424,6 @@ export function decideQuestion(args: {
         evidenceRefs: [latestGrounding?.sourceText ?? newEvidence.text],
         hypothesisRef: r.id,
         relationContext: { relationType: r.type, fromKind: from.kind, fromStatement: from.description, toKind: to.kind, toStatement: to.description },
-        // User-Stated Relation Gate — provenance can now be "inferred" or
-        // "user-stated" (context/types.ts); this dead branch (see this
-        // file's header — decideResponse() never calls decideQuestion())
-        // still treats every relation as Hypothesis-stance regardless of
-        // provenance, unchanged from before that field existed.
         reason: `relation "${r.id}" (${from.kind} ${r.type} ${to.kind}, confidence=${r.confidence}, provenance=${r.provenance}) not yet probed`,
         providerStatus,
       };
@@ -456,10 +463,17 @@ export function decideQuestion(args: {
       if (aTurn !== bTurn) return bTurn - aTurn;
       return b.confidence - a.confidence;
     });
+  const isConnected = (aId: string, bId: string) =>
+    graph.relations.some(
+      (r) =>
+        (r.from === aId && r.to === bId) ||
+        (r.from === bId && r.to === aId)
+    );
+
   if (activeElements.length > 0) {
     const e = activeElements[0];
     const partner = graph.elements
-      .filter((other) => other.active && other.id !== e.id)
+      .filter((other) => other.active && other.id !== e.id && !isConnected(e.id, other.id))
       .sort((a, b) => {
         const aTurn = a.evidenceRefs[a.evidenceRefs.length - 1]?.turn ?? 0;
         const bTurn = b.evidenceRefs[b.evidenceRefs.length - 1]?.turn ?? 0;
@@ -899,6 +913,14 @@ function decideResponse(args: {
       evidenceRefs: [newEvidence.text],
       reason: `the user voiced a guess/hedge without stating its basis ("${newEvidence.text}") — ask what led them to think so; never assert whether it's true, never invent a feeling`,
       providerStatus,
+      groundedForwardIntent: {
+        anchorEvidence: newEvidence.text,
+        openDimension: {
+          kind: "same-element-elaboration",
+          description: `"${newEvidence.text}" was stated as a guess/hedge — its basis has not been named yet`,
+        },
+        epistemicStance: "open-probe",
+      },
     };
   }
 
@@ -910,6 +932,15 @@ function decideResponse(args: {
         evidenceRefs: [target.description],
         reason: `the user only confirmed ("${newEvidence.text}") with no new content of its own — ask about the next genuinely open part of "${target.id}" instead of echoing the bare confirmation`,
         providerStatus,
+        groundedForwardIntent: {
+          anchorEvidence: target.description,
+          openDimension: {
+            kind: "same-element-elaboration",
+            description: `"${target.description}" (${target.kind}) has no further facet named yet beyond this bare confirmation`,
+          },
+          targetRef: target.id,
+          epistemicStance: isStillVerbatim(target) ? "user-stated" : "hypothesis",
+        },
       };
     }
     // No active element to follow up on yet (e.g. confirmation as a
@@ -942,6 +973,15 @@ function decideResponse(args: {
         priorEvidenceRef: priorText,
         reason: `evidence has already been added to "${target.id}" ${target.evidenceRefs.length - 1} times with no new dimension surfaced — ask for what's next (what changed, what stood out) instead of re-merging the same thread again`,
         providerStatus,
+        groundedForwardIntent: {
+          anchorEvidence: u.groundingText,
+          openDimension: {
+            kind: "same-element-elaboration",
+            description: `"${target.description}" (${target.kind}) has already been added to ${target.evidenceRefs.length - 1} times with no new dimension surfaced yet`,
+          },
+          targetRef: target.id,
+          epistemicStance: isStillVerbatim(target) ? "user-stated" : "hypothesis",
+        },
       };
     }
 
@@ -1009,6 +1049,14 @@ function decideResponse(args: {
       evidenceRefs: [newEvidence.text],
       reason: "this is the first thing the user has shared this conversation — a plain acknowledgment would just echo it back with no new content, so pair a short understanding with one genuine opening question instead",
       providerStatus,
+      groundedForwardIntent: {
+        anchorEvidence: newEvidence.text,
+        openDimension: {
+          kind: "raw-evidence",
+          description: `"${newEvidence.text}" is the first thing shared this conversation — no further facet has been named yet`,
+        },
+        epistemicStance: "user-stated",
+      },
     };
   }
 
@@ -1025,6 +1073,92 @@ function decideResponse(args: {
     reason: "plain acknowledgment of the latest evidence — no correction/uncertainty/continuity signal this turn",
     providerStatus,
   };
+}
+
+/**
+ * Grounded Ask Fallback Gate — when phraseResponse's live wording fails
+ * validation (or the provider is unavailable) for mode "ask", the
+ * fallback must stay inside the SAME authorized openDimension rather
+ * than degrade to a domain-generic "anything else?" prompt. Branches
+ * only on GroundedForwardIntent's own already-decided structured
+ * fields (epistemicStance, openDimension.kind, decision.priorEvidenceRef)
+ * — never on openDimension.description's free text — so this stays a
+ * deterministic dispatch over state decideResponse() already computed,
+ * not a new semantic classifier. Four short frames, reused across the
+ * four live ask-triggers (intelligenceCore.ts's decideResponse):
+ *   - epistemicStance "open-probe" (today: only the hedge trigger) —
+ *     the authorized gap IS a basis/reason; ask for it directly.
+ *   - openDimension.kind "raw-evidence" (today: only the genesis-turn
+ *     trigger) — no structure exists yet; stay neutral, never causal.
+ *   - decision.priorEvidenceRef set (today: only the parroting-redirect
+ *     trigger) — decideResponse()'s own reason for this branch is
+ *     explicitly "what changed"; ask about change, not a fresh fact.
+ *   - default (today: the confirmation-only trigger) — elaborate on the
+ *     same anchor, no causal framing.
+ *
+ * 7-Locale Fallback Closure Gate — one native frame set per Locale
+ * (never a shared "family" default): a validation failure must not
+ * change the user's output language, so fr/zh-CN/zh-HK/zh-TW each get
+ * their own text here instead of falling through to ko. zh-CN uses
+ * straight quotes (mainland convention); zh-HK/zh-TW use「」corner
+ * brackets (Traditional Chinese convention) — a real typographic
+ * distinction, not just simplified/traditional character substitution.
+ * zh-HK's own wording stays in Cantonese-inflected written register
+ * (係咩/可唔可以/咁), matching this file's existing zh-HK examples
+ * elsewhere (MODE_RULES/PRESUMPTION_MARKERS); zh-TW uses standard
+ * Mandarin Traditional phrasing, matching its own existing examples.
+ */
+function renderGroundedAskFallback(gfi: GroundedForwardIntent, decision: ResponseDecision, locale: Locale): string {
+  const a = gfi.anchorEvidence.replace(/[.!?？。！]+$/, "");
+  const FRAMES: Record<Locale, { openProbe: string; neutral: string; change: string; facet: string }> = {
+    ko: {
+      openProbe: `'${a}'라고 말씀해 주셨는데, 그렇게 생각하게 된 계기가 있으셨나요?`,
+      neutral: `'${a}'라고 말씀해 주셨네요. 그 이야기를 조금 더 들려주시겠어요?`,
+      change: `'${a}'라고 말씀해 주셨네요. 그 사이에 달라진 점이 있으신가요?`,
+      facet: `'${a}'에 대해 조금 더 말씀해 주시겠어요?`,
+    },
+    ja: {
+      openProbe: `「${a}」とおっしゃいましたが、そう思うようになった何かがありましたか？`,
+      neutral: `「${a}」とおっしゃいましたね。そのことについて、もう少し聞かせていただけますか？`,
+      change: `「${a}」とおっしゃいましたね。そこから何か変わったことはありますか？`,
+      facet: `「${a}」とおっしゃいましたね。その部分について、もう少し聞かせていただけますか？`,
+    },
+    en: {
+      openProbe: `You mentioned "${a}" — was there something that led you to that?`,
+      neutral: `You mentioned "${a}" — could you tell me a bit more about that?`,
+      change: `You mentioned "${a}" — has anything changed since then?`,
+      facet: `You mentioned "${a}" — could you tell me a bit more about that part?`,
+    },
+    fr: {
+      openProbe: `Vous avez mentionné "${a}" — y avait-il quelque chose qui vous a amené à penser cela ?`,
+      neutral: `Vous avez mentionné "${a}". Pourriez-vous m'en dire un peu plus à ce sujet ?`,
+      change: `Vous avez mentionné "${a}" — est-ce que quelque chose a changé depuis ?`,
+      facet: `Vous avez mentionné "${a}" — pourriez-vous m'en dire un peu plus sur cette partie ?`,
+    },
+    "zh-CN": {
+      openProbe: `你提到"${a}"——是什么让你这样想的呢？`,
+      neutral: `你提到"${a}"。能再多说一点这方面的事吗？`,
+      change: `你提到"${a}"——从那以后有什么变化吗？`,
+      facet: `你提到"${a}"——能再多说一点这部分吗？`,
+    },
+    "zh-HK": {
+      openProbe: `你提到「${a}」——係咩令你咁諗嘅呢？`,
+      neutral: `你提到「${a}」。可唔可以講多啲呢方面嘅事？`,
+      change: `你提到「${a}」——之後有咩變化呀？`,
+      facet: `你提到「${a}」——可唔可以講多啲呢部分？`,
+    },
+    "zh-TW": {
+      openProbe: `你提到「${a}」——是什麼讓你這樣想的呢？`,
+      neutral: `你提到「${a}」。可以再多說一點這方面的事嗎？`,
+      change: `你提到「${a}」——之後有什麼變化嗎？`,
+      facet: `你提到「${a}」——可以再多說一點這部分嗎？`,
+    },
+  };
+  const f = FRAMES[locale];
+  if (gfi.epistemicStance === "open-probe") return f.openProbe;
+  if (gfi.openDimension.kind === "raw-evidence") return f.neutral;
+  if (decision.priorEvidenceRef) return f.change;
+  return f.facet;
 }
 
 /**
@@ -1059,7 +1193,11 @@ function renderResponseTemplate(decision: ResponseDecision, locale: Locale): str
           ? `Following ${quote(decision.priorEvidenceRef)}, you added ${quote(first)}.`
           : `You mentioned ${quote(first)}.`;
       case "ask":
-        return decision.questionFallback ? renderProbeTemplate(decision.questionFallback) : `Is there anything more that comes to mind about ${quote(first)}?`;
+        return decision.questionFallback
+          ? renderProbeTemplate(decision.questionFallback)
+          : decision.groundedForwardIntent
+          ? renderGroundedAskFallback(decision.groundedForwardIntent, decision, "en")
+          : `Is there anything more that comes to mind about ${quote(first)}?`;
       case "acknowledge":
       default:
         return `You mentioned ${quote(first)}.`;
@@ -1076,7 +1214,11 @@ function renderResponseTemplate(decision: ResponseDecision, locale: Locale): str
           ? `「${decision.priorEvidenceRef}」に続けて「${first}」とおっしゃいましたね。`
           : `「${first}」とおっしゃいましたね。`;
       case "ask":
-        return decision.questionFallback ? renderProbeTemplate(decision.questionFallback) : `「${first}」について、もう少し思い浮かぶことはありますか？`;
+        return decision.questionFallback
+          ? renderProbeTemplate(decision.questionFallback)
+          : decision.groundedForwardIntent
+          ? renderGroundedAskFallback(decision.groundedForwardIntent, decision, "ja")
+          : `「${first}」について、もう少し思い浮かぶことはありますか？`;
       case "acknowledge":
       default:
         return `「${first}」とおっしゃいましたね。`;
@@ -1092,7 +1234,11 @@ function renderResponseTemplate(decision: ResponseDecision, locale: Locale): str
         ? `'${decision.priorEvidenceRef}'에 이어 '${first}'라고 말씀해 주셨네요.`
         : `'${first}'라고 말씀해 주셨네요.`;
     case "ask":
-      return decision.questionFallback ? renderProbeTemplate(decision.questionFallback) : `'${first}'에서, 조금 더 떠오르는 것이 있다면 무엇인가요?`;
+      return decision.questionFallback
+        ? renderProbeTemplate(decision.questionFallback)
+        : decision.groundedForwardIntent
+        ? renderGroundedAskFallback(decision.groundedForwardIntent, decision, locale)
+        : `'${first}'에서, 조금 더 떠오르는 것이 있다면 무엇인가요?`;
     case "acknowledge":
     default:
       return `'${first}'라고 말씀해 주셨네요.`;

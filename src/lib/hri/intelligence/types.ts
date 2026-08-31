@@ -225,6 +225,168 @@ export type QuestionDecision = {
   providerStatus: ProviderStatus;
 };
 
+/**
+ * Grounded Forward Intent Gate 1 — the smallest practical projection of
+ * QuestionDecision that separates WHAT is legitimate to explore next
+ * from HOW to phrase it (natural-language phrasing is a later,
+ * unimplemented layer — see toGroundedForwardIntent's own doc). Not a
+ * parallel question engine: every field here is read directly off an
+ * already-computed QuestionDecision — decideQuestion() itself keeps
+ * deciding WHAT the candidate is; this only re-shapes that answer.
+ *
+ * Deliberately does NOT carry a separate "alreadyKnown" field —
+ * anchorEvidence already IS what's known; a second field would just
+ * duplicate it under another name. Deliberately does NOT carry a
+ * separate "provenance" field either — epistemicStance already encodes
+ * that distinction (hypothesis/open-probe vs user-stated).
+ */
+export type OpenDimensionKind =
+  /** The target ContextElement itself has no further named facet yet —
+   *  covers both a still-thin single element (expand-hypothesis) and an
+   *  element that was just updated this turn (confirm-update): either
+   *  way, the legitimate next move is elaborating THIS SAME element,
+   *  not inventing a new one. */
+  | "same-element-elaboration"
+  /** A genuinely separate, real element or relation is on the table
+   *  alongside the target, not yet connected/explored (probe-connection,
+   *  or an inferred — never user-stated — relation via explore-relation).
+   *  Reused for both: exploring an inferred relation and probing an
+   *  unconnected pair of elements are the same category of legitimate
+   *  open question ("how do these two relate"), just with a stronger or
+   *  weaker signal behind it. */
+  | "other-element"
+  /** Targets a real UnresolvedPoint the provider itself marked
+   *  NOT_DECIDABLE (explore-unresolved). */
+  | "unresolved"
+  /** No Hypothesis, relation, or unresolved point exists yet to target
+   *  — anchors on raw Evidence only (expand-evidence). */
+  | "raw-evidence";
+
+export type GroundedForwardIntent = {
+  /** Verbatim grounding text — what is already known, never re-derived
+   *  or paraphrased. = QuestionDecision.evidenceRefs[0]. */
+  anchorEvidence: string;
+  openDimension: {
+    kind: OpenDimensionKind;
+    /** A fact, never a question string — same discipline as
+     *  UnresolvedPoint.reason (context/types.ts). Built only from
+     *  fields QuestionDecision already carries (hypothesisStatement,
+     *  updateContext, relationContext, connectionContext, elementKind,
+     *  reason) — never a fresh interpretation of the evidence. */
+    description: string;
+  };
+  /** ContextElement.id / UnresolvedPoint.id / ContextRelation.id, when
+   *  this intent targets one of the graph's real, addressable things —
+   *  the same id decideQuestion()'s own priorProbedRefs already tracks
+   *  for repetition protection. = QuestionDecision.hypothesisRef. */
+  targetRef?: string;
+  /** = QuestionDecision.epistemicStance, unchanged. */
+  epistemicStance: EpistemicStance;
+};
+
+/**
+ * Grounded Forward Intent Gate 1 — pure re-shaping of an already-
+ * computed QuestionDecision, no new graph read, no new LLM call, no
+ * keyword table. Returns null for the two intents that are correctly
+ * NOT forward-opening by design (acknowledge-uncertainty, confirm-
+ * change): pressing further after an uncertain admission or a
+ * correction is exactly what decideResponse()'s own acknowledge-
+ * uncertainty/acknowledge-correction modes already refuse to do, for
+ * the same psychological-safety reason — a null intent here says
+ * "nothing here is legitimate to open further," not "this failed."
+ *
+ * Not wired into decideResponse()/responsePhraser.ts/controller.ts this
+ * Gate — this function exists to be called directly (see the Gate's own
+ * validation script) so the intent shape can be inspected before any
+ * live-path wiring is attempted.
+ */
+export function toGroundedForwardIntent(decision: QuestionDecision): GroundedForwardIntent | null {
+  const anchorEvidence = decision.evidenceRefs[0] ?? "";
+
+  switch (decision.intent) {
+    case "acknowledge-uncertainty":
+    case "confirm-change":
+      return null;
+
+    case "confirm-update": {
+      const uc = decision.updateContext;
+      return {
+        anchorEvidence,
+        openDimension: {
+          kind: "same-element-elaboration",
+          description: uc
+            ? `"${decision.hypothesisStatement}" (${uc.targetKind}) was just updated (${uc.updateKind}) — no further facet beyond this has been named yet`
+            : `"${decision.hypothesisStatement}" was just updated — no further facet beyond this has been named yet`,
+        },
+        targetRef: decision.hypothesisRef,
+        epistemicStance: decision.epistemicStance,
+      };
+    }
+
+    case "explore-relation": {
+      const rc = decision.relationContext;
+      return {
+        anchorEvidence,
+        openDimension: {
+          kind: "other-element",
+          description: rc
+            ? `"${rc.fromStatement}" (${rc.fromKind}) and "${rc.toStatement}" (${rc.toKind}) have an inferred, not-yet-probed relation between them`
+            : decision.reason,
+        },
+        targetRef: decision.hypothesisRef,
+        epistemicStance: decision.epistemicStance,
+      };
+    }
+
+    case "probe-connection": {
+      const cc = decision.connectionContext;
+      return {
+        anchorEvidence,
+        openDimension: {
+          kind: "other-element",
+          description: cc
+            ? `"${cc.newerStatement}" (${cc.newerKind}) and "${cc.olderStatement}" (${cc.olderKind}) are both stated, not yet connected`
+            : decision.reason,
+        },
+        targetRef: decision.hypothesisRef,
+        epistemicStance: decision.epistemicStance,
+      };
+    }
+
+    case "explore-unresolved": {
+      return {
+        anchorEvidence,
+        openDimension: {
+          kind: "unresolved",
+          description: decision.hypothesisStatement ?? decision.reason,
+        },
+        targetRef: decision.hypothesisRef,
+        epistemicStance: decision.epistemicStance,
+      };
+    }
+
+    case "expand-hypothesis": {
+      return {
+        anchorEvidence,
+        openDimension: {
+          kind: "same-element-elaboration",
+          description: `"${decision.hypothesisStatement}" (${decision.elementKind}) is the only active element so far, with no other named facet yet`,
+        },
+        targetRef: decision.hypothesisRef,
+        epistemicStance: decision.epistemicStance,
+      };
+    }
+
+    case "expand-evidence":
+      return {
+        anchorEvidence,
+        openDimension: { kind: "raw-evidence", description: decision.reason },
+        targetRef: undefined,
+        epistemicStance: decision.epistemicStance,
+      };
+  }
+}
+
 /* =========================================================
  * NEXT GATE — Response-Centered Conversation Core.
  *
@@ -344,6 +506,18 @@ export type ResponseDecision = {
   providerStatus: ProviderStatus;
   /** Populated only when mode === "ask" (see that mode's own doc). */
   questionFallback?: QuestionDecision;
+  /**
+   * Grounded Forward Intent Gate 2 — populated only when mode === "ask",
+   * built directly from the SAME data each ask-branch already used to
+   * decide to ask (decideResponse() in intelligenceCore.ts) — never via
+   * decideQuestion()'s probe-connection/explore-relation branches, which
+   * stay exactly as unsurfaced-by-default as the NEXT GATE report left
+   * them (see this file's own header comment on that verdict). This is
+   * the WHAT authority responsePhraser.ts reads for mode "ask": it may
+   * ask about openDimension.description and nothing else — wording/
+   * shape/acknowledgement amount stays the phraser's own freedom.
+   */
+  groundedForwardIntent?: GroundedForwardIntent;
   /**
    * First Conversation Survival Gate 1 — set only for the two narrow,
    * deterministic KO-only meta cases (the user doesn't know what to
