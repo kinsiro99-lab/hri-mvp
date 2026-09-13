@@ -145,7 +145,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       adLabel: "HRI 안내 · 관련 서비스",
       adDisclaimer: "RC는 HRI와 독립적으로 운영되는 Business Reality 서비스입니다.",
       adImageLine1: "자가진단부터 시작하는",
-      adOpeningBadge: "8월 28일 오픈 예정",
+      adOpeningBadge: "9월 말 오픈 예정",
       cards: {
         mirrorTitle: "마음의 거울",
         mirrorLineHistory: "지금까지의 대화를 다시 봅니다.",
@@ -231,7 +231,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       adLabel: "HRIからのご案内 · 関連サービス",
       adDisclaimer: "RCはHRIとは独立して運営されるBusiness Realityサービスです。",
       adImageLine1: "セルフ診断から始める",
-      adOpeningBadge: "8月28日オープン予定",
+      adOpeningBadge: "9月末オープン予定",
       cards: {
         mirrorTitle: "心の鏡",
         mirrorLineHistory: "これまでの対話を見返します。",
@@ -312,7 +312,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       adLabel: "HRI · Related Service",
       adDisclaimer: "RC is a Business Reality service operated independently of HRI.",
       adImageLine1: "Start with Self-Assessment",
-      adOpeningBadge: "Opening August 28",
+      adOpeningBadge: "Opening late September",
       cards: {
         mirrorTitle: "Inner Mirror",
         mirrorLineHistory: "Look back at the conversation so far.",
@@ -398,7 +398,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       adLabel: "HRI · Service partenaire",
       adDisclaimer: "RC est un service Business Reality, exploité indépendamment de HRI.",
       adImageLine1: "Commencez par une auto-évaluation",
-      adOpeningBadge: "Ouverture le 28 août",
+      adOpeningBadge: "Ouverture fin septembre",
       cards: {
         mirrorTitle: "Miroir intérieur",
         mirrorLineHistory: "Revoir la conversation jusqu'ici.",
@@ -482,7 +482,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       adLabel: "HRI 推荐 · 相关服务",
       adDisclaimer: "RC 是与 HRI 独立运营的 Business Reality 服务。",
       adImageLine1: "从自我诊断开始",
-      adOpeningBadge: "8月28日 即将开放",
+      adOpeningBadge: "9月底即将开放",
       cards: {
         mirrorTitle: "心镜",
         mirrorLineHistory: "回看至今为止的对话。",
@@ -563,7 +563,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       adLabel: "HRI 推薦 · 相關服務",
       adDisclaimer: "RC 是與 HRI 獨立運營的 Business Reality 服務。",
       adImageLine1: "由自我檢視開始",
-      adOpeningBadge: "8月28日 即將開放",
+      adOpeningBadge: "9月底即將開放",
       cards: {
         mirrorTitle: "心之鏡",
         mirrorLineHistory: "回看至今為止的對話。",
@@ -644,7 +644,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       adLabel: "HRI 小提醒 · 相關服務",
       adDisclaimer: "RC 是與 HRI 獨立運作的 Business Reality 服務。",
       adImageLine1: "從自我檢視開始",
-      adOpeningBadge: "8月28日即將開放",
+      adOpeningBadge: "9月底即將開放",
       cards: {
         mirrorTitle: "心靈之鏡",
         mirrorLineHistory: "回顧目前為止的對話。",

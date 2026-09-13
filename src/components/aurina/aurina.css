@@ -1339,6 +1339,12 @@ a.arrival-banner-ad:hover {
   color: var(--gold);
 }
 
+/* V1 Title Line Break Gate — max-width removed (was 26ch, which under-
+   measured this Korean line and forced an awkward mid-word auto-wrap
+   at 1440px: "마 / 음재생"). Line 1 now has enough room to sit on one
+   line on its own; the explicit two-line split itself is done with
+   .arrival-v1-title-break below, not by constraining this width.
+   Font-size/weight/color untouched. */
 .arrival-v1-title {
   margin: 0 0 20px;
   font-size: clamp(24px, 3.2vw, 34px);
@@ -1346,7 +1352,34 @@ a.arrival-banner-ad:hover {
   line-height: 1.35;
   letter-spacing: -0.01em;
   color: var(--ink-1);
-  max-width: 26ch;
+  /* V1 Mobile Title Final Fix — keep-all stops the browser's default
+     any-character-boundary Korean line-breaking from splitting a
+     feature name in two ("마음보관" -> "마음" / "보관") when the line
+     wraps naturally on narrow screens; overflow-wrap stays "normal"
+     (no forced break) so a long word is never torn just to avoid
+     overflow. Only affects where a wrap CAN happen, not size/weight/
+     color, and has no effect on the explicit desktop <br> below. */
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+/* Desktop: an explicit line break (see Arrival.tsx's ARRIVAL_V1_TITLE_
+   LINE1/LINE2 + the <br> between them) so the title always shows as
+   exactly two lines, both starting at the same left edge (plain block
+   text, no indent). Mobile: the <br> is hidden and the literal space
+   right after it (also in Arrival.tsx) lets the two lines flow back
+   together as one naturally-wrapping run of text, matching whatever
+   width the phone actually has instead of always breaking at this
+   desktop-specific point. 861px reuses the same threshold already
+   used elsewhere on this page (see .arrival-cards/.arrival-below-input). */
+.arrival-v1-title-break {
+  display: none;
+}
+
+@media (min-width: 861px) {
+  .arrival-v1-title-break {
+    display: block;
+  }
 }
 
 .arrival-v1-body {
@@ -1363,9 +1396,12 @@ a.arrival-banner-ad:hover {
   max-width: 46ch;
 }
 
+/* Typography Continuity Fix — label/list enlarged so this reads as a
+   real part of the page's body copy, not fine print. Text/colors
+   unchanged, only size/line-height/gap increased. */
 .arrival-v1-service-label {
-  margin: 0 0 14px;
-  font-size: 12px;
+  margin: 0 0 16px;
+  font-size: clamp(14px, 1.3vw, 15px);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1378,14 +1414,14 @@ a.arrival-banner-ad:hover {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
 
 .arrival-v1-service-list li {
   position: relative;
-  padding-left: 20px;
-  font-size: 14.5px;
-  line-height: 1.6;
+  padding-left: 24px;
+  font-size: clamp(16px, 1.6vw, 18px);
+  line-height: 1.7;
   color: var(--ink-2);
 }
 
@@ -1673,10 +1709,16 @@ a.arrival-banner-ad:hover {
   margin-bottom: 6px;
 }
 
+/* Typography Continuity Fix — bumped from 16px to match HOME's own
+   input size (.arrival-pill-zone .hri-pill-input, 18px) exactly, so
+   the user's own just-submitted line doesn't feel like a sudden drop
+   from what they just typed it into. Still visibly secondary to
+   .aurina-question-text below it (smaller, muted ink-3), only the
+   size moved. */
 .aurina-mine-text {
   margin: 0;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 18px;
+  line-height: 1.55;
   color: var(--ink-3);
 }
 
@@ -1690,19 +1732,27 @@ a.arrival-banner-ad:hover {
 }
 
 /* Conversation Redesign §2 — the single most important text on the
-   page: 24-30px range (not the earlier pass's 38px ceiling), weight
-   ~600, generous line-height. */
+   page: originally 24-30px (not the earlier pass's 38px ceiling),
+   weight ~600, generous line-height.
+   Typography Continuity Fix — nudged up one step to 26-32px so the
+   transition from HOME's large input experience into Conversation
+   doesn't read as a sudden shrink; still well under the 38px ceiling
+   Redesign §2 deliberately moved away from. Weight/letter-spacing/
+   color untouched. */
 .aurina-question-text {
-  font-size: clamp(24px, 3.4vw, 30px);
+  font-size: clamp(26px, 3.6vw, 32px);
   font-weight: 600;
   line-height: 1.45;
   letter-spacing: -0.01em;
   color: var(--ink-1);
 }
 
+/* Typography Continuity Fix — small bump (still clearly a transient
+   status line, still muted ink-3) since this is the very first thing
+   shown after leaving HOME's larger input. */
 .aurina-thinking {
   margin-top: 24px;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--ink-3);
 }
 
@@ -1875,9 +1925,12 @@ a.arrival-banner-ad:hover {
   gap: 14px;
 }
 
+/* Typography Continuity Fix — nudged up one step (was 18-21px) so
+   Reflection's body reads at a size consistent with Conversation's own
+   bumped question/mine text. Weight/color/max-width untouched. */
 .reflection-mirror p {
   margin: 0;
-  font-size: clamp(18px, 2vw, 21px);
+  font-size: clamp(19px, 2.1vw, 22px);
   font-weight: 500;
   line-height: 1.7;
   color: var(--ink-1);
@@ -1955,9 +2008,11 @@ a.arrival-banner-ad:hover {
   gap: 14px;
 }
 
+/* Typography Continuity Fix — same one-step bump as .reflection-mirror
+   p above. */
 .reflection-giftcard-body p {
   margin: 0;
-  font-size: clamp(18px, 2.1vw, 21px);
+  font-size: clamp(19px, 2.2vw, 22px);
   line-height: 1.75;
   color: var(--ink-1);
   max-width: 44ch;

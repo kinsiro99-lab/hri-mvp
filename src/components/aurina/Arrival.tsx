@@ -111,7 +111,13 @@ function focusArrivalInput() {
 // scheduling/permission behavior is implemented anywhere in this
 // codebase, this Scene only describes what is coming.
 const ARRIVAL_V1_CONNECTOR = "곧, 마음의 거울은 V1으로 이어집니다.";
-const ARRIVAL_V1_TITLE = "HRI V1 — 마음기록 · 마음보관 · 마음재생 · 마음전달";
+// V1 Title Line Break Gate — split into two explicit lines (desktop
+// only, see .arrival-v1-title-break in aurina.css) so the title never
+// auto-wraps mid-word ("마 / 음재생") at 1440px. Not a font-size/color
+// change, and the underlying words are identical to the approved
+// title, just broken at this exact point instead of with " · ".
+const ARRIVAL_V1_TITLE_LINE1 = "HRI V1 — 마음기록 · 마음보관";
+const ARRIVAL_V1_TITLE_LINE2 = "마음재생 · 마음전달";
 const ARRIVAL_V1_BODY =
   "오늘 마음의 거울에 남긴 이야기는 기록되고 쌓입니다.\n다시 만나고 싶은 날 꺼내볼 수 있고, 먼 훗날 소중한 분에게 전할 수도 있습니다.";
 const ARRIVAL_V1_SERVICE_ITEMS = [
@@ -131,7 +137,9 @@ function ArrivalV1Scene() {
   return (
     <section className="arrival-v1-scene">
       <p className="arrival-v1-connector">{ARRIVAL_V1_CONNECTOR}</p>
-      <h2 className="arrival-v1-title">{ARRIVAL_V1_TITLE}</h2>
+      <h2 className="arrival-v1-title">
+        {ARRIVAL_V1_TITLE_LINE1}<br className="arrival-v1-title-break" /> {ARRIVAL_V1_TITLE_LINE2}
+      </h2>
       <p className="arrival-v1-body">{renderLines(ARRIVAL_V1_BODY)}</p>
       <div className="arrival-v1-service">
         <p className="arrival-v1-service-label">V1 SERVICE</p>
