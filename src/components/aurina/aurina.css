@@ -1330,6 +1330,36 @@ a.arrival-banner-ad:hover {
   border-top: 1px solid var(--border-soft);
 }
 
+/* V1 Layout Balance Gate — desktop only: LEFT (connector/title/body)
+   beside RIGHT (V1 SERVICE), so the right half of the Scene is no
+   longer mostly empty at 1440px. Reuses the same 861px threshold and
+   border-left-divider pattern already used elsewhere on this page
+   (.arrival-cards/.arrival-below-input). Mobile keeps the existing
+   stacked block flow untouched — no rule here applies below 861px, so
+   copy/size/color and the top-to-bottom order are all unchanged. */
+@media (min-width: 861px) {
+  .arrival-v1-scene {
+    display: flex;
+    align-items: flex-start;
+    gap: 56px;
+  }
+
+  .arrival-v1-left {
+    flex: 1 1 55%;
+    min-width: 0;
+  }
+
+  .arrival-v1-service {
+    flex: 1 1 40%;
+    min-width: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-left: 40px;
+    border-top: none;
+    border-left: 1px solid var(--border-soft);
+  }
+}
+
 .arrival-v1-connector {
   margin: 0 0 12px;
   font-size: 13px;
@@ -1650,19 +1680,28 @@ a.arrival-banner-ad:hover {
   gap: 3px;
 }
 
+/* BLACK TEXT Final Readability Pass — was 13.5px at ink-3/ink-4 (two
+   shades of gray, one of them the palette's faintest), which made
+   earlier turns close to unreadable.
+   Duplicate Removal + Final Typography (18px) -> Final Structure &
+   Typography (this pass, 16px) — completed turns stay exactly the
+   same size/weight/color as the current exchange below
+   (.aurina-mine-text/.aurina-question-text), just one final size step
+   down for all of them together. font-weight 500 keeps a completed
+   line reading like a real sentence, not a thin caption. Real
+   dialogue, even from earlier turns, is never gray: all of it stays
+   the same near-black ink-1. The user/AURINA distinction comes through
+   via .aurina-trail-aurina's own indent below, not color or size. */
 .aurina-trail-user,
 .aurina-trail-aurina {
   margin: 0;
-  font-size: 13.5px;
-  line-height: 1.5;
-}
-
-.aurina-trail-user {
-  color: var(--ink-3);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--ink-1);
 }
 
 .aurina-trail-aurina {
-  color: var(--ink-4);
   padding-left: 14px;
 }
 
@@ -1709,17 +1748,24 @@ a.arrival-banner-ad:hover {
   margin-bottom: 6px;
 }
 
-/* Typography Continuity Fix — bumped from 16px to match HOME's own
-   input size (.arrival-pill-zone .hri-pill-input, 18px) exactly, so
-   the user's own just-submitted line doesn't feel like a sudden drop
-   from what they just typed it into. Still visibly secondary to
-   .aurina-question-text below it (smaller, muted ink-3), only the
-   size moved. */
+/* Typography Continuity Fix / Conversation Balance Fix history: 16px
+   -> 18px -> 22px, still gray (ink-3), while trying to size this
+   against .aurina-question-text.
+   BLACK TEXT Final Readability Pass — real dialogue is never gray;
+   settled at 18px to exactly match .aurina-question-text.
+   Final Structure & Typography (this pass) — both brought down
+   together to 16px, still exactly matched to each other and still
+   ink-1. font-weight is now explicitly 500 (was inheriting ~400) so
+   this line reads as deliberately weighted, not just "not bold" next
+   to the question's 600. Speaker is distinguished by
+   .aurina-mine-label above this (small/bold/gold) plus its own margin,
+   not by fading or shrinking the sentence itself. */
 .aurina-mine-text {
   margin: 0;
-  font-size: 18px;
-  line-height: 1.55;
-  color: var(--ink-3);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.6;
+  color: var(--ink-1);
 }
 
 .aurina-question-label {
@@ -1731,18 +1777,20 @@ a.arrival-banner-ad:hover {
   margin-bottom: 10px;
 }
 
-/* Conversation Redesign §2 — the single most important text on the
-   page: originally 24-30px (not the earlier pass's 38px ceiling),
-   weight ~600, generous line-height.
-   Typography Continuity Fix — nudged up one step to 26-32px so the
-   transition from HOME's large input experience into Conversation
-   doesn't read as a sudden shrink; still well under the 38px ceiling
-   Redesign §2 deliberately moved away from. Weight/letter-spacing/
-   color untouched. */
+/* Conversation Redesign §2 -> Typography Continuity Fix -> Conversation
+   Balance Fix -> BLACK TEXT Final Readability Pass history: 24-30px ->
+   26-32px -> 25-28px -> 18px, chasing the right relationship to
+   .aurina-mine-text above it; settled on exactly matching it.
+   Final Structure & Typography (this pass) — both brought down
+   together to 16px, still exactly matched in size and both ink-1. The
+   two lines read as one continuous exchange; font-weight (600 here vs.
+   mine-text's 500) plus the "AURINA" label above this still make it
+   unmistakable which line is AURINA's, without needing a size or color
+   difference to do that job. */
 .aurina-question-text {
-  font-size: clamp(26px, 3.6vw, 32px);
+  font-size: 16px;
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.6;
   letter-spacing: -0.01em;
   color: var(--ink-1);
 }

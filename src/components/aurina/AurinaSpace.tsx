@@ -165,9 +165,18 @@ export default function AurinaSpace({
   const isActive = displayPhase === "question" || displayPhase === "thinking";
   const isDone = displayPhase === "done";
 
-  const hiddenCount = history.length - TRAIL_VISIBLE_COUNT;
+  // Duplicate Removal Gate — history's own last entry IS the current
+  // turn (HriSession appends {userText, hriResponse: question} the
+  // same moment it sets mainQuestion to that same question — see
+  // handleSubmit's `result.question` branch), which is already shown
+  // in full just below via .aurina-mine-block + .aurina-question-text.
+  // The trail must only ever hold turns that have already finished, or
+  // the current sentence pair renders twice on screen (once here, once
+  // in the current-turn block).
+  const completedHistory = history.slice(0, -1);
+  const hiddenCount = completedHistory.length - TRAIL_VISIBLE_COUNT;
   const visibleHistory =
-    trailExpanded || hiddenCount <= 0 ? history : history.slice(-TRAIL_VISIBLE_COUNT);
+    trailExpanded || hiddenCount <= 0 ? completedHistory : completedHistory.slice(-TRAIL_VISIBLE_COUNT);
 
   return (
     <div className="aurina-space">
@@ -217,7 +226,7 @@ export default function AurinaSpace({
               </button>
             </div>
 
-            {history.length > 0 && (
+            {completedHistory.length > 0 && (
               <div className="aurina-trail" aria-label={t.conversation.prevConversationAria}>
                 {hiddenCount > 0 && !trailExpanded && (
                   <button
