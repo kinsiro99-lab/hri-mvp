@@ -5,7 +5,7 @@ import type { Notice } from "@/lib/notice/types";
 import { resolveNoticeContent } from "@/lib/notice/types";
 import type { UiLocale } from "@/lib/hri/locale";
 import { UI_LOCALES } from "@/lib/hri/locale";
-import { CONTENT, type Content } from "@/lib/i18n/content";
+import { CONTENT } from "@/lib/i18n/content";
 import { getAd, getActiveAdsByType } from "@/lib/ads/data";
 import { resolveAdContent, type AdContent } from "@/lib/ads/types";
 import "./aurina.css";
@@ -101,19 +101,47 @@ function focusArrivalInput() {
   field?.focus();
 }
 
-// First View Benefit Position Correction — rendered once, in normal
-// document flow (Position Correction Gate: no position:fixed, no
-// viewport-margin placement). Sits inside .arrival-below-input as the
-// right column alongside chips+trust (left column); on narrow/mobile
-// widths that row stacks to a single column instead (see aurina.css).
-function ArrivalBenefit({ benefits }: { benefits: Content["benefits"] }) {
+// HOME V1 Service Scene Gate — approved, fixed copy for the upcoming
+// V1 stage (record / store / replay / deliver a person's own words).
+// Korean-only, deliberately kept outside per-locale CONTENT (no ja/en/
+// fr/zh-* translation has been approved for this copy yet) — rendered
+// only when locale === "ko", the same "don't invent a translation"
+// contract RcAdCard's own placeholder copy already follows above (see
+// its Gate comment). Announcement copy only: no upload/storage/
+// scheduling/permission behavior is implemented anywhere in this
+// codebase, this Scene only describes what is coming.
+const ARRIVAL_V1_CONNECTOR = "곧, 마음의 거울은 V1으로 이어집니다.";
+const ARRIVAL_V1_TITLE = "HRI V1 — 마음기록 · 마음보관 · 마음재생 · 마음전달";
+const ARRIVAL_V1_BODY =
+  "오늘 마음의 거울에 남긴 이야기는 기록되고 쌓입니다.\n다시 만나고 싶은 날 꺼내볼 수 있고, 먼 훗날 소중한 분에게 전할 수도 있습니다.";
+const ARRIVAL_V1_SERVICE_ITEMS = [
+  "사진·음성·영상 파일의 업로드 및 보관",
+  "유고 시 전언의 지정일·지정 수신처 자동 송신",
+  "개인 기록·파일·전언·지시사항의 수정 및 삭제 권한 보장",
+  "보관기간 사용자 지정, 최장 10년",
+];
+
+// Same Gate as above — a large, independent full-width Scene (not a
+// small card, not appended text inside the hero). Sits right after the
+// hero (input + trust/privacy) and before the RC Ad/Notice card row —
+// Beta Up Final Cleanup Gate: mirror experience -> V1 future ->
+// notices/ads — never inside the hero, never disturbing the
+// KEEP-protected cards/ad/utility-row order that follows it.
+function ArrivalV1Scene() {
   return (
-    <aside className="arrival-benefit">
-      <p className="arrival-benefit-title">{benefits.title}</p>
-      <p className="arrival-benefit-core">{renderLines(benefits.core)}</p>
-      <p className="arrival-benefit-body">{renderLines(benefits.body)}</p>
-      <p className="arrival-benefit-cta">{benefits.cta}</p>
-    </aside>
+    <section className="arrival-v1-scene">
+      <p className="arrival-v1-connector">{ARRIVAL_V1_CONNECTOR}</p>
+      <h2 className="arrival-v1-title">{ARRIVAL_V1_TITLE}</h2>
+      <p className="arrival-v1-body">{renderLines(ARRIVAL_V1_BODY)}</p>
+      <div className="arrival-v1-service">
+        <p className="arrival-v1-service-label">V1 SERVICE</p>
+        <ul className="arrival-v1-service-list">
+          {ARRIVAL_V1_SERVICE_ITEMS.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 
@@ -285,10 +313,6 @@ export default function Arrival({
             {t.arrival.headline}
           </h1>
 
-          <p className="arrival-description">
-            {t.arrival.description}
-          </p>
-
           <p className="arrival-core-question">
             {t.arrival.coreQuestion}
           </p>
@@ -319,13 +343,12 @@ export default function Arrival({
             />
           </div>
 
-          {/* First View Benefit Position Correction — the area below
-              the input becomes a two-column row on wide-enough screens:
-              chips+trust (unchanged, same markup/order as before) stay
-              the left/primary column, Benefit Message fills the right
-              column that used to be empty whitespace next to the chip
-              row. Below the breakpoint (see aurina.css) this stacks
-              back into a single natural column, Benefit last. */}
+          {/* First View Benefit Position Correction — this row used to
+              carry a two-column layout with a Benefit Message column on
+              the right (see the HOME V1 Service Scene Gate above,
+              ArrivalV1Scene); that explanatory column and all of its
+              dedicated CSS were removed, so only the chips+trust
+              primary column remains here. */}
           <div className="arrival-below-input">
             <div className="arrival-below-input-primary">
               <div className="arrival-chips">
@@ -344,7 +367,6 @@ export default function Arrival({
                   <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
                 </svg>
                 <div>
-                  <p className="arrival-notice-trust">{renderLines(t.arrival.trustText)}</p>
                   {/* Trust Layout Gate — a plain factual data-handling line,
                       kept visually distinct (bolder/higher-contrast) from
                       the trustText above it since it states something
@@ -376,8 +398,6 @@ export default function Arrival({
                 </div>
               </div>
             </div>
-
-            <ArrivalBenefit benefits={t.benefits} />
           </div>
 
           {/* Notice Card Gate — the separate Notice banner that used to
@@ -390,6 +410,8 @@ export default function Arrival({
           <img src={AURINA_ASSETS.arrivalHeroImage} alt="AURINA" />
         </div>
       </div>
+
+      {locale === "ko" && <ArrivalV1Scene />}
 
       <div className="arrival-cards">
         {rcAdContent && (
