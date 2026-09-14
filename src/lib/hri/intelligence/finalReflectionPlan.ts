@@ -267,8 +267,69 @@ function tryOpen(graph: ContextGraph, evidence: EvidenceItem[]): { anchor?: stri
   return { anchor, reason: point.reason };
 }
 
-function fallbackAnchor(evidence: EvidenceItem[]): string[] {
+/**
+ * Minimum Integration Fix — when relation/change/structure/open all fail
+ * to find an anchor AND more than one Reality Point (active
+ * ContextElement) is actually present, collapsing to the single most
+ * recent evidence line reduces a genuinely multi-topic session to a
+ * restatement of whatever the last turn happened to touch (see the Final
+ * Mind Mirror audit's fixture B: a real 4-turn, zero-relation session
+ * produced a Layer-2 anchor of exactly one line, the last turn's own).
+ * This instead takes ONE representative anchor per distinct active
+ * element (never two from the same element — one anchor per element is
+ * what keeps this from reading as several sentences about the same
+ * topic), each element's own most recent real evidence text, capped at
+ * 3, ordered by each element's first appearance (oldest first) so the
+ * ordering itself doesn't reintroduce a last-turn-first bias. No
+ * relation is created or inferred here — this only selects WHICH literal
+ * lines are available to the phraser; finalExperiencePhraser.ts's own
+ * "no relation, multiple elements" branch is what tells the model not to
+ * connect them. Falls through to the prior single-last-evidence behavior
+ * whenever fewer than 2 active elements exist (the true single-topic
+ * case) or fewer than 2 elements actually yield a real anchor.
+ */
+function fallbackAnchor(evidence: EvidenceItem[], graph: ContextGraph): string[] {
   const real = evidence.filter((e) => e.status === "active" && e.act !== "confirmation");
+
+  const activeElements = graph.elements.filter((e) => e.active);
+  if (activeElements.length >= 2) {
+    const byFirstAppearance = [...activeElements].sort((a, b) => {
+      const aTurn = a.evidenceRefs[0]?.turn ?? 0;
+      const bTurn = b.evidenceRefs[0]?.turn ?? 0;
+      return aTurn - bTurn;
+    });
+
+    // Fallback Anchor Balance Fix — the original oldest-first walk capped
+    // at 3 silently drops every element past the 3rd once 4+ active
+    // elements exist, which can exclude the LATEST element entirely —
+    // trading the original last-turn-only bias for an oldest-turn-only
+    // one (the exact regression this fix targets). At 4+ elements, pick
+    // by POSITION in the session's own timeline — earliest, middle,
+    // latest — so the full time span stays represented regardless of how
+    // many elements sit in between. Below 4 elements this is unchanged:
+    // every element still gets its own anchor, oldest-first, exactly as
+    // before (three or fewer elements just means "use all of them").
+    const candidates =
+      byFirstAppearance.length >= 4
+        ? [
+            byFirstAppearance[0],
+            byFirstAppearance[Math.floor((byFirstAppearance.length - 1) / 2)],
+            byFirstAppearance[byFirstAppearance.length - 1],
+          ]
+        : byFirstAppearance;
+
+    const anchors: string[] = [];
+    for (const el of candidates) {
+      if (anchors.length >= 3) break;
+      const elAnchors = anchorsForElement(el, evidence);
+      const representative = elAnchors[elAnchors.length - 1];
+      if (representative && !anchors.includes(representative)) {
+        anchors.push(representative);
+      }
+    }
+    if (anchors.length >= 2) return anchors;
+  }
+
   const last = real[real.length - 1];
   return last ? [last.text] : [];
 }
@@ -318,6 +379,6 @@ export function buildReflectionPlan(
     const anchor = open.anchor ? [open.anchor] : [];
     return { grounding, anchorEvidence: anchor, primaryDiscovery: "open", unresolvedFocus: open.reason, groundedDiscovery: buildGroundedDiscovery("open", anchor, undefined, undefined) };
   }
-  const fallback = fallbackAnchor(ev);
+  const fallback = fallbackAnchor(ev, g);
   return { grounding, anchorEvidence: fallback, primaryDiscovery: "explicit-only", groundedDiscovery: buildGroundedDiscovery("explicit-only", fallback, undefined, undefined) };
 }
