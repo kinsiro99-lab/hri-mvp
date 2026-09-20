@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import HriInput from "../HriInput";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
@@ -101,6 +101,232 @@ function focusArrivalInput() {
   field?.focus();
 }
 
+// Voice Input Gate (STEP V4) — minimal Web Speech API wiring for the
+// previously visual-only voiceChip button. No new npm package: the
+// DOM lib this project ships (tsconfig's "lib": ["dom", ...]) does not
+// include the Web Speech API types, so the shapes below are declared
+// locally, scoped to this file only (no `declare global` — never
+// touches the ambient Window type app-wide).
+type SpeechRecognitionResultLike = {
+  readonly isFinal: boolean;
+  readonly length: number;
+  [index: number]: { readonly transcript: string } | undefined;
+};
+type SpeechRecognitionEventLike = {
+  readonly resultIndex: number;
+  readonly results: { readonly length: number; [index: number]: SpeechRecognitionResultLike };
+};
+type SpeechRecognitionErrorEventLike = { readonly error: string };
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+const SPEECH_LANG_BY_LOCALE: Record<UiLocale, string> = {
+  ko: "ko-KR",
+  ja: "ja-JP",
+  en: "en-US",
+  fr: "fr-FR",
+  "zh-CN": "zh-CN",
+  "zh-HK": "zh-HK",
+  "zh-TW": "zh-TW",
+};
+
+// STEP V1 audit found no dedicated i18n key for this — reusing the
+// existing KO-only-hardcoded-copy precedent already in this file
+// (ARRIVAL_V1_CONNECTOR etc.) rather than adding a new content.ts key
+// across all 7 locales for one small fallback notice.
+const VOICE_UNSUPPORTED_NOTICE_KO = "이 브라우저에서는 음성 입력을 지원하지 않습니다. 직접 입력해 주세요.";
+const VOICE_UNSUPPORTED_NOTICE_EN = "Voice input isn't supported in this browser — please type instead.";
+
+/** A closed cap on same-session auto-restarts with zero real speech in
+ *  between (reset to 0 the moment any isFinal result actually arrives)
+ *  — bounds Android's per-utterance auto-stop restart loop (STEP V3:
+ *  `continuous` has no effect on Android Chrome) without capping a
+ *  genuinely long dictation session made of many real utterances. */
+const MAX_AUTO_RESTARTS = 3;
+
+type VoiceStatus = "idle" | "listening" | "unsupported";
+
+/**
+ * Voice Input Gate (STEP V4) — client-only, feature-detected Web
+ * Speech wiring. Never assumes a mic exists; never retries past a
+ * fatal permission/service error; never restarts after the user's own
+ * explicit stop. interim results are surfaced to the caller for
+ * display only (see `interimText`) and are never written through
+ * `onInputChange` until a chunk is isFinal — the one exception is
+ * `onend` itself, where whatever interim text a just-closed session
+ * held can never become isFinal from that engine instance and is
+ * merged in as plain text rather than silently dropped (STEP V3 §5:
+ * preserved, never pretended to be a confirmed engine result).
+ */
+function useVoiceInput(locale: UiLocale, inputValue: string, onInputChange: (value: string) => void) {
+  const [status, setStatus] = useState<VoiceStatus>("idle");
+  const [interimText, setInterimText] = useState("");
+
+  // Mirrors the `inputValue` prop so recognition callbacks (set up once
+  // per session, not on every render) always append to the latest
+  // confirmed text, never a stale closure over an earlier render.
+  const inputValueRef = useRef(inputValue);
+  useEffect(() => {
+    inputValueRef.current = inputValue;
+  }, [inputValue]);
+
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const userStoppedRef = useRef(true);
+  const fatalErrorRef = useRef(false);
+  const restartCountRef = useRef(0);
+  const latestInterimRef = useRef("");
+
+  const appendFinal = useCallback((spoken: string) => {
+    const trimmed = spoken.trim();
+    if (!trimmed) return;
+    const existing = inputValueRef.current;
+    const needsSpace = existing.length > 0 && !/\s$/.test(existing);
+    const next = existing ? `${existing}${needsSpace ? " " : ""}${trimmed}` : trimmed;
+    inputValueRef.current = next;
+    onInputChange(next);
+  }, [onInputChange]);
+
+  const clearInterim = useCallback(() => {
+    latestInterimRef.current = "";
+    setInterimText("");
+  }, []);
+
+  const stop = useCallback(() => {
+    userStoppedRef.current = true;
+    recognitionRef.current?.stop();
+  }, []);
+
+  const start = useCallback(() => {
+    const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
+    if (!SpeechRecognitionCtor) {
+      setStatus("unsupported");
+      return;
+    }
+
+    userStoppedRef.current = false;
+    fatalErrorRef.current = false;
+    restartCountRef.current = 0;
+
+    const beginSession = () => {
+      const recognition = new SpeechRecognitionCtor();
+      recognition.lang = SPEECH_LANG_BY_LOCALE[locale];
+      // Android correction (STEP V3): requested anyway (harmless where
+      // unsupported), but never trusted — the onend restart logic below
+      // is what actually carries a long dictation across Android's own
+      // per-utterance auto-stop, not this flag.
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const chunk = result?.[0]?.transcript ?? "";
+          if (result?.isFinal) {
+            appendFinal(chunk);
+            restartCountRef.current = 0;
+          } else {
+            interim += chunk;
+          }
+        }
+        latestInterimRef.current = interim;
+        setInterimText(interim);
+      };
+
+      recognition.onerror = (event) => {
+        // permission denied / not-allowed / fatal error — never
+        // auto-restart (STEP V4 §3). Everything else (no-speech,
+        // network, aborted) is treated as transient; onend decides.
+        if (event.error === "not-allowed" || event.error === "service-not-allowed" || event.error === "audio-capture") {
+          fatalErrorRef.current = true;
+          userStoppedRef.current = true;
+        }
+      };
+
+      recognition.onend = () => {
+        // Interruption Gate (STEP V4 §5) — this session's own leftover
+        // interim can never become isFinal now; merge it in as plain
+        // text (same as any other appendFinal call — inputValue makes
+        // no "confirmed by engine" distinction anywhere downstream) so
+        // it is preserved rather than silently discarded, without ever
+        // claiming the recognition engine itself confirmed it.
+        if (latestInterimRef.current) {
+          appendFinal(latestInterimRef.current);
+          latestInterimRef.current = "";
+        }
+        setInterimText("");
+
+        if (userStoppedRef.current || fatalErrorRef.current) {
+          setStatus("idle");
+          return;
+        }
+
+        // Restart Loop Gate (STEP V4 §3) — only while the user has
+        // neither stopped nor hit a fatal error, and only up to a
+        // bounded number of consecutive empty restarts.
+        restartCountRef.current += 1;
+        if (restartCountRef.current > MAX_AUTO_RESTARTS) {
+          userStoppedRef.current = true;
+          setStatus("idle");
+          return;
+        }
+
+        try {
+          beginSession();
+        } catch {
+          setStatus("idle");
+        }
+      };
+
+      recognitionRef.current = recognition;
+      try {
+        recognition.start();
+        setStatus("listening");
+      } catch {
+        setStatus("idle");
+      }
+    };
+
+    beginSession();
+  }, [locale, appendFinal]);
+
+  const toggle = useCallback(() => {
+    if (status === "listening") stop();
+    else start();
+  }, [status, start, stop]);
+
+  // Unmount safety — Arrival unmounts the instant the first turn
+  // submits (AurinaSpace only renders it while phase === "idle"); never
+  // leave a live recognition session or its restart loop running after
+  // that.
+  useEffect(() => {
+    return () => {
+      userStoppedRef.current = true;
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  return { status, interimText, toggle, clearInterim };
+}
+
 // HOME V1 Service Scene Gate — approved, fixed copy for the upcoming
 // V1 stage (record / store / replay / deliver a person's own words).
 // Korean-only, deliberately kept outside per-locale CONTENT (no ja/en/
@@ -167,6 +393,23 @@ export default function Arrival({
   onLocaleChange,
 }: Props) {
   const t = CONTENT[locale];
+  // Voice Input Gate (STEP V4) — see useVoiceInput's own doc above.
+  const voice = useVoiceInput(locale, inputValue, onInputChange);
+  // While an interim transcript is showing, the textarea's displayed
+  // value is `inputValue` + the interim overlay (never persisted/
+  // drafted — see STEP V4 §2); once resolved (isFinal or onend) the
+  // overlay clears and displayValue collapses back to inputValue alone.
+  const displayValue = voice.interimText
+    ? `${inputValue}${inputValue.length > 0 && !/\s$/.test(inputValue) ? " " : ""}${voice.interimText}`
+    : inputValue;
+  // If the user types manually while an interim overlay is showing,
+  // trust whatever is now on screen as the real value and drop the
+  // overlay bookkeeping — never double-apply the dropped interim text
+  // later via onend's own merge-in.
+  const handleFieldChange = (value: string) => {
+    if (voice.interimText) voice.clearInterim();
+    onInputChange(value);
+  };
   // Ad Structure V1 Gate — looked up by id rather than imported as a
   // constant so the card can go away cleanly (ad.active === false)
   // without an Arrival.tsx code change. No ad, or inactive, or no
@@ -342,8 +585,8 @@ export default function Arrival({
 
           <div className="arrival-pill-zone">
             <HriInput
-              value={inputValue}
-              onChange={onInputChange}
+              value={displayValue}
+              onChange={handleFieldChange}
               onSubmit={onSubmit}
               placeholder={t.arrival.inputPlaceholder}
               autoFocus
@@ -361,14 +604,31 @@ export default function Arrival({
             <div className="arrival-below-input-primary">
               <div className="arrival-chips">
                 <span className="arrival-chip">{t.arrival.enterHint}</span>
-                {/* Visual only — no implementation this phase */}
-                <button type="button" className="arrival-chip arrival-chip--action">
-                  {t.arrival.voiceChip}
+                {/* Voice Input Gate (STEP V4) — same chip, no redesign:
+                    the label itself carries the only state change
+                    (listening indicator), and clicking while
+                    unsupported reveals one small notice line below
+                    instead of doing nothing. */}
+                <button
+                  type="button"
+                  className="arrival-chip arrival-chip--action"
+                  aria-pressed={voice.status === "listening"}
+                  onClick={() => {
+                    if (voice.status === "unsupported") return;
+                    voice.toggle();
+                  }}
+                >
+                  {voice.status === "listening" ? `● ${t.arrival.voiceChip}` : t.arrival.voiceChip}
                 </button>
                 <button type="button" className="arrival-chip arrival-chip--action">
                   {t.arrival.anonymousChip}
                 </button>
               </div>
+              {voice.status === "unsupported" && (
+                <p className="arrival-example">
+                  {locale === "ko" ? VOICE_UNSUPPORTED_NOTICE_KO : VOICE_UNSUPPORTED_NOTICE_EN}
+                </p>
+              )}
 
               <div className="arrival-notice">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

@@ -66,6 +66,38 @@ function createSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+// Draft Preservation Gate (STEP V2) — sessionStorage only, inputValue
+// only. A fixed key, not sessionIdRef-scoped: sessionIdRef itself is
+// regenerated on every mount (see createSessionId() above), so keying
+// on it would make a reload generate a brand-new id before the old
+// draft could ever be looked up under it — the exact restore this Gate
+// exists to provide. sessionStorage is already scoped to one browser
+// tab, so a fixed key cannot collide with another tab's draft.
+const DRAFT_STORAGE_KEY = "hri-input-draft"
+
+function readDraft(): string {
+  if (typeof window === "undefined") return ""
+  try {
+    return window.sessionStorage.getItem(DRAFT_STORAGE_KEY) ?? ""
+  } catch {
+    return ""
+  }
+}
+
+function writeDraft(text: string) {
+  if (typeof window === "undefined") return
+  try {
+    if (text) {
+      window.sessionStorage.setItem(DRAFT_STORAGE_KEY, text)
+    } else {
+      window.sessionStorage.removeItem(DRAFT_STORAGE_KEY)
+    }
+  } catch {
+    // Private-mode/quota/storage-disabled — draft preservation is a
+    // convenience, never a hard requirement; fail silently.
+  }
+}
+
 // ── Component ──────────────────────────────────────────────────────
 
 export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
@@ -105,6 +137,41 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
   const sessionIdRef = useRef<string>()
   if (!sessionIdRef.current) sessionIdRef.current = createSessionId()
 
+  // Draft Preservation Gate (STEP V2) — restore once on mount, client
+  // only. Left at the default "" for the very first render so server
+  // and client markup match on hydration (no SSR value to diverge
+  // from); this effect only ever runs after that, patching inputValue
+  // the same way any other post-mount state update would.
+  useEffect(() => {
+    const draft = readDraft()
+    if (draft) setInputValue(draft)
+  }, [])
+
+  // Draft Preservation Gate (STEP V2) — persist on every inputValue
+  // change; emptying it (a normal submit, or the user clearing the box)
+  // clears the draft the same way. skipFirstPersistRef prevents the
+  // mount's own initial "" render from firing before the restore effect
+  // above has a chance to run and wiping a real draft the instant it's
+  // read back in.
+  const skipFirstPersistRef = useRef(true)
+  // Draft Preservation Gate (STEP V4 correction) — while non-null, holds
+  // the exact text a submit currently in flight is protecting in
+  // storage. handleSubmit clears the on-screen inputValue immediately
+  // (unchanged UX), which would otherwise make this effect fire with
+  // "" and erase the just-submitted text from storage before the
+  // network call is even confirmed. This makes that one transition a
+  // no-op instead; handleSubmit owns writing/clearing the protected
+  // draft itself for the submit's whole round trip (see below).
+  const pendingSubmitDraftRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (skipFirstPersistRef.current) {
+      skipFirstPersistRef.current = false
+      return
+    }
+    if (pendingSubmitDraftRef.current !== null) return
+    writeDraft(inputValue)
+  }, [inputValue])
+
   const turn = allInputs.length as Turn
 
   // ── Submit ─────────────────────────────────────────────────────
@@ -123,6 +190,14 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
     const nextTurn = nextInputs.length as Turn
 
     setInputValue("")
+    // Draft Preservation Gate (STEP V4 correction) — protect the
+    // submitted original text in storage across the whole network round
+    // trip, independent of the on-screen input clearing above. Cleared
+    // only once callEngine actually confirms success (below) or fails
+    // (catch block) — never by the generic persist effect reacting to
+    // this same-tick setInputValue("").
+    pendingSubmitDraftRef.current = text
+    writeDraft(text)
     setAllInputs(nextInputs)
     setError(null)
     setPhase("thinking")
@@ -147,6 +222,12 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
         sessionId: sessionIdRef.current!,
         previousQuestion: mainQuestion ?? undefined,
       })
+      // Draft Preservation Gate (STEP V4 correction) — callEngine has
+      // now actually confirmed success; the protected draft has done
+      // its job and is safe to clear, regardless of which branch below
+      // this turn resolves into.
+      pendingSubmitDraftRef.current = null
+      writeDraft("")
       setEngineState(result.nextState)
       setEngineEvents(result.nextEvents)
 
@@ -187,6 +268,16 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
     } catch {
       setError(CONTENT[locale].session.networkError)
       setPhase(turn === 0 ? "idle" : "question")
+      // Draft Preservation Gate (STEP V2/V4) — callEngine failed before
+      // any server confirmation; restore exactly what was submitted
+      // (never a reconstruction) so the network error doesn't also cost
+      // the user's text. Storage already holds `text` (written at
+      // submit time above, and never touched since — the pending guard
+      // keeps the generic persist effect from clearing it); releasing
+      // the guard here just hands storage syncing back to that effect,
+      // which re-writes the same value the instant inputValue changes.
+      pendingSubmitDraftRef.current = null
+      setInputValue(text)
     }
   }, [inputValue, allInputs, phase, turn, locale, engineState, engineEvents])
 
