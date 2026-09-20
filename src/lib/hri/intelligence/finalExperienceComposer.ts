@@ -14,6 +14,7 @@ import type { EvidenceItem } from "../v2/questionCorePrototype";
 import type { ContextGraph } from "../context/types";
 import type { DiscoverySignal, FinalExperienceGrounding } from "./finalExperienceTypes";
 import type { Locale } from "../locale";
+import { buildPresentReality } from "./presentReality";
 
 /** Local copy of reflectionComposer.ts's CONTRAST_MARKERS — same
  *  precedent as responsePhraser.ts's PRESUMPTION_MARKERS ("reused
@@ -95,5 +96,12 @@ export function buildFinalExperienceGrounding(
   if (hasTension) discoverySignals.push("structure");
   if (unresolvedReasons.length > 0) discoverySignals.push("open");
 
-  return { verbatimEvidence, elements, relations, unresolvedReasons, hasTension, turnCount, discoverySignals };
+  // Living Mirror Expression Authority Gate — pure projection, computed
+  // from the exact same (graph, evidence) this function already
+  // received; presentReality.ts itself is unchanged. g/evidence here are
+  // already-defaulted (g above, `evidence ?? []` here) so buildPresentReality
+  // never sees undefined.
+  const presentReality = buildPresentReality(g, evidence ?? []);
+
+  return { verbatimEvidence, elements, relations, unresolvedReasons, hasTension, turnCount, discoverySignals, presentReality };
 }

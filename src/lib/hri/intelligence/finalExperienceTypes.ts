@@ -15,6 +15,7 @@
  * change local to controller.ts (producer) and Reflection.tsx
  * (consumer) — everything in between is untouched, byte-for-byte.
  */
+import type { PresentReality } from "./presentReality";
 
 /** Never emitted by the phraser prompt, never plausible user/LLM prose. */
 export const FINAL_EXPERIENCE_MARKER = "\n\n<<<AURINA_HUMAN_SHARING>>>\n\n";
@@ -97,6 +98,13 @@ export type FinalExperienceGrounding = {
    *  Permission for a direction, never an obligation — the phraser
    *  prompt (finalExperiencePhraser.ts) must frame it that way. */
   discoverySignals: DiscoverySignal[];
+  /** Living Mirror Expression Authority Gate — the same pure projection
+   *  presentReality.ts already computes off the raw ContextGraph +
+   *  EvidenceItem[] this function receives, carried through unchanged so
+   *  Layer 1 (mirror) can read it without finalExperiencePhraser.ts ever
+   *  needing the raw graph/evidence itself. Zero new computation here —
+   *  see finalExperienceComposer.ts's own call site. */
+  presentReality: PresentReality;
 };
 
 export type FinalExperienceResult = {
