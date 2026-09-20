@@ -1,9 +1,37 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AURINA_ASSETS } from "./assets";
+import { SPEECH_LANG_BY_LOCALE } from "./useVoiceInput";
 import { splitFinalExperience } from "../../lib/hri/intelligence/finalExperienceTypes";
 import type { UiLocale } from "@/lib/hri/locale";
 import { CONTENT } from "@/lib/i18n/content";
 import "./aurina.css";
+
+// Final Voice Reflection Gate (STEP V8) — minimal feature-detected
+// speechSynthesis wiring, same "no new npm package, locally-scoped
+// types only where the DOM lib doesn't already cover it" discipline as
+// useVoiceInput.ts. Unlike SpeechRecognition, this project's DOM lib
+// DOES already type window.speechSynthesis/SpeechSynthesisUtterance
+// (they're standard, unprefixed since Chrome 33/Safari 7/Edge 14 —
+// see STEP V7's own BCD lookup), so no local type declarations are
+// needed here at all.
+function isTtsSupported(): boolean {
+  if (typeof window === "undefined") return false;
+  return "speechSynthesis" in window && typeof window.SpeechSynthesisUtterance !== "undefined";
+}
+
+/** Best-effort only — never a hardcoded voice name (STEP V8 §6). Picks
+ *  the first installed voice whose own `lang` shares the current UI
+ *  locale's primary language subtag (e.g. "ko" for "ko-KR"); returns
+ *  undefined (system default) when none matches, including when
+ *  getVoices() hasn't finished loading yet (a well-known async quirk,
+ *  not treated as an error — the utterance still speaks, just in
+ *  whatever the browser's own default voice is). */
+function pickVoiceForLocale(locale: UiLocale): SpeechSynthesisVoice | undefined {
+  if (!isTtsSupported()) return undefined;
+  const primarySubtag = SPEECH_LANG_BY_LOCALE[locale].split("-")[0].toLowerCase();
+  const voices = window.speechSynthesis.getVoices();
+  return voices.find((v) => v.lang.toLowerCase().startsWith(primarySubtag));
+}
 
 type Props = {
   reflection: string | null;
@@ -55,6 +83,52 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
   }, []);
+
+  // Final Voice Reflection Gate (STEP V8) — reads exactly what this
+  // component already renders to the user (mirrorParagraphs always;
+  // sharingParagraphs only when that section actually renders — see
+  // its own `sharingParagraphs.length > 0` guard above), in the same
+  // top-to-bottom order. Never a second, independent read of
+  // `reflection` — no internal-only data is spoken.
+  const [ttsSupported] = useState(isTtsSupported);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  // Kept alive for the duration of playback — some engines (notably
+  // WebKit/Safari, historically) silently drop an utterance if it gets
+  // garbage-collected before speech finishes.
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  const stopSpeaking = () => {
+    if (!ttsSupported) return;
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  };
+
+  const startSpeaking = () => {
+    if (!ttsSupported) return;
+    window.speechSynthesis.cancel(); // never overlap a previous utterance
+    const spoken = [...mirrorParagraphs, ...sharingParagraphs].join(" ");
+    if (!spoken.trim()) return;
+    const utterance = new SpeechSynthesisUtterance(spoken);
+    utterance.lang = SPEECH_LANG_BY_LOCALE[locale];
+    const matchedVoice = pickVoiceForLocale(locale);
+    if (matchedVoice) utterance.voice = matchedVoice;
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    utteranceRef.current = utterance;
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Reflection unmounts on every navigation away from it (Home/Restart/
+  // View History all change AurinaSpace's displayPhase, which remounts
+  // the whole `.aurina-moment` subtree via its own `key` — see
+  // AurinaSpace.tsx) — this alone is enough to guarantee speech is
+  // cancelled on every one of those paths, no extra handler wiring.
+  useEffect(() => {
+    return () => {
+      if (ttsSupported) window.speechSynthesis.cancel();
+    };
+  }, [ttsSupported]);
 
   return (
     <section className="reflection">
@@ -121,6 +195,26 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
               <div className="reflection-giftcard-sign">AURINA</div>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* Final Voice Reflection Gate (STEP V8) — feature-detected and
+          hidden entirely (never a disabled/dead button) when
+          speechSynthesis is unsupported, or when there is nothing real
+          to read (mirror still showing its own empty-state placeholder
+          and no sharing section rendered) — same "don't manufacture
+          content to fill a slot" principle as the sharing section's
+          own guard above. */}
+      {ttsSupported && (mirrorParagraphs.length > 0 || sharingParagraphs.length > 0) && (
+        <section className="reflection-layer reflection-fade" style={{ animationDelay: "360ms" }}>
+          <button
+            type="button"
+            className="arrival-chip arrival-chip--action"
+            aria-pressed={isSpeaking}
+            onClick={isSpeaking ? stopSpeaking : startSpeaking}
+          >
+            {isSpeaking ? t.stopVoice : t.listenVoice}
+          </button>
         </section>
       )}
 

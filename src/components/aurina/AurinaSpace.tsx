@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import HriInput from "../HriInput";
+import { useVoiceInput } from "./useVoiceInput";
 import Arrival from "./Arrival";
 import Reflection from "./Reflection";
 import { AURINA_ASSETS } from "./assets";
@@ -154,6 +155,27 @@ export default function AurinaSpace({
   const displayPhase = display.phase;
   const presence = usePresence(displayPhase, inputValue);
 
+  // Voice Input Gate (STEP V8) — one shared instance for both
+  // Conversation and its post-Reflection continuation input: they are
+  // mutually exclusive (isActive vs isDone, never both), and this hook
+  // lives on AurinaSpace itself, not inside the `.aurina-moment` div
+  // below (which remounts on every displayPhase change, including each
+  // ordinary question/thinking/question turn) — so an in-progress voice
+  // session is never torn down by that per-turn remount. See
+  // useVoiceInput.ts for the unchanged STEP V4 engine this reuses.
+  const voiceInput = useVoiceInput(locale, inputValue, onInputChange);
+  const displayValue = voiceInput.interimText
+    ? `${inputValue}${inputValue.length > 0 && !/\s$/.test(inputValue) ? " " : ""}${voiceInput.interimText}`
+    : inputValue;
+  const handleFieldChange = (value: string) => {
+    if (voiceInput.interimText) voiceInput.clearInterim();
+    onInputChange(value);
+  };
+  const handleVoiceToggle = () => {
+    if (voiceInput.status === "unsupported") return;
+    voiceInput.toggle();
+  };
+
   // Restart clears history but this component stays mounted — without
   // this, an expanded trail from a prior session would carry over into
   // the next one instead of starting collapsed like a fresh session does.
@@ -277,13 +299,26 @@ export default function AurinaSpace({
             ) : (
               <div className="aurina-input-zone">
                 <HriInput
-                  value={inputValue}
-                  onChange={onInputChange}
+                  value={displayValue}
+                  onChange={handleFieldChange}
                   onSubmit={onSubmit}
                   placeholder={t.conversation.inputPlaceholder}
                   autoFocus
                   locale={locale}
                 />
+                {/* Voice Input Gate (STEP V8) — same minimal chip
+                    pattern as Arrival's voiceChip (.arrival-chip is a
+                    generic pill style, not scoped to the Arrival
+                    screen), no new UI shape. */}
+                <button
+                  type="button"
+                  className="arrival-chip arrival-chip--action"
+                  style={{ marginTop: 10 }}
+                  aria-pressed={voiceInput.status === "listening"}
+                  onClick={handleVoiceToggle}
+                >
+                  {voiceInput.status === "listening" ? `● ${t.arrival.voiceChip}` : t.arrival.voiceChip}
+                </button>
               </div>
             )}
           </>
@@ -324,13 +359,25 @@ export default function AurinaSpace({
                     see Reflection.tsx for the matching explicit
                     scroll-to-top-of-Reflection fix. */}
                 <HriInput
-                  value={inputValue}
-                  onChange={onInputChange}
+                  value={displayValue}
+                  onChange={handleFieldChange}
                   onSubmit={onSubmit}
                   placeholder={t.conversation.continuationPlaceholder}
                   locale={locale}
                   autoFocus={false}
                 />
+                {/* Voice Input Gate (STEP V8) — same shared voice
+                    instance as the Conversation input above (mutually
+                    exclusive views, never mounted together). */}
+                <button
+                  type="button"
+                  className="arrival-chip arrival-chip--action"
+                  style={{ marginTop: 10 }}
+                  aria-pressed={voiceInput.status === "listening"}
+                  onClick={handleVoiceToggle}
+                >
+                  {voiceInput.status === "listening" ? `● ${t.arrival.voiceChip}` : t.arrival.voiceChip}
+                </button>
               </div>
             </div>
           </>

@@ -99,6 +99,10 @@ export type Content = {
     viewHistory: string;
     home: string;
     restartTalk: string;
+    /** Final Voice Reflection Gate (STEP V8) — labels for the
+     *  speechSynthesis listen/stop toggle button. */
+    listenVoice: string;
+    stopVoice: string;
   };
   input: {
     textareaAria: string;
@@ -187,6 +191,8 @@ export const CONTENT: Record<UiLocale, Content> = {
       viewHistory: "대화 다시 보기",
       home: "홈",
       restartTalk: "다시 대화하기",
+      listenVoice: "AURINA의 목소리로 듣기",
+      stopVoice: "멈추기",
     },
     input: {
       textareaAria: "입력창",
@@ -273,6 +279,8 @@ export const CONTENT: Record<UiLocale, Content> = {
       viewHistory: "対話を見返す",
       home: "ホーム",
       restartTalk: "もう一度話す",
+      listenVoice: "AURINAの声で聞く",
+      stopVoice: "止める",
     },
     input: {
       textareaAria: "入力欄",
@@ -354,6 +362,8 @@ export const CONTENT: Record<UiLocale, Content> = {
       viewHistory: "Revisit the conversation",
       home: "Home",
       restartTalk: "Talk again",
+      listenVoice: "Listen in AURINA's voice",
+      stopVoice: "Stop",
     },
     input: {
       textareaAria: "Input field",
@@ -440,6 +450,8 @@ export const CONTENT: Record<UiLocale, Content> = {
       viewHistory: "Revoir la conversation",
       home: "Accueil",
       restartTalk: "Parler à nouveau",
+      listenVoice: "Écouter avec la voix d'AURINA",
+      stopVoice: "Arrêter",
     },
     input: {
       textareaAria: "Champ de saisie",
@@ -524,6 +536,8 @@ export const CONTENT: Record<UiLocale, Content> = {
       viewHistory: "重新查看对话",
       home: "首页",
       restartTalk: "再聊一次",
+      listenVoice: "用AURINA的声音听",
+      stopVoice: "停止",
     },
     input: {
       textareaAria: "输入框",
@@ -605,6 +619,8 @@ export const CONTENT: Record<UiLocale, Content> = {
       viewHistory: "重新查看對話",
       home: "主頁",
       restartTalk: "再談一次",
+      listenVoice: "用AURINA嘅聲音聽",
+      stopVoice: "停止",
     },
     input: {
       textareaAria: "輸入框",
@@ -686,6 +702,8 @@ export const CONTENT: Record<UiLocale, Content> = {
       viewHistory: "重新查看對話",
       home: "首頁",
       restartTalk: "再聊一次",
+      listenVoice: "用AURINA的聲音聽",
+      stopVoice: "停止",
     },
     input: {
       textareaAria: "輸入欄",
