@@ -87,6 +87,8 @@ body {
   color: var(--ink-1);
   max-height: 160px;
   overflow-y: auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
   padding: 4px 0;
   font-family: inherit;
 }
