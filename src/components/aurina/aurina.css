@@ -669,6 +669,16 @@
   max-width: 34ch;
 }
 
+/* Android Voice Notice — small muted one-liner under the voice chip.
+   Deliberately not .arrival-example: that class is nowrap on mobile and
+   this sentence is long enough to need wrapping there. */
+.voice-android-notice {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
 /* Trust Layout Gate — Example stays the quietest of the three (Main
    Question > Permission > Example), but "quietest" no longer means
    fine print: still a full, easily-read size, one step lighter than

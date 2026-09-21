@@ -33,6 +33,9 @@ type Props = {
    *  activating voice on Arrival's very first message persists into
    *  Conversation instead of resetting the moment Arrival unmounts. */
   voice: VoiceInputState;
+  /** Android Voice Notice — one short line shown under the voice chip,
+   *  supplied (or null) by AurinaSpace, which decides when. Display only. */
+  voiceNotice?: string | null;
 };
 
 const NOTICE_PREVIEW_LIMIT = 60;
@@ -180,6 +183,7 @@ export default function Arrival({
   locale,
   onLocaleChange,
   voice,
+  voiceNotice,
 }: Props) {
   const t = CONTENT[locale];
   // While an interim transcript is showing, the textarea's displayed
@@ -417,6 +421,7 @@ export default function Arrival({
                   {locale === "ko" ? VOICE_UNSUPPORTED_NOTICE_KO : VOICE_UNSUPPORTED_NOTICE_EN}
                 </p>
               )}
+              {voiceNotice && <p className="voice-android-notice" role="note">{voiceNotice}</p>}
 
               <div className="arrival-notice">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

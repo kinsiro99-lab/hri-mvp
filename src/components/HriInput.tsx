@@ -89,8 +89,11 @@ export default function HriInput({
         disabled={disabled || !value.trim()}
         aria-label={CONTENT[locale].input.submitAria}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" />
+        {/* Submit arrow — was a "+" glyph; the button, its size, colors,
+            disabled state, click handler and aria-label are unchanged.
+            Path is symmetric about (12, 12) so it centers in the circle. */}
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4.5 12h15M13 5.5l6.5 6.5-6.5 6.5" />
         </svg>
       </button>
     </div>

@@ -88,13 +88,24 @@ const debugAliveIds = new Set<number>();
 // reuses the caller's own localized copy (`idleLabel`, e.g.
 // t.arrival.voiceChip) — listening/produced are new phrases with no
 // existing i18n key, so they follow this file's own established
-// ko-literal/en-fallback precedent (see VOICE_UNSUPPORTED_NOTICE_KO/EN
-// in Arrival.tsx) rather than inventing a new 7-locale content.ts key
-// for two short states.
+// in-file literal precedent (see VOICE_UNSUPPORTED_NOTICE_KO/EN in
+// Arrival.tsx) rather than inventing a new 7-locale content.ts key for
+// two short states. "listening" is ko/en-only (unchanged); "produced" is
+// localized for all 7 locales.
 const VOICE_LISTENING_LABEL_KO = "● 듣고 있어요";
 const VOICE_LISTENING_LABEL_EN = "● Listening…";
-const VOICE_PRODUCED_LABEL_KO = "✓ 입력완료 · +를 누르세요";
-const VOICE_PRODUCED_LABEL_EN = "✓ Ready — tap + to continue";
+// The submit control is an arrow icon button (HriInput), not a "+", so the
+// "ready" phrase names the ACTION (send/continue) in each language rather
+// than any symbol. One entry per UiLocale.
+const VOICE_PRODUCED_LABEL: Record<UiLocale, string> = {
+  ko: "✓ 입력완료 · 보내기를 누르세요",
+  ja: "✓ 入力完了 · 送信を押してください",
+  en: "✓ Ready — tap Send to continue",
+  fr: "✓ Prêt — appuyez sur Envoyer pour continuer",
+  "zh-CN": "✓ 输入完成 · 请点击发送",
+  "zh-HK": "✓ 輸入完成 · 請按發送",
+  "zh-TW": "✓ 輸入完成 · 請點選傳送",
+};
 
 /**
  * Voice Input Gate (STEP V4) — client-only, feature-detected Web
@@ -405,7 +416,7 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
     status === "listening"
       ? (locale === "ko" ? VOICE_LISTENING_LABEL_KO : VOICE_LISTENING_LABEL_EN)
       : status !== "unsupported" && (hasProducedText || (voiceModeEnabled && hasInputText))
-        ? (locale === "ko" ? VOICE_PRODUCED_LABEL_KO : VOICE_PRODUCED_LABEL_EN)
+        ? VOICE_PRODUCED_LABEL[locale]
         : `○ ${idleLabel}`;
 
   return { status, interimText, toggle, clearInterim, label, voiceModeEnabled, resetVoiceMode };

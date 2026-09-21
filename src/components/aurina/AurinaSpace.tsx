@@ -131,6 +131,14 @@ function usePresence(phase: string, inputValue: string): Presence {
  * anchor. Presentation only: every value here is a prop already
  * computed by HriSession's state machine.
  */
+
+// Android Voice Notice — one short line under the voice chip, shown only
+// on Android and only the first time voice is chosen in a session (see
+// androidVoiceNotice below). Same ko-literal/en-fallback precedent as
+// VOICE_UNSUPPORTED_NOTICE_* in Arrival.tsx.
+const ANDROID_VOICE_NOTICE_KO = "Android에서는 음성 입력을 시작할 때 마이크 사용 허용이 필요할 수 있습니다.";
+const ANDROID_VOICE_NOTICE_EN = "On Android, you may need to allow microphone access each time voice input starts.";
+
 export default function AurinaSpace({
   phase,
   voice,
@@ -216,6 +224,30 @@ export default function AurinaSpace({
     if (!hasHistory) voiceInput.resetVoiceMode();
   }, [hasHistory]);
 
+  // Android Voice Notice — display only; reads voiceModeEnabled, never
+  // touches recognition. Shown once, the first time voice mode turns on
+  // in a session (re-armed when 새로 시작 resets voice mode), Android
+  // only, and hidden again as soon as the turn moves on — so it is never
+  // repeated on later questions.
+  const [androidVoiceNotice, setAndroidVoiceNotice] = useState(false);
+  const androidNoticeShownRef = useRef(false);
+  useEffect(() => {
+    if (!voiceInput.voiceModeEnabled) {
+      androidNoticeShownRef.current = false;
+      setAndroidVoiceNotice(false);
+      return;
+    }
+    if (androidNoticeShownRef.current) return;
+    androidNoticeShownRef.current = true;
+    if (isAndroidBrowser()) setAndroidVoiceNotice(true);
+  }, [voiceInput.voiceModeEnabled]);
+  useEffect(() => {
+    setAndroidVoiceNotice(false);
+  }, [displayPhase]);
+  const androidVoiceNoticeText = androidVoiceNotice
+    ? (locale === "ko" ? ANDROID_VOICE_NOTICE_KO : ANDROID_VOICE_NOTICE_EN)
+    : null;
+
   // Restart clears history but this component stays mounted — without
   // this, an expanded trail from a prior session would carry over into
   // the next one instead of starting collapsed like a fresh session does.
@@ -270,6 +302,7 @@ export default function AurinaSpace({
             locale={locale}
             onLocaleChange={onLocaleChange}
             voice={voiceInput}
+            voiceNotice={androidVoiceNoticeText}
           />
         )}
 
@@ -366,6 +399,9 @@ export default function AurinaSpace({
                 >
                   {voiceInput.label}
                 </button>
+                {androidVoiceNoticeText && (
+                  <p className="voice-android-notice" role="note">{androidVoiceNoticeText}</p>
+                )}
               </div>
             )}
           </>
@@ -425,6 +461,9 @@ export default function AurinaSpace({
                 >
                   {voiceInput.label}
                 </button>
+                {androidVoiceNoticeText && (
+                  <p className="voice-android-notice" role="note">{androidVoiceNoticeText}</p>
+                )}
               </div>
             </div>
           </>
