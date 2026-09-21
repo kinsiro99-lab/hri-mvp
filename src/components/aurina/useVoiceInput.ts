@@ -46,6 +46,18 @@ function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null 
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+/** True only on Android browsers. Used by AurinaSpace to skip the
+ *  next-question voice auto-resume there: Android raises the microphone
+ *  permission prompt on a start() that no user gesture triggered, so on
+ *  Android the user starts each turn's voice with a tap on the chip
+ *  instead. iOS and every other platform return false and keep the
+ *  auto-resume. Client-only (reads navigator at call time). */
+export function isAndroidBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const uaData = (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData;
+  return /Android/i.test(navigator.userAgent) || uaData?.platform === "Android";
+}
+
 // Exported — STEP V8's Final Voice Reflection (Reflection.tsx) reuses
 // this same BCP-47 map to prefer a matching speechSynthesis voice for
 // the current UI locale, so the two Web Speech features agree on what

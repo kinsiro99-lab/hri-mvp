@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import HriInput from "../HriInput";
-import { useVoiceInput } from "./useVoiceInput";
+import { useVoiceInput, isAndroidBrowser } from "./useVoiceInput";
 import VoiceDebugOverlay, { vlog } from "./voiceDebug";
 import Arrival from "./Arrival";
 import Reflection from "./Reflection";
@@ -187,12 +187,20 @@ export default function AurinaSpace({
   // turn as intended). This calls the SAME toggle() the button uses;
   // recognition start/stop/interim/final/restart-cap mechanics
   // themselves are completely untouched.
+  // Android Microphone Popup Fix — skipped on Android: this start() is
+  // not triggered by a user gesture, and Android raises the microphone
+  // permission prompt for it on every new question. There the user taps
+  // the chip to start each turn's voice instead. iOS is unchanged.
   const prevDisplayPhaseRef = useRef(displayPhase);
   useEffect(() => {
     const enteredQuestionFromThinking = prevDisplayPhaseRef.current === "thinking" && displayPhase === "question";
     prevDisplayPhaseRef.current = displayPhase;
     vlog(`displayPhase=${displayPhase} voiceModeEnabled=${voiceInput.voiceModeEnabled} status=${voiceInput.status}`);
     if (enteredQuestionFromThinking && voiceInput.voiceModeEnabled && voiceInput.status === "idle") {
+      if (isAndroidBrowser()) {
+        vlog("AurinaSpace auto-resume skipped (Android): user taps the chip to start");
+        return;
+      }
       vlog("AurinaSpace auto-resume -> toggle()");
       voiceInput.toggle();
     }
