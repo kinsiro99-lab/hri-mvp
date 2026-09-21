@@ -159,18 +159,66 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
   const restartCountRef = useRef(0);
   const latestInterimRef = useRef("");
 
+  // Android Voice Transcript Fix — the last speech chunk THIS recognition
+  // session put at the end of the input. Android Chrome delivers one
+  // spoken sentence as several progressively longer isFinal results
+  // ("명절이" -> "명절이 가까운" -> "명절이 가까운 날이라"), each a new
+  // result index; appending every one of them (the old behavior)
+  // stacked all the partial copies. A new chunk that merely extends the
+  // last one therefore REPLACES it instead of being appended.
+  // Session-scoped on purpose: reset for every new recognition instance
+  // and on resetVoiceMode, so a new turn/instance is never merged into
+  // the previous one's speech.
+  const lastCommittedRef = useRef("");
+  // Bumped whenever a recognition session is (re)started by the user or
+  // discarded by resetVoiceMode. Every callback of an older recognition
+  // instance compares its own captured generation against this and does
+  // nothing when they differ, so a stale instance's late result/onend
+  // (Android delivers results after stop()) can never write into, or
+  // restart, the current session.
+  const generationRef = useRef(0);
+
   const appendFinal = useCallback((spoken: string) => {
-    vlog(`appendFinal(${vq(spoken)}) inputValueRef=${vq(inputValueRef.current)}`);
+    vlog(`appendFinal(${vq(spoken)}) inputValueRef=${vq(inputValueRef.current)} lastCommitted=${vq(lastCommittedRef.current)}`);
     const trimmed = spoken.trim();
     if (!trimmed) return;
     const existing = inputValueRef.current;
-    const needsSpace = existing.length > 0 && !/\s$/.test(existing);
-    const next = existing ? `${existing}${needsSpace ? " " : ""}${trimmed}` : trimmed;
+    const last = lastCommittedRef.current;
+    // Only trust lastCommitted while it is still literally the tail of
+    // the input — if the user has typed/edited since, it is just text.
+    const tailIsLast = last !== "" && existing.endsWith(last);
+    let next: string;
+    if (tailIsLast && trimmed === last) {
+      vlog("  appendFinal -> duplicate of last committed chunk, skipped");
+      return;
+    }
+    if (tailIsLast && trimmed.startsWith(last)) {
+      next = existing.slice(0, existing.length - last.length) + trimmed;
+      vlog("  appendFinal -> extends last committed chunk, replacing it");
+    } else {
+      const needsSpace = existing.length > 0 && !/\s$/.test(existing);
+      next = existing ? `${existing}${needsSpace ? " " : ""}${trimmed}` : trimmed;
+    }
+    lastCommittedRef.current = trimmed;
     inputValueRef.current = next;
     vlog(`  appendFinal -> onInputChange(${vq(next)})`);
     onInputChange(next);
     setHasProducedText(true);
   }, [onInputChange]);
+
+  // What the caller should overlay after the input while speech is still
+  // interim. If the interim text is just the last committed chunk plus
+  // more words, only the new words are shown — the caller's display is
+  // `inputValue + interimText`, so showing the whole interim would
+  // print the committed part twice. latestInterimRef keeps the FULL
+  // interim so onend's merge (appendFinal) still replaces correctly.
+  const interimForDisplay = (interim: string): string => {
+    const last = lastCommittedRef.current;
+    if (last !== "" && inputValueRef.current.endsWith(last) && interim.startsWith(last)) {
+      return interim.slice(last.length).trimStart();
+    }
+    return interim;
+  };
 
   const clearInterim = useCallback(() => {
     vlog(`clearInterim() (typed input while interim showing) latestInterim=${vq(latestInterimRef.current)}`);
@@ -193,8 +241,17 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
   // stop() the button itself calls; recognition mechanics untouched.
   const resetVoiceMode = useCallback(() => {
     vlog("resetVoiceMode()");
+    // Android Voice Transcript Fix — a restart must also drop everything
+    // the live session still holds, and orphan its callbacks: without
+    // this, stop()'s late onend would merge that session's leftover
+    // interim into the brand-new session's input.
+    generationRef.current += 1;
+    lastCommittedRef.current = "";
+    latestInterimRef.current = "";
+    setInterimText("");
     setVoiceModeEnabled(false);
     stop();
+    setStatus("idle");
   }, [stop]);
 
   const start = useCallback(() => {
@@ -205,6 +262,8 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
     }
 
     vlog(`start() called; previous recognitionRef=${recognitionRef.current ? "present" : "none"} alive=[${[...debugAliveIds].join(",")}]`);
+    generationRef.current += 1;
+    const generation = generationRef.current;
     setVoiceModeEnabled(true);
     userStoppedRef.current = false;
     fatalErrorRef.current = false;
@@ -213,6 +272,13 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
     const beginSession = () => {
       const recognition = new SpeechRecognitionCtor();
       const debugId = ++debugInstanceSeq;
+      // New recognition instance = new result index space; never merge
+      // its first chunk into the previous instance's last one.
+      lastCommittedRef.current = "";
+      // Result indexes this instance already committed (index -> text):
+      // an engine that re-delivers an old result verbatim must not be
+      // committed twice.
+      const committedByIndex = new Map<number, string>();
       vlog(`#${debugId} instance created (beginSession); alive=[${[...debugAliveIds].join(",")}]`);
       recognition.lang = SPEECH_LANG_BY_LOCALE[locale];
       // Android correction (STEP V3): requested anyway (harmless where
@@ -223,6 +289,10 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
       recognition.interimResults = true;
 
       recognition.onresult = (event) => {
+        if (generation !== generationRef.current) {
+          vlog(`#${debugId} onresult ignored (stale instance)`);
+          return;
+        }
         if (isVoiceDebug()) {
           const parts: string[] = [];
           for (let i = 0; i < event.results.length; i++) {
@@ -236,19 +306,26 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
           const result = event.results[i];
           const chunk = result?.[0]?.transcript ?? "";
           if (result?.isFinal) {
-            appendFinal(chunk);
             restartCountRef.current = 0;
+            if (committedByIndex.get(i) === chunk) {
+              vlog(`#${debugId}   result[${i}] already committed, skipped`);
+              continue;
+            }
+            committedByIndex.set(i, chunk);
+            appendFinal(chunk);
           } else {
             interim += chunk;
           }
         }
         latestInterimRef.current = interim;
-        vlog(`#${debugId}   interim set -> ${vq(interim)}`);
-        setInterimText(interim);
+        const shownInterim = interimForDisplay(interim);
+        vlog(`#${debugId}   interim set -> ${vq(interim)} shown=${vq(shownInterim)}`);
+        setInterimText(shownInterim);
       };
 
       recognition.onerror = (event) => {
         vlog(`#${debugId} onerror error=${event.error}`);
+        if (generation !== generationRef.current) return;
         // permission denied / not-allowed / fatal error — never
         // auto-restart (STEP V4 §3). Everything else (no-speech,
         // network, aborted) is treated as transient; onend decides.
@@ -260,6 +337,10 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
 
       recognition.onend = () => {
         debugAliveIds.delete(debugId);
+        if (generation !== generationRef.current) {
+          vlog(`#${debugId} onend ignored (stale instance)`);
+          return;
+        }
         vlog(`#${debugId} onend latestInterim=${vq(latestInterimRef.current)} userStopped=${userStoppedRef.current} fatal=${fatalErrorRef.current} restartCount=${restartCountRef.current} alive=[${[...debugAliveIds].join(",")}]`);
         // Interruption Gate (STEP V4 §5) — this session's own leftover
         // interim can never become isFinal now; merge it in as plain
