@@ -61,13 +61,6 @@ export const SPEECH_LANG_BY_LOCALE: Record<UiLocale, string> = {
   "zh-TW": "zh-TW",
 };
 
-/** A closed cap on same-session auto-restarts with zero real speech in
- *  between (reset to 0 the moment any isFinal result actually arrives)
- *  — bounds Android's per-utterance auto-stop restart loop (STEP V3:
- *  `continuous` has no effect on Android Chrome) without capping a
- *  genuinely long dictation session made of many real utterances. */
-const MAX_AUTO_RESTARTS = 3;
-
 export type VoiceStatus = "idle" | "listening" | "unsupported";
 
 // Diagnostic-only (voiceDebug) — per-instance ids and the set of instances
@@ -93,9 +86,11 @@ const VOICE_PRODUCED_LABEL_EN = "✓ Ready — tap + to continue";
 
 /**
  * Voice Input Gate (STEP V4) — client-only, feature-detected Web
- * Speech wiring. Never assumes a mic exists; never retries past a
- * fatal permission/service error; never restarts after the user's own
- * explicit stop. interim results are surfaced to the caller for
+ * Speech wiring. Never assumes a mic exists; never restarts a session
+ * on its own — once the engine (or the user) ends one it stays ended
+ * until start() is called again (the user's tap, or the caller's
+ * next-question auto-resume), because every fresh start() can raise the
+ * browser's microphone permission prompt. interim results are surfaced to the caller for
  * display only (see `interimText`) and are never written through
  * `onInputChange` until a chunk is isFinal — the one exception is
  * `onend` itself, where whatever interim text a just-closed session
@@ -154,9 +149,6 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
   }, [inputValue]);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const userStoppedRef = useRef(true);
-  const fatalErrorRef = useRef(false);
-  const restartCountRef = useRef(0);
   const latestInterimRef = useRef("");
 
   // Android Voice Transcript Fix — the last speech chunk THIS recognition
@@ -228,7 +220,6 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
 
   const stop = useCallback(() => {
     vlog(`stop() called; recognitionRef=${recognitionRef.current ? "present" : "none"}`);
-    userStoppedRef.current = true;
     recognitionRef.current?.stop();
   }, []);
 
@@ -265,9 +256,6 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
     generationRef.current += 1;
     const generation = generationRef.current;
     setVoiceModeEnabled(true);
-    userStoppedRef.current = false;
-    fatalErrorRef.current = false;
-    restartCountRef.current = 0;
 
     const beginSession = () => {
       const recognition = new SpeechRecognitionCtor();
@@ -282,9 +270,9 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
       vlog(`#${debugId} instance created (beginSession); alive=[${[...debugAliveIds].join(",")}]`);
       recognition.lang = SPEECH_LANG_BY_LOCALE[locale];
       // Android correction (STEP V3): requested anyway (harmless where
-      // unsupported), but never trusted — the onend restart logic below
-      // is what actually carries a long dictation across Android's own
-      // per-utterance auto-stop, not this flag.
+      // unsupported), but never trusted — Android Chrome ends the session
+      // after each utterance regardless of this flag, and nothing here
+      // reopens it automatically (see onend).
       recognition.continuous = true;
       recognition.interimResults = true;
 
@@ -306,7 +294,6 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
           const result = event.results[i];
           const chunk = result?.[0]?.transcript ?? "";
           if (result?.isFinal) {
-            restartCountRef.current = 0;
             if (committedByIndex.get(i) === chunk) {
               vlog(`#${debugId}   result[${i}] already committed, skipped`);
               continue;
@@ -323,25 +310,13 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
         setInterimText(shownInterim);
       };
 
-      recognition.onerror = (event) => {
-        vlog(`#${debugId} onerror error=${event.error}`);
-        if (generation !== generationRef.current) return;
-        // permission denied / not-allowed / fatal error — never
-        // auto-restart (STEP V4 §3). Everything else (no-speech,
-        // network, aborted) is treated as transient; onend decides.
-        if (event.error === "not-allowed" || event.error === "service-not-allowed" || event.error === "audio-capture") {
-          fatalErrorRef.current = true;
-          userStoppedRef.current = true;
-        }
-      };
-
       recognition.onend = () => {
         debugAliveIds.delete(debugId);
         if (generation !== generationRef.current) {
           vlog(`#${debugId} onend ignored (stale instance)`);
           return;
         }
-        vlog(`#${debugId} onend latestInterim=${vq(latestInterimRef.current)} userStopped=${userStoppedRef.current} fatal=${fatalErrorRef.current} restartCount=${restartCountRef.current} alive=[${[...debugAliveIds].join(",")}]`);
+        vlog(`#${debugId} onend latestInterim=${vq(latestInterimRef.current)} alive=[${[...debugAliveIds].join(",")}]`);
         // Interruption Gate (STEP V4 §5) — this session's own leftover
         // interim can never become isFinal now; merge it in as plain
         // text (same as any other appendFinal call — inputValue makes
@@ -354,27 +329,14 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
         }
         setInterimText("");
 
-        if (userStoppedRef.current || fatalErrorRef.current) {
-          setStatus("idle");
-          return;
-        }
-
-        // Restart Loop Gate (STEP V4 §3) — only while the user has
-        // neither stopped nor hit a fatal error, and only up to a
-        // bounded number of consecutive empty restarts.
-        restartCountRef.current += 1;
-        vlog(`#${debugId} auto-restart attempt restartCount=${restartCountRef.current}/${MAX_AUTO_RESTARTS}`);
-        if (restartCountRef.current > MAX_AUTO_RESTARTS) {
-          userStoppedRef.current = true;
-          setStatus("idle");
-          return;
-        }
-
-        try {
-          beginSession();
-        } catch {
-          setStatus("idle");
-        }
+        // Android Microphone Popup Fix — the session is over and stays
+        // over: no new SpeechRecognition is created here. Voice MODE
+        // (voiceModeEnabled) persists across turns; the MICROPHONE does
+        // not. Reopening it straight from onend (no user gesture) made
+        // the browser raise its microphone permission prompt right
+        // after every utterance. The next start() comes only from the
+        // user's tap or the caller's next-question auto-resume.
+        setStatus("idle");
       };
 
       if (isVoiceDebug()) {
@@ -383,6 +345,7 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
         recognition.onspeechstart = () => vlog(`#${debugId} onspeechstart`);
         recognition.onspeechend = () => vlog(`#${debugId} onspeechend`);
         recognition.onnomatch = () => vlog(`#${debugId} onnomatch`);
+        recognition.onerror = (event) => vlog(`#${debugId} onerror error=${event.error}`);
       }
 
       recognitionRef.current = recognition;
@@ -406,37 +369,32 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
     else start();
   }, [status, start, stop]);
 
-  // Unmount safety — never leave a live recognition session or its
-  // restart loop running after the owning component unmounts (Arrival
-  // unmounts the instant the first turn submits; AurinaSpace's shared
-  // instance unmounts with the whole space).
+  // Unmount safety — never leave a live recognition session running
+  // after the owning component unmounts (Arrival unmounts the instant
+  // the first turn submits; AurinaSpace's shared instance unmounts with
+  // the whole space).
   useEffect(() => {
     return () => {
       vlog("unmount cleanup: stop()");
-      userStoppedRef.current = true;
       recognitionRef.current?.stop();
     };
   }, []);
 
-  // Voice UX Final Polish (STEP V11, corrected for Voice Session
-  // Stabilization) — listening takes priority over a still-true
-  // hasProducedText (continuous mode: the user may already have one
-  // final chunk in while still actively speaking the next one), and
-  // "unsupported" never shows the produced state at all (nothing was
-  // ever recognized). Once voiceModeEnabled is true, the original
-  // "○ {idleLabel}" invite never reappears (the whole point of Voice
-  // Session Stabilization) — a brief idle gap while the caller's own
-  // auto-resume effect is about to call start() again reads as
-  // "listening" rather than falsely inviting the user to press the
-  // button they already pressed once this session.
+  // Voice UX Final Polish (STEP V11, corrected for the Microphone Popup
+  // Fix) — "● listening" is shown ONLY while a recognition session is
+  // actually live: voiceModeEnabled alone no longer implies an open
+  // microphone (a finished utterance leaves status idle). When idle,
+  // the chip shows "✓ ready" if there is text in the input (voice mode
+  // on, or voice already produced some) and the original "○ invite"
+  // otherwise. "unsupported" never shows the produced state (nothing
+  // was ever recognized).
+  const hasInputText = inputValue.trim() !== "";
   const label =
     status === "listening"
       ? (locale === "ko" ? VOICE_LISTENING_LABEL_KO : VOICE_LISTENING_LABEL_EN)
-      : status !== "unsupported" && hasProducedText
+      : status !== "unsupported" && (hasProducedText || (voiceModeEnabled && hasInputText))
         ? (locale === "ko" ? VOICE_PRODUCED_LABEL_KO : VOICE_PRODUCED_LABEL_EN)
-        : status !== "unsupported" && voiceModeEnabled
-          ? (locale === "ko" ? VOICE_LISTENING_LABEL_KO : VOICE_LISTENING_LABEL_EN)
-          : `○ ${idleLabel}`;
+        : `○ ${idleLabel}`;
 
   return { status, interimText, toggle, clearInterim, label, voiceModeEnabled, resetVoiceMode };
 }
