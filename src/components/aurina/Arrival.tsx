@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import HriInput from "../HriInput";
-import { useVoiceInput } from "./useVoiceInput";
+import type { VoiceInputState } from "./useVoiceInput";
 import { AURINA_ASSETS } from "./assets";
 import type { Notice } from "@/lib/notice/types";
 import { resolveNoticeContent } from "@/lib/notice/types";
@@ -27,6 +27,12 @@ type Props = {
    *  only when this is provided, i.e. only pre-session (hasHistory
    *  false). See HriSession.tsx's handleLocaleChange for the guard. */
   onLocaleChange?: (locale: UiLocale) => void;
+  /** Voice Session Stabilization — a single useVoiceInput instance
+   *  created once by AurinaSpace (which outlives this component across
+   *  the Arrival -> Conversation transition) and passed down here, so
+   *  activating voice on Arrival's very first message persists into
+   *  Conversation instead of resetting the moment Arrival unmounts. */
+  voice: VoiceInputState;
 };
 
 const NOTICE_PREVIEW_LIMIT = 60;
@@ -109,14 +115,6 @@ function focusArrivalInput() {
 const VOICE_UNSUPPORTED_NOTICE_KO = "이 브라우저에서는 음성 입력을 지원하지 않습니다. 직접 입력해 주세요.";
 const VOICE_UNSUPPORTED_NOTICE_EN = "Voice input isn't supported in this browser — please type instead.";
 
-// STEP V8 §2 — shown only after voice has actually produced text this
-// session (see handleVoiceProducedText below), so it never appears for
-// someone who only typed. Same KO-hardcoded/EN-fallback precedent as
-// VOICE_UNSUPPORTED_NOTICE_* above; mutually exclusive with it (the
-// unsupported case can never also have produced text).
-const VOICE_SUBMIT_HINT_KO = "말을 마치면 + 버튼을 눌러 대화를 시작하세요.";
-const VOICE_SUBMIT_HINT_EN = "When you're done speaking, tap the + button to start the conversation.";
-
 // HOME V1 Service Scene Gate — approved, fixed copy for the upcoming
 // V1 stage (record / store / replay / deliver a person's own words).
 // Korean-only, deliberately kept outside per-locale CONTENT (no ja/en/
@@ -181,19 +179,9 @@ export default function Arrival({
   onRestart,
   locale,
   onLocaleChange,
+  voice,
 }: Props) {
   const t = CONTENT[locale];
-  // Voice Input Gate (STEP V4/V8) — see useVoiceInput.ts's own doc.
-  // STEP V8 §2 — hasUsedVoice flips true only when the hook itself
-  // actually commits voice-produced text (appendFinal, inside the
-  // hook), never merely from opening the mic — wrapping onInputChange
-  // here needs no hook change at all.
-  const [hasUsedVoice, setHasUsedVoice] = useState(false);
-  const handleVoiceProducedText = useCallback((value: string) => {
-    setHasUsedVoice(true);
-    onInputChange(value);
-  }, [onInputChange]);
-  const voice = useVoiceInput(locale, inputValue, handleVoiceProducedText);
   // While an interim transcript is showing, the textarea's displayed
   // value is `inputValue` + the interim overlay (never persisted/
   // drafted — see STEP V4 §2); once resolved (isFinal or onend) the
@@ -403,9 +391,10 @@ export default function Arrival({
             <div className="arrival-below-input-primary">
               <div className="arrival-chips">
                 <span className="arrival-chip">{t.arrival.enterHint}</span>
-                {/* Voice Input Gate (STEP V4) — same chip, no redesign:
-                    the label itself carries the only state change
-                    (listening indicator), and clicking while
+                {/* Voice Input Gate (STEP V4/V8/V11) — same chip, no
+                    redesign: the label itself is now the whole
+                    idle/listening/produced state indicator (see
+                    useVoiceInput.ts's own `label`), and clicking while
                     unsupported reveals one small notice line below
                     instead of doing nothing. */}
                 <button
@@ -417,21 +406,17 @@ export default function Arrival({
                     voice.toggle();
                   }}
                 >
-                  {voice.status === "listening" ? `● ${t.arrival.voiceChip}` : t.arrival.voiceChip}
+                  {voice.label}
                 </button>
                 <button type="button" className="arrival-chip arrival-chip--action">
                   {t.arrival.anonymousChip}
                 </button>
               </div>
-              {voice.status === "unsupported" ? (
+              {voice.status === "unsupported" && (
                 <p className="arrival-example">
                   {locale === "ko" ? VOICE_UNSUPPORTED_NOTICE_KO : VOICE_UNSUPPORTED_NOTICE_EN}
                 </p>
-              ) : hasUsedVoice ? (
-                <p className="arrival-example">
-                  {locale === "ko" ? VOICE_SUBMIT_HINT_KO : VOICE_SUBMIT_HINT_EN}
-                </p>
-              ) : null}
+              )}
 
               <div className="arrival-notice">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

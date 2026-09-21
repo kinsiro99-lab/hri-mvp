@@ -218,13 +218,13 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
         </section>
       )}
 
-      {/* Final UI Gate §7 — two actions, deliberately unequal weight.
-          "대화 다시 보기" is the more important navigation (real
-          user words + AURINA's replies, nothing deleted by visiting
-          it) so it gets the one filled pill on this screen. "다시
-          대화하기" actually discards the session, so it's demoted to
-          the same small text-link tier as "홈", never a second
-          competing pill next to History. */}
+      {/* Final UI Gate §7, corrected by Navigation Stabilization —
+          "대화 다시 보기" keeps the one filled pill on this screen.
+          "홈" removed (see AurinaSpace.tsx's own note: it only ever
+          reopened this exact same navigation with no function of its
+          own). "다시 대화하기" restyled as a clear bordered chip
+          (same .arrival-chip already used elsewhere) instead of plain
+          link text, per the same request. */}
       <section className="reflection-actions reflection-fade" style={{ animationDelay: "420ms" }}>
         {hasHistory && (
           <button type="button" className="reflection-history-btn" onClick={onViewHistory}>
@@ -232,10 +232,7 @@ export default function Reflection({ reflection, onRestart, hasHistory, onViewHi
           </button>
         )}
         <div className="reflection-utility-row">
-          <button type="button" className="aurina-utility-link" onClick={onGoHome}>
-            {t.home}
-          </button>
-          <button type="button" className="aurina-utility-link aurina-utility-link--muted" onClick={onRestart}>
+          <button type="button" className="arrival-chip arrival-chip--action" onClick={onRestart}>
             {t.restartTalk}
           </button>
         </div>

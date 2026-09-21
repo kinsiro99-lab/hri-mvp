@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import HriInput from "../HriInput";
 import { useVoiceInput } from "./useVoiceInput";
+import VoiceDebugOverlay, { vlog } from "./voiceDebug";
 import Arrival from "./Arrival";
 import Reflection from "./Reflection";
 import { AURINA_ASSETS } from "./assets";
@@ -163,7 +164,7 @@ export default function AurinaSpace({
   // ordinary question/thinking/question turn) — so an in-progress voice
   // session is never torn down by that per-turn remount. See
   // useVoiceInput.ts for the unchanged STEP V4 engine this reuses.
-  const voiceInput = useVoiceInput(locale, inputValue, onInputChange);
+  const voiceInput = useVoiceInput(locale, inputValue, onInputChange, t.arrival.voiceChip);
   const displayValue = voiceInput.interimText
     ? `${inputValue}${inputValue.length > 0 && !/\s$/.test(inputValue) ? " " : ""}${voiceInput.interimText}`
     : inputValue;
@@ -175,6 +176,37 @@ export default function AurinaSpace({
     if (voiceInput.status === "unsupported") return;
     voiceInput.toggle();
   };
+
+  // Voice Session Stabilization — once voice mode is on, resume
+  // listening for each new turn automatically instead of making the
+  // user press the button again. Fires only on the exact transition
+  // out of "thinking" into a fresh "question" (a new AURINA turn just
+  // arrived) — never mid-turn, and never overrides an explicit stop
+  // the user just made (that only clears the current utterance's
+  // `status`, not `voiceModeEnabled`, so this simply resumes it next
+  // turn as intended). This calls the SAME toggle() the button uses;
+  // recognition start/stop/interim/final/restart-cap mechanics
+  // themselves are completely untouched.
+  const prevDisplayPhaseRef = useRef(displayPhase);
+  useEffect(() => {
+    const enteredQuestionFromThinking = prevDisplayPhaseRef.current === "thinking" && displayPhase === "question";
+    prevDisplayPhaseRef.current = displayPhase;
+    vlog(`displayPhase=${displayPhase} voiceModeEnabled=${voiceInput.voiceModeEnabled} status=${voiceInput.status}`);
+    if (enteredQuestionFromThinking && voiceInput.voiceModeEnabled && voiceInput.status === "idle") {
+      vlog("AurinaSpace auto-resume -> toggle()");
+      voiceInput.toggle();
+    }
+  }, [displayPhase, voiceInput.voiceModeEnabled, voiceInput.status]);
+
+  // Voice Session Stabilization — hasHistory going false only ever
+  // happens right after a real restart (HriSession's handleRestart
+  // clears allInputs; an ordinary submit only ever grows it), so this
+  // is the one reliable "a new session just began" signal available
+  // here. Safe to run on mount too (voiceModeEnabled already starts
+  // false, so this is a no-op then).
+  useEffect(() => {
+    if (!hasHistory) voiceInput.resetVoiceMode();
+  }, [hasHistory]);
 
   // Restart clears history but this component stays mounted — without
   // this, an expanded trail from a prior session would carry over into
@@ -229,21 +261,28 @@ export default function AurinaSpace({
             onRestart={onRestart}
             locale={locale}
             onLocaleChange={onLocaleChange}
+            voice={voiceInput}
           />
         )}
 
         {isActive && (
           <>
+            {/* Navigation Stabilization — "홈" removed: it only ever set
+                phase back to "idle" (Arrival), which shows this exact
+                same View History/View Final/Restart row again with no
+                added function of its own, while risking the user
+                thinking they've left the conversation when allInputs/
+                history/reflection are all still intact underneath.
+                Remaining items styled as clear bordered chips (same
+                .arrival-chip already used for the voice buttons below),
+                not link text, per the same request. */}
             <div className="aurina-utility-row">
-              <button type="button" className="aurina-utility-link" onClick={onGoHome}>
-                {t.conversation.home}
-              </button>
               {hasFinal && (
-                <button type="button" className="aurina-utility-link" onClick={onViewFinal}>
+                <button type="button" className="arrival-chip arrival-chip--action" onClick={onViewFinal}>
                   {t.conversation.viewFinal}
                 </button>
               )}
-              <button type="button" className="aurina-utility-link aurina-utility-link--muted" onClick={onRestart}>
+              <button type="button" className="arrival-chip arrival-chip--action" onClick={onRestart}>
                 {t.conversation.restart}
               </button>
             </div>
@@ -317,7 +356,7 @@ export default function AurinaSpace({
                   aria-pressed={voiceInput.status === "listening"}
                   onClick={handleVoiceToggle}
                 >
-                  {voiceInput.status === "listening" ? `● ${t.arrival.voiceChip}` : t.arrival.voiceChip}
+                  {voiceInput.label}
                 </button>
               </div>
             )}
@@ -376,13 +415,14 @@ export default function AurinaSpace({
                   aria-pressed={voiceInput.status === "listening"}
                   onClick={handleVoiceToggle}
                 >
-                  {voiceInput.status === "listening" ? `● ${t.arrival.voiceChip}` : t.arrival.voiceChip}
+                  {voiceInput.label}
                 </button>
               </div>
             </div>
           </>
         )}
       </div>
+      <VoiceDebugOverlay />
     </div>
   );
 }

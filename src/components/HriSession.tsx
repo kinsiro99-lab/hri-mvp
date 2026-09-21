@@ -188,6 +188,14 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
 
     const nextInputs = [...allInputs, text]
     const nextTurn = nextInputs.length as Turn
+    // Navigation Stabilization — Restart Race Guard. sessionIdRef.current
+    // is regenerated only by handleRestart() below; snapshotting it here
+    // and re-checking after the network round trip lets this turn detect
+    // "a restart happened while I was in flight" and refuse to apply its
+    // own (now-stale) result on top of the freshly-cleared session —
+    // root cause of restart appearing to leave the old conversation/
+    // Final behind when it was clicked during a pending "thinking" turn.
+    const submittedSessionId = sessionIdRef.current
 
     setInputValue("")
     // Draft Preservation Gate (STEP V4 correction) — protect the
@@ -222,6 +230,15 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
         sessionId: sessionIdRef.current!,
         previousQuestion: mainQuestion ?? undefined,
       })
+
+      // Restart Race Guard — a restart during this await means the
+      // session on screen is no longer this turn's session; applying
+      // this result now would resurrect the conversation/Final the
+      // user just cleared. Storage/draft state was already handled by
+      // handleRestart's own setInputValue(""); nothing further to
+      // clean up here.
+      if (sessionIdRef.current !== submittedSessionId) return
+
       // Draft Preservation Gate (STEP V4 correction) — callEngine has
       // now actually confirmed success; the protected draft has done
       // its job and is safe to clear, regardless of which branch below
@@ -266,6 +283,11 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
       setPhase("idle")
 
     } catch {
+      // Restart Race Guard — same reasoning as the success path above:
+      // a restart during this await means this failure no longer
+      // belongs to anything on screen (no error banner, no text
+      // restore into a box the user just cleared via restart).
+      if (sessionIdRef.current !== submittedSessionId) return
       setError(CONTENT[locale].session.networkError)
       setPhase(turn === 0 ? "idle" : "question")
       // Draft Preservation Gate (STEP V2/V4) — callEngine failed before

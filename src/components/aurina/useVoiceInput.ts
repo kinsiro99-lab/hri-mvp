@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { UiLocale } from "@/lib/hri/locale";
+import { isVoiceDebug, vlog, vq } from "./voiceDebug";
 
 // Voice Input Gate (STEP V4, extracted to a shared hook in STEP V8) —
 // minimal Web Speech API wiring, originally built for Arrival's
@@ -25,6 +26,12 @@ type SpeechRecognitionLike = {
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
+  // Diagnostic-only (voiceDebug) — assigned solely when ?voicedebug=1.
+  onstart?: (() => void) | null;
+  onaudiostart?: (() => void) | null;
+  onspeechstart?: (() => void) | null;
+  onspeechend?: (() => void) | null;
+  onnomatch?: (() => void) | null;
   start: () => void;
   stop: () => void;
 };
@@ -63,6 +70,27 @@ const MAX_AUTO_RESTARTS = 3;
 
 export type VoiceStatus = "idle" | "listening" | "unsupported";
 
+// Diagnostic-only (voiceDebug) — per-instance ids and the set of instances
+// currently between start() and onend, so a log can show whether two
+// recognition instances are ever alive at once. Never read by any
+// behavior path.
+let debugInstanceSeq = 0;
+const debugAliveIds = new Set<number>();
+
+// Voice UX Final Polish (STEP V11) — three-state chip label, shared by
+// Arrival/Conversation/continuation so all three read the exact same
+// text instead of three independently-drifting copies. Only "idle"
+// reuses the caller's own localized copy (`idleLabel`, e.g.
+// t.arrival.voiceChip) — listening/produced are new phrases with no
+// existing i18n key, so they follow this file's own established
+// ko-literal/en-fallback precedent (see VOICE_UNSUPPORTED_NOTICE_KO/EN
+// in Arrival.tsx) rather than inventing a new 7-locale content.ts key
+// for two short states.
+const VOICE_LISTENING_LABEL_KO = "● 듣고 있어요";
+const VOICE_LISTENING_LABEL_EN = "● Listening…";
+const VOICE_PRODUCED_LABEL_KO = "✓ 입력완료 · +를 누르세요";
+const VOICE_PRODUCED_LABEL_EN = "✓ Ready — tap + to continue";
+
 /**
  * Voice Input Gate (STEP V4) — client-only, feature-detected Web
  * Speech wiring. Never assumes a mic exists; never retries past a
@@ -82,10 +110,39 @@ export type VoiceStatus = "idle" | "listening" | "unsupported";
  * import; nothing about feature detection, interim/final handling,
  * stop, interruption merge-in, the Android onend restart correction,
  * fatal-error handling, or the restart cap changed in this move.
+ *
+ * STEP V11 — `idleLabel` (the caller's own localized base phrase, e.g.
+ * t.arrival.voiceChip) is new and purely additive: it does not change
+ * any recognition behavior above, only lets this hook compute the
+ * three-state `label` string (see hasProducedText below) once instead
+ * of each of the three call sites re-deriving it.
  */
-export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChange: (value: string) => void) {
+export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChange: (value: string) => void, idleLabel: string) {
   const [status, setStatus] = useState<VoiceStatus>("idle");
   const [interimText, setInterimText] = useState("");
+  // Voice UX Final Polish (STEP V11) — true only after this hook's own
+  // appendFinal has actually committed voice-produced text (never
+  // merely from opening the mic). Auto-clears the moment `inputValue`
+  // itself goes back to "" — which a normal submit already does
+  // (HriSession/AurinaSpace clear it immediately), and so does the
+  // user manually clearing the field — both cases where "✓ 입력완료"
+  // would otherwise read as stale. No caller needs to remember to
+  // reset this explicitly.
+  const [hasProducedText, setHasProducedText] = useState(false);
+  useEffect(() => {
+    if (inputValue === "") setHasProducedText(false);
+  }, [inputValue]);
+
+  // Voice Session Stabilization — once the user has explicitly turned
+  // voice on (start() below), that intent persists for the rest of the
+  // conversation/session — it must never require pressing the button
+  // again turn after turn. Distinct from `status`, which still reflects
+  // only whether THIS particular utterance is currently listening; a
+  // per-utterance stop/end (natural pause, restart-cap, etc.) does not
+  // clear this. Only an explicit resetVoiceMode() call (the caller's
+  // own signal that a real restart/new session happened) clears it —
+  // this hook has no visibility into "restart" itself.
+  const [voiceModeEnabled, setVoiceModeEnabled] = useState(false);
 
   // Mirrors the `inputValue` prop so recognition callbacks (set up once
   // per session, not on every render) always append to the latest
@@ -93,6 +150,7 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
   const inputValueRef = useRef(inputValue);
   useEffect(() => {
     inputValueRef.current = inputValue;
+    vlog(`inputValue prop -> ${vq(inputValue)}`);
   }, [inputValue]);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -102,24 +160,42 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
   const latestInterimRef = useRef("");
 
   const appendFinal = useCallback((spoken: string) => {
+    vlog(`appendFinal(${vq(spoken)}) inputValueRef=${vq(inputValueRef.current)}`);
     const trimmed = spoken.trim();
     if (!trimmed) return;
     const existing = inputValueRef.current;
     const needsSpace = existing.length > 0 && !/\s$/.test(existing);
     const next = existing ? `${existing}${needsSpace ? " " : ""}${trimmed}` : trimmed;
     inputValueRef.current = next;
+    vlog(`  appendFinal -> onInputChange(${vq(next)})`);
     onInputChange(next);
+    setHasProducedText(true);
   }, [onInputChange]);
 
   const clearInterim = useCallback(() => {
+    vlog(`clearInterim() (typed input while interim showing) latestInterim=${vq(latestInterimRef.current)}`);
     latestInterimRef.current = "";
     setInterimText("");
   }, []);
 
   const stop = useCallback(() => {
+    vlog(`stop() called; recognitionRef=${recognitionRef.current ? "present" : "none"}`);
     userStoppedRef.current = true;
     recognitionRef.current?.stop();
   }, []);
+
+  // Voice Session Stabilization — a real restart must clear BOTH the
+  // session-level flag AND actually end whatever utterance happens to
+  // be live (status alone takes priority over voiceModeEnabled in the
+  // `label` below, so leaving a live session running would still show
+  // "listening" after "새로 시작" despite voiceModeEnabled already
+  // being false — confirmed live in testing). Reuses the exact same
+  // stop() the button itself calls; recognition mechanics untouched.
+  const resetVoiceMode = useCallback(() => {
+    vlog("resetVoiceMode()");
+    setVoiceModeEnabled(false);
+    stop();
+  }, [stop]);
 
   const start = useCallback(() => {
     const SpeechRecognitionCtor = getSpeechRecognitionConstructor();
@@ -128,12 +204,16 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
       return;
     }
 
+    vlog(`start() called; previous recognitionRef=${recognitionRef.current ? "present" : "none"} alive=[${[...debugAliveIds].join(",")}]`);
+    setVoiceModeEnabled(true);
     userStoppedRef.current = false;
     fatalErrorRef.current = false;
     restartCountRef.current = 0;
 
     const beginSession = () => {
       const recognition = new SpeechRecognitionCtor();
+      const debugId = ++debugInstanceSeq;
+      vlog(`#${debugId} instance created (beginSession); alive=[${[...debugAliveIds].join(",")}]`);
       recognition.lang = SPEECH_LANG_BY_LOCALE[locale];
       // Android correction (STEP V3): requested anyway (harmless where
       // unsupported), but never trusted — the onend restart logic below
@@ -143,6 +223,14 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
       recognition.interimResults = true;
 
       recognition.onresult = (event) => {
+        if (isVoiceDebug()) {
+          const parts: string[] = [];
+          for (let i = 0; i < event.results.length; i++) {
+            const r = event.results[i];
+            parts.push(`[${i}]${i < event.resultIndex ? "(old)" : ""} final=${r?.isFinal} ${vq(r?.[0]?.transcript ?? "")}`);
+          }
+          vlog(`#${debugId} onresult resultIndex=${event.resultIndex} length=${event.results.length} ${parts.join(" | ")}`);
+        }
         let interim = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i];
@@ -155,10 +243,12 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
           }
         }
         latestInterimRef.current = interim;
+        vlog(`#${debugId}   interim set -> ${vq(interim)}`);
         setInterimText(interim);
       };
 
       recognition.onerror = (event) => {
+        vlog(`#${debugId} onerror error=${event.error}`);
         // permission denied / not-allowed / fatal error — never
         // auto-restart (STEP V4 §3). Everything else (no-speech,
         // network, aborted) is treated as transient; onend decides.
@@ -169,6 +259,8 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
       };
 
       recognition.onend = () => {
+        debugAliveIds.delete(debugId);
+        vlog(`#${debugId} onend latestInterim=${vq(latestInterimRef.current)} userStopped=${userStoppedRef.current} fatal=${fatalErrorRef.current} restartCount=${restartCountRef.current} alive=[${[...debugAliveIds].join(",")}]`);
         // Interruption Gate (STEP V4 §5) — this session's own leftover
         // interim can never become isFinal now; merge it in as plain
         // text (same as any other appendFinal call — inputValue makes
@@ -190,6 +282,7 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
         // neither stopped nor hit a fatal error, and only up to a
         // bounded number of consecutive empty restarts.
         restartCountRef.current += 1;
+        vlog(`#${debugId} auto-restart attempt restartCount=${restartCountRef.current}/${MAX_AUTO_RESTARTS}`);
         if (restartCountRef.current > MAX_AUTO_RESTARTS) {
           userStoppedRef.current = true;
           setStatus("idle");
@@ -203,11 +296,22 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
         }
       };
 
+      if (isVoiceDebug()) {
+        recognition.onstart = () => vlog(`#${debugId} onstart`);
+        recognition.onaudiostart = () => vlog(`#${debugId} onaudiostart`);
+        recognition.onspeechstart = () => vlog(`#${debugId} onspeechstart`);
+        recognition.onspeechend = () => vlog(`#${debugId} onspeechend`);
+        recognition.onnomatch = () => vlog(`#${debugId} onnomatch`);
+      }
+
       recognitionRef.current = recognition;
       try {
+        vlog(`#${debugId} recognition.start() invoked`);
         recognition.start();
+        debugAliveIds.add(debugId);
         setStatus("listening");
-      } catch {
+      } catch (e) {
+        vlog(`#${debugId} recognition.start() threw ${String(e)}`);
         setStatus("idle");
       }
     };
@@ -216,6 +320,7 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
   }, [locale, appendFinal]);
 
   const toggle = useCallback(() => {
+    vlog(`toggle() status=${status}`);
     if (status === "listening") stop();
     else start();
   }, [status, start, stop]);
@@ -226,10 +331,40 @@ export function useVoiceInput(locale: UiLocale, inputValue: string, onInputChang
   // instance unmounts with the whole space).
   useEffect(() => {
     return () => {
+      vlog("unmount cleanup: stop()");
       userStoppedRef.current = true;
       recognitionRef.current?.stop();
     };
   }, []);
 
-  return { status, interimText, toggle, clearInterim };
+  // Voice UX Final Polish (STEP V11, corrected for Voice Session
+  // Stabilization) — listening takes priority over a still-true
+  // hasProducedText (continuous mode: the user may already have one
+  // final chunk in while still actively speaking the next one), and
+  // "unsupported" never shows the produced state at all (nothing was
+  // ever recognized). Once voiceModeEnabled is true, the original
+  // "○ {idleLabel}" invite never reappears (the whole point of Voice
+  // Session Stabilization) — a brief idle gap while the caller's own
+  // auto-resume effect is about to call start() again reads as
+  // "listening" rather than falsely inviting the user to press the
+  // button they already pressed once this session.
+  const label =
+    status === "listening"
+      ? (locale === "ko" ? VOICE_LISTENING_LABEL_KO : VOICE_LISTENING_LABEL_EN)
+      : status !== "unsupported" && hasProducedText
+        ? (locale === "ko" ? VOICE_PRODUCED_LABEL_KO : VOICE_PRODUCED_LABEL_EN)
+        : status !== "unsupported" && voiceModeEnabled
+          ? (locale === "ko" ? VOICE_LISTENING_LABEL_KO : VOICE_LISTENING_LABEL_EN)
+          : `○ ${idleLabel}`;
+
+  return { status, interimText, toggle, clearInterim, label, voiceModeEnabled, resetVoiceMode };
 }
+
+// Voice Session Stabilization — exported so a single hook instance can
+// be created once (in AurinaSpace, which outlives every phase
+// transition including Arrival -> Conversation) and passed down as an
+// ordinary prop to Arrival, instead of Arrival creating its own,
+// independent second instance with its own separate voiceModeEnabled
+// that could never survive past Arrival's own unmount. See
+// AurinaSpace.tsx/Arrival.tsx for the call site.
+export type VoiceInputState = ReturnType<typeof useVoiceInput>;
