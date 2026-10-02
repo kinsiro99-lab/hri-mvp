@@ -1340,105 +1340,73 @@ a.arrival-banner-ad:hover {
   border-top: 1px solid var(--border-soft);
 }
 
-/* V1 Layout Balance Gate — desktop only: LEFT (connector/title/body)
-   beside RIGHT (V1 SERVICE), so the right half of the Scene is no
-   longer mostly empty at 1440px. Reuses the same 861px threshold and
-   border-left-divider pattern already used elsewhere on this page
-   (.arrival-cards/.arrival-below-input). Mobile keeps the existing
-   stacked block flow untouched — no rule here applies below 861px, so
-   copy/size/color and the top-to-bottom order are all unchanged. */
-@media (min-width: 861px) {
-  .arrival-v1-scene {
-    display: flex;
-    align-items: flex-start;
-    gap: 56px;
-  }
-
-  .arrival-v1-left {
-    flex: 1 1 55%;
-    min-width: 0;
-  }
-
-  .arrival-v1-service {
-    flex: 1 1 40%;
-    min-width: 0;
-    margin-top: 0;
-    padding-top: 0;
-    padding-left: 40px;
-    border-top: none;
-    border-left: 1px solid var(--border-soft);
-  }
+/* V1 Section Layout — one centered content area, read top to bottom:
+   title → meaning → function. The earlier flex row (connector | title |
+   body | V1 SERVICE) squeezed the title into a narrow column ("마음기록 /
+   · / 마음보관 …") and pushed V1 SERVICE to the far right; nothing here is
+   side by side anymore and there is no vertical divider. Same beige /
+   black / gold language and type scale as before. */
+.arrival-v1-inner {
+  max-width: 880px;
+  margin: 0 auto;
 }
 
 .arrival-v1-connector {
-  margin: 0 0 12px;
+  margin: 0 0 16px;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--gold);
+  word-break: keep-all;
 }
 
-/* V1 Title Line Break Gate — max-width removed (was 26ch, which under-
-   measured this Korean line and forced an awkward mid-word auto-wrap
-   at 1440px: "마 / 음재생"). Line 1 now has enough room to sit on one
-   line on its own; the explicit two-line split itself is done with
-   .arrival-v1-title-break below, not by constraining this width.
-   Font-size/weight/color untouched. */
+/* keep-all: Korean wraps only between words (never "마음 / 보관");
+   overflow-wrap stays normal so no word is torn just to avoid overflow. */
 .arrival-v1-title {
-  margin: 0 0 20px;
-  font-size: clamp(24px, 3.2vw, 34px);
+  margin: 0 0 24px;
   font-weight: 800;
   line-height: 1.35;
   letter-spacing: -0.01em;
   color: var(--ink-1);
-  /* V1 Mobile Title Final Fix — keep-all stops the browser's default
-     any-character-boundary Korean line-breaking from splitting a
-     feature name in two ("마음보관" -> "마음" / "보관") when the line
-     wraps naturally on narrow screens; overflow-wrap stays "normal"
-     (no forced break) so a long word is never torn just to avoid
-     overflow. Only affects where a wrap CAN happen, not size/weight/
-     color, and has no effect on the explicit desktop <br> below. */
   word-break: keep-all;
   overflow-wrap: normal;
 }
 
-/* Desktop: an explicit line break (see Arrival.tsx's ARRIVAL_V1_TITLE_
-   LINE1/LINE2 + the <br> between them) so the title always shows as
-   exactly two lines, both starting at the same left edge (plain block
-   text, no indent). Mobile: the <br> is hidden and the literal space
-   right after it (also in Arrival.tsx) lets the two lines flow back
-   together as one naturally-wrapping run of text, matching whatever
-   width the phone actually has instead of always breaking at this
-   desktop-specific point. 861px reuses the same threshold already
-   used elsewhere on this page (see .arrival-cards/.arrival-below-input). */
-.arrival-v1-title-break {
-  display: none;
+.arrival-v1-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: clamp(14px, 1.3vw, 16px);
+  letter-spacing: 0.08em;
+  color: var(--gold);
 }
 
-@media (min-width: 861px) {
-  .arrival-v1-title-break {
-    display: block;
-  }
+.arrival-v1-title-text {
+  display: block;
+  font-size: clamp(24px, 3.2vw, 36px);
+}
+
+.arrival-v1-title-part {
+  white-space: nowrap;
 }
 
 .arrival-v1-body {
-  margin: 0 0 32px;
+  margin: 0 0 36px;
+  max-width: 40em;
   font-size: clamp(15px, 1.7vw, 18px);
   line-height: 1.7;
   color: var(--ink-2);
-  max-width: 46ch;
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
+/* Function follows meaning in the same area: a light top rule, not a
+   separate column. */
 .arrival-v1-service {
   padding-top: 28px;
   border-top: 1px solid var(--border-soft);
-  max-width: 46ch;
 }
 
-/* Typography Continuity Fix — label/list enlarged so this reads as a
-   real part of the page's body copy, not fine print. Text/colors
-   unchanged, only size/line-height/gap increased. */
 .arrival-v1-service-label {
   margin: 0 0 16px;
   font-size: clamp(14px, 1.3vw, 15px);
@@ -1457,12 +1425,25 @@ a.arrival-banner-ad:hover {
   gap: 18px;
 }
 
+/* Desktop: the four functions use the width as two rows of two, still
+   inside the same content area. */
+@media (min-width: 861px) {
+  .arrival-v1-service-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 40px;
+    row-gap: 18px;
+  }
+}
+
 .arrival-v1-service-list li {
   position: relative;
   padding-left: 24px;
   font-size: clamp(16px, 1.6vw, 18px);
   line-height: 1.7;
   color: var(--ink-2);
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .arrival-v1-service-list li::before {
@@ -2239,5 +2220,73 @@ a.arrival-banner-ad:hover {
 @media (max-width: 560px) {
   .aurina-page {
     padding: 32px 18px 72px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Conversation Waiting / Listening Indicator — tied to the real request
+   lifecycle (see AurinaSpace's conversationState). LISTENING breathes;
+   WAITING turns. Small, quiet, never an overlay, never a percentage.
+   ══════════════════════════════════════════════════════════════════ */
+.aurina-status {
+  min-height: 18px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-3);
+}
+
+.aurina-listening-pulse {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(47, 79, 209, 0.85);
+  animation: aurina-listening-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes aurina-listening-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 0.95; transform: scale(1); }
+}
+
+.aurina-waiting {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.aurina-waiting .aurina-thinking {
+  margin-top: 0;
+}
+
+.aurina-spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(47, 79, 209, 0.15);
+  border-top-color: rgba(47, 79, 209, 0.75);
+  animation: aurina-spin 0.9s linear infinite;
+}
+
+@keyframes aurina-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Reduced motion: the pulse rests; the spinner keeps turning, slowly, so
+   "still working" is never lost (no flashing either way). */
+@media (prefers-reduced-motion: reduce) {
+  .aurina-listening-pulse {
+    animation: none;
+    opacity: 0.7;
+  }
+  .aurina-spinner {
+    animation-duration: 2.4s;
   }
 }

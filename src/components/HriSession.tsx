@@ -174,6 +174,14 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
 
   const turn = allInputs.length as Turn
 
+  // Conversation Waiting Indicator — duplicate-submit guard. `phase` only
+  // becomes "thinking" on the next render, so two taps inside the same
+  // frame (a common "it didn't react, tap again" on mobile) could both see
+  // the old phase and send the same answer twice. A ref flips
+  // synchronously on the first tap. Cleared when this submit settles, or
+  // by handleRestart (a new session may submit right away).
+  const inFlightRef = useRef(false)
+
   // ── Submit ─────────────────────────────────────────────────────
   const handleSubmit = useCallback(async (rawText?: string) => {
   const text = (rawText ?? inputValue).trim()
@@ -184,7 +192,8 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
     // input list through the same stateless engine call below; nothing
     // about server-side evidence/session identity changes. Restart
     // (handleRestart) remains the only path that resets them.
-    if (!text || phase === "thinking") return
+    if (!text || phase === "thinking" || inFlightRef.current) return
+    inFlightRef.current = true
 
     const nextInputs = [...allInputs, text]
     const nextTurn = nextInputs.length as Turn
@@ -300,11 +309,16 @@ export default function HriSession({ notices = [] }: { notices?: Notice[] }) {
       // which re-writes the same value the instant inputValue changes.
       pendingSubmitDraftRef.current = null
       setInputValue(text)
+    } finally {
+      // Only this session's own submit releases the guard; after a
+      // restart the guard already belongs to the new session.
+      if (sessionIdRef.current === submittedSessionId) inFlightRef.current = false
     }
   }, [inputValue, allInputs, phase, turn, locale, engineState, engineEvents])
 
   // ── Restart ────────────────────────────────────────────────────
   const handleRestart = () => {
+    inFlightRef.current = false
     setPhase("idle")
     setInputValue("")
     setHistory([])

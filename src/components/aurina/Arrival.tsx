@@ -128,13 +128,12 @@ const VOICE_UNSUPPORTED_NOTICE_EN = "Voice input isn't supported in this browser
 // scheduling/permission behavior is implemented anywhere in this
 // codebase, this Scene only describes what is coming.
 const ARRIVAL_V1_CONNECTOR = "곧, 마음의 거울은 V1으로 이어집니다.";
-// V1 Title Line Break Gate — split into two explicit lines (desktop
-// only, see .arrival-v1-title-break in aurina.css) so the title never
-// auto-wraps mid-word ("마 / 음재생") at 1440px. Not a font-size/color
-// change, and the underlying words are identical to the approved
-// title, just broken at this exact point instead of with " · ".
-const ARRIVAL_V1_TITLE_LINE1 = "HRI V1 — 마음기록 · 마음보관";
-const ARRIVAL_V1_TITLE_LINE2 = "마음재생 · 마음전달";
+// V1 Section Layout — the approved title "HRI V1 — 마음기록 · 마음보관 ·
+// 마음재생 · 마음전달" (Production copy), shown as a small "HRI V1" label
+// over the full-width service title. Same words; the title is never
+// squeezed into a narrow column again.
+const ARRIVAL_V1_LABEL = "HRI V1";
+const ARRIVAL_V1_TITLE = "마음기록 · 마음보관 · 마음재생 · 마음전달";
 const ARRIVAL_V1_BODY =
   "오늘 마음의 거울에 남긴 이야기는 기록되고 쌓입니다.\n다시 만나고 싶은 날 꺼내볼 수 있고, 먼 훗날 소중한 분에게 전할 수도 있습니다.";
 const ARRIVAL_V1_SERVICE_ITEMS = [
@@ -150,21 +149,36 @@ const ARRIVAL_V1_SERVICE_ITEMS = [
 // Beta Up Final Cleanup Gate: mirror experience -> V1 future ->
 // notices/ads — never inside the hero, never disturbing the
 // KEEP-protected cards/ad/utility-row order that follows it.
+// V1 Section Layout — one content area read top to bottom: title →
+// meaning → function. No side-by-side columns, no vertical divider.
 function ArrivalV1Scene() {
   return (
     <section className="arrival-v1-scene">
-      <p className="arrival-v1-connector">{ARRIVAL_V1_CONNECTOR}</p>
-      <h2 className="arrival-v1-title">
-        {ARRIVAL_V1_TITLE_LINE1}<br className="arrival-v1-title-break" /> {ARRIVAL_V1_TITLE_LINE2}
-      </h2>
-      <p className="arrival-v1-body">{renderLines(ARRIVAL_V1_BODY)}</p>
-      <div className="arrival-v1-service">
-        <p className="arrival-v1-service-label">V1 SERVICE</p>
-        <ul className="arrival-v1-service-list">
-          {ARRIVAL_V1_SERVICE_ITEMS.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
+      <div className="arrival-v1-inner">
+        <p className="arrival-v1-connector">{ARRIVAL_V1_CONNECTOR}</p>
+        <h2 className="arrival-v1-title">
+          <span className="arrival-v1-label">{ARRIVAL_V1_LABEL}</span>
+          {/* Each item keeps its " ·" with it, so a narrow screen breaks
+              the title only between items — never leaving "·" at the
+              start of a line. The rendered text is unchanged. */}
+          <span className="arrival-v1-title-text">
+            {ARRIVAL_V1_TITLE.split(" · ").map((part, i, all) => (
+              <span key={part} className="arrival-v1-title-part">
+                {part}
+                {i < all.length - 1 ? " ·" : ""}
+              </span>
+            )).flatMap((el, i) => (i === 0 ? [el] : [" ", el]))}
+          </span>
+        </h2>
+        <p className="arrival-v1-body">{renderLines(ARRIVAL_V1_BODY)}</p>
+        <div className="arrival-v1-service">
+          <p className="arrival-v1-service-label">V1 SERVICE</p>
+          <ul className="arrival-v1-service-list">
+            {ARRIVAL_V1_SERVICE_ITEMS.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
       </div>
     </section>
   );

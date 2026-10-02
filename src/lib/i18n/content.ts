@@ -85,6 +85,8 @@ export type Content = {
     collapse: string;
     myStory: string;
     thinking: string;
+    /** LISTENING signal while AURINA waits for the user's next input. */
+    listening: string;
     inputPlaceholder: string;
     continuationTitle: string;
     continuationPlaceholder: string;
@@ -177,6 +179,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       collapse: "접기",
       myStory: "나의 이야기",
       thinking: "AURINA가 지금까지의 이야기를 천천히 바라보고 있습니다…",
+      listening: "듣고 있어요",
       inputPlaceholder: "지금 떠오르는 것을 적어보세요.",
       continuationTitle: "더 떠오르는 것이 있다면",
       continuationPlaceholder: "이어서 적어보세요.",
@@ -265,6 +268,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       collapse: "閉じる",
       myStory: "わたしの話",
       thinking: "AURINAがこれまでのお話をゆっくり見つめています…",
+      listening: "聞いています",
       inputPlaceholder: "今、浮かんでいることを書いてみてください。",
       continuationTitle: "もう少し浮かぶことがあれば",
       continuationPlaceholder: "続けて書いてみてください。",
@@ -348,6 +352,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       collapse: "Collapse",
       myStory: "What I said",
       thinking: "AURINA is slowly taking in the conversation so far…",
+      listening: "Listening",
       inputPlaceholder: "Write down what's coming up right now.",
       continuationTitle: "If anything else comes to mind",
       continuationPlaceholder: "Keep writing.",
@@ -436,6 +441,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       collapse: "Réduire",
       myStory: "Ce que j'ai dit",
       thinking: "AURINA prend lentement connaissance de la conversation jusqu'ici…",
+      listening: "À l'écoute",
       inputPlaceholder: "Écrivez ce qui vous vient à l'esprit, là, maintenant.",
       continuationTitle: "Si autre chose vous vient à l'esprit",
       continuationPlaceholder: "Continuez à écrire.",
@@ -522,6 +528,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       collapse: "收起",
       myStory: "我说的话",
       thinking: "AURINA 正在慢慢梳理你到目前为止说的话……",
+      listening: "正在倾听",
       inputPlaceholder: "写下此刻浮现的想法。",
       continuationTitle: "如果还有其他想法",
       continuationPlaceholder: "请继续写下去。",
@@ -605,6 +612,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       collapse: "收起",
       myStory: "我所說的話",
       thinking: "AURINA 正在慢慢細看您到目前為止所說的話……",
+      listening: "正在聆聽",
       inputPlaceholder: "寫下此刻浮現的想法。",
       continuationTitle: "如果還有其他想法",
       continuationPlaceholder: "請繼續寫下去。",
@@ -688,6 +696,7 @@ export const CONTENT: Record<UiLocale, Content> = {
       collapse: "收合",
       myStory: "我說的話",
       thinking: "AURINA 正在慢慢感受你到目前為止說的話……",
+      listening: "正在聆聽",
       inputPlaceholder: "寫下此刻浮現的想法。",
       continuationTitle: "如果還有其他想法",
       continuationPlaceholder: "請繼續寫下去。",

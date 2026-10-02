@@ -255,6 +255,19 @@ export default function AurinaSpace({
     if (history.length === 0) setTrailExpanded(false);
   }, [history.length]);
 
+  // Conversation Waiting / Listening Indicator — the three states come
+  // straight from the real request lifecycle: HriSession sets phase to
+  // "thinking" the instant a submit starts and replaces it only when
+  // callEngine has resolved; displayPhase leaves "thinking" in the same
+  // atomic snapshot that puts the response on screen (useDisplayState).
+  // So WAITING is on from submit until the response is actually visible,
+  // and never outlives it. No timer of its own.
+  //   LISTENING — a question is shown and AURINA waits for the next input
+  //   WAITING   — the user has sent; the response is not on screen yet
+  //   READY     — the response (Final/Reflection) is fully shown
+  const conversationState: "LISTENING" | "WAITING" | "READY" =
+    displayPhase === "thinking" ? "WAITING" : displayPhase === "question" ? "LISTENING" : "READY";
+
   const isIdle = displayPhase === "idle";
   const isActive = displayPhase === "question" || displayPhase === "thinking";
   const isDone = displayPhase === "done";
@@ -284,6 +297,17 @@ export default function AurinaSpace({
             <img src={AURINA_ASSETS.identityImage} alt="AURINA" />
           </div>
           <div className="aurina-name">AURINA</div>
+          {/* Always rendered while the identity anchor is shown (fixed
+              height) so switching LISTENING ↔ WAITING never shifts the
+              layout; only the small signal inside changes. */}
+          <div className="aurina-status" data-state={conversationState}>
+            {conversationState === "LISTENING" && (
+              <>
+                <span className="aurina-status-text">{t.conversation.listening}</span>
+                <span className="aurina-listening-pulse" aria-hidden="true" />
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -375,7 +399,11 @@ export default function AurinaSpace({
             )}
 
             {displayPhase === "thinking" ? (
-              <p className="aurina-thinking">{t.conversation.thinking}</p>
+              // WAITING — at the place the response will appear, until it does.
+              <div className="aurina-waiting" role="status" aria-busy="true">
+                <span className="aurina-spinner" aria-hidden="true" />
+                <p className="aurina-thinking">{t.conversation.thinking}</p>
+              </div>
             ) : (
               <div className="aurina-input-zone">
                 <HriInput
